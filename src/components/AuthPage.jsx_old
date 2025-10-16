@@ -1,0 +1,277 @@
+// src/components/AuthPage.jsx
+import { useEffect } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.jsx";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.jsx";
+import { Terminal, Github } from "lucide-react";
+import api from "../lib/api"; // ✅ importando o cliente axios
+
+function AuthPage({ setIsAuthenticated, setUser, loadPrompts, loadCategories, loadStats }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordStrength, setPasswordStrength] = useState("");
+
+
+ 
+
+useEffect(() => {
+  // Limpa campos ao trocar de aba
+  setPassword("");
+  setConfirmPassword("");
+  setError(null);
+  setMessage(null);
+}, []);
+
+  // 🔹 Registro
+
+ const handleRegister = async (e) => {
+  e.preventDefault();
+  setError(null);
+  setMessage(null);
+
+  const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+  if (password !== confirmPassword) {
+    setError("As senhas não coincidem.");
+    return;
+  }
+
+  if (!regex.test(password)) {
+    setError(
+      "A senha deve ter no mínimo 8 caracteres, incluindo letra maiúscula, número e caractere especial."
+    );
+    return;
+  }
+
+  try {
+    const { data } = await api.post("/api/auth/register", { email, password, name });
+    if (data.success) {
+      setMessage(
+        "Conta criada com sucesso! 📬 Enviamos um e-mail de confirmação para o endereço informado. " +
+        "Verifique sua caixa de entrada (ou a pasta de spam) e clique no link para ativar sua conta antes de fazer login."
+      );
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setName("");
+    } else {
+      setError(data.error || "Erro no registro.");
+    }
+  } catch (err) {
+    console.error(err);
+    setError("Erro de conexão. Tente novamente mais tarde.");
+  }
+};
+
+
+{/* 
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    try {
+      const { data } = await api.post("/api/auth/register", { email, password, name });
+      if (data.success) {
+        setMessage("Registro bem-sucedido! Faça login agora.");
+        setEmail("");
+        setPassword("");
+        setName("");
+      } else {
+        setError(data.error || "Erro no registro.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Erro de conexão. Tente novamente mais tarde.");
+    }
+  };
+*/}
+  // 🔹 Login
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    try {
+      const { data } = await api.post("/api/auth/login", { email, password });
+      if (data.success) {
+        // ✅ o cookie JWT é gravado automaticamente, sem precisar do token no localStorage
+        setUser(data.user);
+        setIsAuthenticated(true);
+        loadPrompts();
+        loadCategories();
+        loadStats();
+      } else {
+        setError(data.error || "Erro no login.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Erro de conexão. Tente novamente mais tarde.");
+    }
+  };
+
+const checkPasswordStrength = (senha) => {
+  let strength = "Fraca";
+  if (senha.length >= 8) {
+    const hasUpper = /[A-Z]/.test(senha);
+    const hasNumber = /\d/.test(senha);
+    const hasSpecial = /[@$!%*?&]/.test(senha);
+    const checks = [hasUpper, hasNumber, hasSpecial].filter(Boolean).length;
+    if (checks === 1) strength = "Média";
+    if (checks > 1) strength = "Forte";
+  }
+  setPasswordStrength(strength);
+};
+
+
+  // 🔹 Login Google
+  const handleGoogleLogin = () => {
+    window.location.href = "/api/auth/login/google";
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-3xl font-bold">Promply.app</CardTitle>
+          <CardDescription>Faça login ou crie uma conta para gerenciar seus prompts.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+            {message && (
+            <Alert className="mb-4 border-blue-400 bg-blue-50 text-blue-700">
+              <Terminal className="h-4 w-4 text-blue-600" />
+              <AlertTitle>Verifique seu e-mail 📬</AlertTitle>
+              <AlertDescription>{message}</AlertDescription>
+            </Alert>
+          )}
+          <Tabs defaultValue="login" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="register">Registrar</TabsTrigger>
+            </TabsList>
+{/* 🔸 LOGIN */}
+<TabsContent value="login" className="mt-4">
+  <form onSubmit={handleLogin} className="space-y-4">
+    <div className="space-y-2">
+      <Label htmlFor="email-login">Email</Label>
+      <Input
+        id="email-login"
+        type="email"
+        placeholder="seu@email.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+    </div>
+
+    <div className="space-y-2">
+      <Label htmlFor="password-login">Senha</Label>
+      <Input
+        id="password-login"
+        type="password"
+        placeholder="********"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        required
+      />
+    </div>
+
+    <Button type="submit" className="w-full">
+      Entrar
+    </Button>
+  </form>
+</TabsContent>
+
+       
+            {/* 🔸 REGISTRO */}
+           <TabsContent value="register" className="mt-4">
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name-register">Nome</Label>
+                <Input
+                  id="name-register"
+                  type="text"
+                  placeholder="Seu Nome"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email-register">Email</Label>
+                <Input
+                  id="email-register"
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password-register">Senha</Label>
+                <Input
+                  id="password-register"
+                  type="password"
+                  placeholder="********"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    checkPasswordStrength(e.target.value);
+                  }}
+                  required
+                />
+                {password && (
+                  <p
+                    className={`text-sm mt-1 ${
+                      passwordStrength === "Forte"
+                        ? "text-green-600"
+                        : passwordStrength === "Média"
+                        ? "text-yellow-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    Força da senha: {passwordStrength}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password-register">Confirmar Senha</Label>
+                <Input
+                  id="confirm-password-register"
+                  type="password"
+                  placeholder="Digite novamente"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Button type="submit" className="w-full">Registrar</Button>
+            </form>
+          </TabsContent>
+
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default AuthPage;
