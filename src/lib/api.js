@@ -1,29 +1,32 @@
 import axios from 'axios'
 
+
+
 // ✅ Configuração da URL da API baseada no ambiente
 const getApiBaseUrl = () => {
-  // 1. Tenta pegar do ambiente (build time)
-  const envApiUrl = import.meta.env.VITE_API_URL
-  
-  if (envApiUrl) {
-    // Se começa com http, usa como está (backend separado)
-    if (envApiUrl.startsWith('http')) {
-      return envApiUrl
-    }
-    // Se é caminho relativo (ex: /api), usa a origem atual
-    return envApiUrl
-  }
-  
-  // 2. Fallback para desenvolvimento local
-  if (import.meta.env.DEV) {
-    return 'http://localhost:5000/api'
-  }
-  
-  // 3. Fallback para produção (mesma origem)
-  return '/api'
-}
+  // 1️⃣ Pega do ambiente (Render ou build local)
+  const envApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
 
-const API_BASE_URL = getApiBaseUrl()
+  if (envApiUrl) {
+    // Se começa com http, usa direto (backend separado)
+    if (envApiUrl.startsWith('http')) {
+      return envApiUrl;
+    }
+    // Se for caminho relativo (ex: /auth), mantém
+    return envApiUrl;
+  }
+
+  // 2️⃣ Fallback para desenvolvimento local
+  if (import.meta.env.DEV) {
+    // ⚠️ Sem "/api" — backend agora está sem prefixo
+    return 'http://localhost:5000';
+  }
+
+  // 3️⃣ Fallback para produção (Render)
+  return '';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 console.log('🌐 API Base URL:', API_BASE_URL)
 
