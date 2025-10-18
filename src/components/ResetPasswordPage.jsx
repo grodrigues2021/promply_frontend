@@ -1,8 +1,9 @@
+import React from 'react'
 import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Label } from '@/components/ui/label.jsx'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { Label } from './ui/label'
 import { Lock, Eye, EyeOff } from 'lucide-react'
 import PromplyLogo from "../assets/promply-logo.svg"
 

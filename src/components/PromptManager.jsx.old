@@ -1,14 +1,13 @@
-import { toast } from 'sonner'  // ← Adicione no topo
 import React, { useState, useEffect } from 'react'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
-import { Badge } from './ui/badge'
-import { Textarea } from './ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { ScrollArea } from './ui/scroll-area'
-import { Label } from './ui/label'
+import { Button } from '@/components/ui/button.jsx'
+import { Input } from '@/components/ui/input.jsx'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
+import { Badge } from '@/components/ui/badge.jsx'
+import { Textarea } from '@/components/ui/textarea.jsx'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.jsx'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
+import { ScrollArea } from '@/components/ui/scroll-area.jsx'
+import { Label } from '@/components/ui/label.jsx'
 import {
   Search,
   Copy,
@@ -20,7 +19,7 @@ import {
   Tag,
   BookOpen,
   Heart,
-  Share2,
+  Share2, // ✨ NOVO: Ícone de compartilhar
 } from 'lucide-react'
 import PromplyLogo from "../assets/promply-logo.svg"
 import { useAuth } from '../hooks/useAuth'
@@ -28,7 +27,7 @@ import { BookTemplate } from 'lucide-react'
 import TemplatesPage from './TemplatesPage.jsx'
 import { MessageSquare, Star, Plus } from 'lucide-react'
 import ChatModal from './ChatModal'
-import SharePromptModal from './SharePromptModal'
+import SharePromptModal from './SharePromptModal' // ✨ NOVO: Import do modal
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -49,7 +48,7 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
   const [showTemplates, setShowTemplates] = useState(false)
   const [showChatModal, setShowChatModal] = useState(false)
   
-  // States para compartilhar
+  // ✨ NOVO: States para compartilhar
   const [showShareModal, setShowShareModal] = useState(false)
   const [promptToShare, setPromptToShare] = useState(null)
 
@@ -95,6 +94,7 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
         const matchesSearch =
           (prompt.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             prompt.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            // ✅ CORRIGIDO: Normaliza tags para busca
             (prompt.tags && (
               Array.isArray(prompt.tags)
                 ? prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -181,6 +181,7 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
         credentials: 'include',
         body: JSON.stringify({
           ...promptForm,
+          // ✅ CORRIGIDO: Sempre envia tags como array (split só se for string)
           tags: typeof promptForm.tags === 'string'
             ? promptForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
             : (Array.isArray(promptForm.tags) ? promptForm.tags : [])
@@ -308,15 +309,10 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
       })
       
       loadPrompts()
-      toast.success('Prompt copiado!', {
-        duration: 2000,
-        className: 'toast-copied',  // ← ADICIONE ESTA LINHA
-      })
+      alert('Prompt copiado para a área de transferência!')
     } catch (error) {
       console.error('Erro ao copiar prompt:', error)
-      toast.error('Erro ao copiar', {
-      description: 'Não foi possível copiar o prompt'
-    })
+      alert('Erro ao copiar prompt')
     }
   }
 
@@ -342,7 +338,7 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
     setEditingCategory(null)
   }
 
-  // Função helper para normalizar tags
+  // ✅ Função helper para normalizar tags
   const normalizeTags = (tags) => {
     if (!tags) return '';
     if (Array.isArray(tags)) return tags.join(', ');
@@ -503,14 +499,88 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg">Minhas Categorias</CardTitle>
                     <Button 
-                      size="sm" 
-                      onClick={() => {
-                        resetCategoryForm();
-                        setIsCategoryDialogOpen(true);
-                      }}
-                    >
-                      <FolderPlus className="w-4 h-4" />
-                    </Button>
+                  size="sm" 
+                  onClick={() => {
+                    resetCategoryForm();
+                    setIsCategoryDialogOpen(true);
+                  }}
+                >
+                  <FolderPlus className="w-4 h-4" />
+                </Button>
+                <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
+                      <DialogTrigger asChild>
+                        <span className="hidden"></span>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>
+                            {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
+                          </DialogTitle>
+                          <DialogDescription>
+                            {editingCategory ? 'Edite os dados da categoria' : 'Crie uma nova categoria pessoal'}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="category-name">Nome</Label>
+                            <Input
+                              id="category-name"
+                              value={categoryForm.name}
+                              onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
+                              placeholder="Nome da categoria"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="category-description">Descrição</Label>
+                            <Textarea
+                              id="category-description"
+                              value={categoryForm.description}
+                              onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                              placeholder="Descrição da categoria"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="category-color">Cor</Label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="color"
+                                id="category-color"
+                                value={categoryForm.color}
+                                onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
+                                className="w-12 h-10 rounded border border-slate-300"
+                              />
+                              <Input
+                                value={categoryForm.color}
+                                onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
+                                placeholder="#3B82F6"
+                              />
+                            </div>
+                          </div>
+                          {user && user.is_admin && !editingCategory && (
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="category-template"
+                                checked={categoryForm.is_template}
+                                onChange={(e) => setCategoryForm({ ...categoryForm, is_template: e.target.checked })}
+                                className="form-checkbox h-4 w-4 text-blue-600"
+                              />
+                              <Label htmlFor="category-template">
+                                Criar como Template (visível para todos os usuários)
+                              </Label>
+                            </div>
+                          )}
+                          <div className="flex justify-end space-x-2">
+                            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
+                              Cancelar
+                            </Button>
+                            <Button onClick={saveCategory}>
+                              {editingCategory ? 'Salvar' : 'Criar'}
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -609,6 +679,97 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
                   <Plus className="w-4 h-4 mr-2" />
                   Novo Prompt
                 </Button>
+                <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
+                  <DialogTrigger asChild>
+                    <span className="hidden"></span>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                      <DialogTitle>{editingPrompt ? 'Editar Prompt' : 'Novo Prompt'}</DialogTitle>
+                      <DialogDescription>
+                        {editingPrompt ? 'Edite os detalhes do seu prompt' : 'Crie um novo prompt'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="prompt-title">Título</Label>
+                        <Input
+                          id="prompt-title"
+                          value={promptForm.title}
+                          onChange={(e) => setPromptForm({ ...promptForm, title: e.target.value })}
+                          placeholder="Título do prompt"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="prompt-content">Conteúdo</Label>
+                        <Textarea
+                          id="prompt-content"
+                          value={promptForm.content}
+                          onChange={(e) => setPromptForm({ ...promptForm, content: e.target.value })}
+                          placeholder="Conteúdo do prompt"
+                          rows={10}
+                          className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="prompt-description">Descrição (Opcional)</Label>
+                        <Textarea
+                          id="prompt-description"
+                          value={promptForm.description}
+                          onChange={(e) => setPromptForm({ ...promptForm, description: e.target.value })}
+                          placeholder="Descrição do prompt"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="prompt-tags">Tags</Label>
+                        <Input
+                          id="prompt-tags"
+                          value={promptForm.tags}
+                          onChange={(e) => setPromptForm({ ...promptForm, tags: e.target.value })}
+                          placeholder="tag1, tag2, tag3"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="prompt-category">Categoria</Label>
+                        <Select
+                          value={promptForm.category_id}
+                          onValueChange={(value) => setPromptForm({ ...promptForm, category_id: value })}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Selecione uma categoria" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem categoria</SelectItem>
+                            {Array.isArray(myCategories) &&
+                              myCategories.map((category) => (
+                                <SelectItem key={category.id} value={String(category.id)}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="prompt-favorite"
+                          checked={promptForm.is_favorite}
+                          onChange={(e) => setPromptForm({ ...promptForm, is_favorite: e.target.checked })}
+                          className="form-checkbox h-4 w-4 text-blue-600"
+                        />
+                        <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" onClick={() => setIsPromptDialogOpen(false)}>
+                          Cancelar
+                        </Button>
+                        <Button onClick={savePrompt}>
+                          {editingPrompt ? 'Salvar' : 'Criar'}
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               {/* Lista de Prompts */}
@@ -639,7 +800,7 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
                       </CardHeader>
                       <CardContent className="text-sm text-slate-600 dark:text-slate-400">
                         <p className="line-clamp-3">{prompt.description || prompt.content}</p>
-                        {/* Normaliza tags antes de renderizar */}
+                        {/* ✅ CORRIGIDO: Normaliza tags antes de renderizar */}
                         {prompt.tags && (
                           <div className="flex flex-wrap gap-1 mt-2">
                             {(Array.isArray(prompt.tags) 
@@ -706,192 +867,30 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
         </div>
       </div>
 
-      {/* Modal de Categoria */}
-      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
-            </DialogTitle>
-            <DialogDescription>
-              {editingCategory ? 'Edite os dados da categoria' : 'Crie uma nova categoria pessoal'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="category-name">Nome</Label>
-              <Input
-                id="category-name"
-                value={categoryForm.name}
-                onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-                placeholder="Nome da categoria"
-              />
-            </div>
-            <div>
-              <Label htmlFor="category-description">Descrição</Label>
-              <Textarea
-                id="category-description"
-                value={categoryForm.description}
-                onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
-                placeholder="Descrição da categoria"
-              />
-            </div>
-            <div>
-              <Label htmlFor="category-color">Cor</Label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  id="category-color"
-                  value={categoryForm.color}
-                  onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
-                  className="w-12 h-10 rounded border border-slate-300"
-                />
-                <Input
-                  value={categoryForm.color}
-                  onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
-                  placeholder="#3B82F6"
-                />
-              </div>
-            </div>
-            {user && user.is_admin && !editingCategory && (
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="category-template"
-                  checked={categoryForm.is_template}
-                  onChange={(e) => setCategoryForm({ ...categoryForm, is_template: e.target.checked })}
-                  className="form-checkbox h-4 w-4 text-blue-600"
-                />
-                <Label htmlFor="category-template">
-                  Criar como Template (visível para todos os usuários)
-                </Label>
-              </div>
-            )}
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={saveCategory}>
-                {editingCategory ? 'Salvar' : 'Criar'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de Prompt */}
-      <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>{editingPrompt ? 'Editar Prompt' : 'Novo Prompt'}</DialogTitle>
-            <DialogDescription>
-              {editingPrompt ? 'Edite os detalhes do seu prompt' : 'Crie um novo prompt'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="prompt-title">Título</Label>
-              <Input
-                id="prompt-title"
-                value={promptForm.title}
-                onChange={(e) => setPromptForm({ ...promptForm, title: e.target.value })}
-                placeholder="Título do prompt"
-              />
-            </div>
-            <div>
-              <Label htmlFor="prompt-content">Conteúdo</Label>
-              <Textarea
-                id="prompt-content"
-                value={promptForm.content}
-                onChange={(e) => setPromptForm({ ...promptForm, content: e.target.value })}
-                placeholder="Conteúdo do prompt"
-                rows={10}
-                className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
-              />
-            </div>
-            <div>
-              <Label htmlFor="prompt-description">Descrição (Opcional)</Label>
-              <Textarea
-                id="prompt-description"
-                value={promptForm.description}
-                onChange={(e) => setPromptForm({ ...promptForm, description: e.target.value })}
-                placeholder="Descrição do prompt"
-              />
-            </div>
-            <div>
-              <Label htmlFor="prompt-tags">Tags</Label>
-              <Input
-                id="prompt-tags"
-                value={promptForm.tags}
-                onChange={(e) => setPromptForm({ ...promptForm, tags: e.target.value })}
-                placeholder="tag1, tag2, tag3"
-              />
-            </div>
-            <div>
-              <Label htmlFor="prompt-category">Categoria</Label>
-              <Select
-                value={promptForm.category_id}
-                onValueChange={(value) => setPromptForm({ ...promptForm, category_id: value })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sem categoria</SelectItem>
-                  {Array.isArray(myCategories) &&
-                    myCategories.map((category) => (
-                      <SelectItem key={category.id} value={String(category.id)}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="prompt-favorite"
-                checked={promptForm.is_favorite}
-                onChange={(e) => setPromptForm({ ...promptForm, is_favorite: e.target.checked })}
-                className="form-checkbox h-4 w-4 text-blue-600"
-              />
-              <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
-            </div>
-            <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setIsPromptDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={savePrompt}>
-                {editingPrompt ? 'Salvar' : 'Criar'}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Modal de Chat */}
       <ChatModal
         isOpen={showChatModal}
         onClose={() => setShowChatModal(false)}
       />
 
-      {/* Modal de Compartilhar */}
-      {showShareModal && promptToShare && (
-        <SharePromptModal
-          prompt={promptToShare}
-          onClose={() => {
-            setShowShareModal(false)
-            setPromptToShare(null)
-          }}
-          onSuccess={() => {
-            setShowShareModal(false)
-            setPromptToShare(null)
-            setShowChatModal(true)
-            // Recarregar prompts após compartilhar
-            loadPrompts()
-          }}
-        />
-      )}
+              {/* ✨ NOVO: Modal de Compartilhar */}
+        {showShareModal && promptToShare && (
+          <SharePromptModal
+            prompt={promptToShare}
+            onClose={() => {
+              setShowShareModal(false)
+              setPromptToShare(null)
+            }}
+            onSuccess={() => {
+              setShowShareModal(false)
+              setPromptToShare(null)
+              setShowChatModal(true)
+              // ✅ CORRIGIDO: Recarregar prompts após compartilhar
+              loadPrompts()
+            }}
+          />
+        )}
+     
     </div>
   )
 }

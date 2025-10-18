@@ -1,115 +1,77 @@
+// src/lib/api.js
 import axios from 'axios'
 
-
-
-// ✅ Configuração da URL da API baseada no ambiente
-const getApiBaseUrl = () => {
-  // 1️⃣ Pega do ambiente (Render ou build local)
-  const envApiUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
-
-  if (envApiUrl) {
-    // Se começa com http, usa direto (backend separado)
-    if (envApiUrl.startsWith('http')) {
-      return envApiUrl;
-    }
-    // Se for caminho relativo (ex: /auth), mantém
-    return envApiUrl;
+// ✅ Configuração dinâmica baseada no ambiente
+const getApiUrl = () => {
+  // 1. Tenta usar variável de ambiente do Vite
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
   }
-
-  // 2️⃣ Fallback para desenvolvimento local
-  if (import.meta.env.DEV) {
-    // ⚠️ Sem "/api" — backend agora está sem prefixo
-    return 'http://localhost:5000';
+  
+  // 2. Detecta ambiente automaticamente
+  const hostname = window.location.hostname
+  
+  // ✅ CORRIGIDO: promply (não promptly)
+  if (hostname.includes('promply-frontend-staging.onrender.com')) {
+    return 'https://promply-backend-staging.onrender.com/api'
   }
+  
+  if (hostname.includes('promply-frontend-prod.onrender.com')) {
+    return 'https://promply-backend-prod.onrender.com/api'
+  }
+  
+  // 3. Desenvolvimento local (padrão)
+  return 'http://localhost:5000/api'
+}
 
-  // 3️⃣ Fallback para produção (Render)
-  return '';
-};
+const API_URL = getApiUrl()
 
-const API_BASE_URL = getApiBaseUrl();
-
-console.log('🌐 API Base URL:', API_BASE_URL)
+console.log('🌐 API configurada para:', API_URL)
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  withCredentials: true, // CRÍTICO: Enviar cookies para autenticação
+  baseURL: API_URL,
+  withCredentials: true,  // ✅ CRUCIAL para cookies JWT
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
-  timeout: 30000, // 30 segundos timeout
+  timeout: 30000,
 })
 
-// Interceptor de Request
+// Interceptor para debug
 api.interceptors.request.use(
   (config) => {
-    // Log apenas em desenvolvimento
-    if (import.meta.env.DEV) {
-      console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`)
-    }
+    console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
     return config
   },
   (error) => {
-    console.error('❌ API Request Error:', error)
+    console.error('❌ [API Request Error]', error)
     return Promise.reject(error)
   }
 )
 
-// Interceptor de Response
 api.interceptors.response.use(
   (response) => {
-    // Log apenas em desenvolvimento
-    if (import.meta.env.DEV) {
-      console.log(`✅ API Response: ${response.config.url}`, response.data)
-    }
+    console.log(`✅ [API Response] ${response.status} ${response.config.url}`)
     return response
   },
   (error) => {
-    // Tratamento de erros
     if (error.response) {
-      const status = error.response.status
-      const url = error.config?.url || 'unknown'
+      console.error(`❌ [API Error] ${error.response.status} ${error.config?.url}`, error.response.data)
       
-      // 401 é esperado quando não há autenticação
-      if (status === 401) {
-        console.log(`ℹ️ API: Não autenticado em ${url}`)
-      } 
-      // 403 é acesso negado
-      else if (status === 403) {
-        console.warn(`⚠️ API: Acesso negado em ${url}`)
-      }
-      // 404 é endpoint não encontrado
-      else if (status === 404) {
-        console.warn(`⚠️ API: Endpoint não encontrado - ${url}`)
-      }
-      // 500+ são erros do servidor
-      else if (status >= 500) {
-        console.error(`❌ API: Erro do servidor (${status}) em ${url}`)
-      }
-      // Outros erros
-      else {
-        console.error(`❌ API Error (${status}):`, error.response.data)
+      // Se receber 401, pode ser token expirado
+      if (error.response.status === 401) {
+        console.warn('⚠️ Token JWT inválido ou expirado - redirecionando para login')
+        // Opcional: redirecionar automaticamente
+        // window.location.href = '/login'
       }
     } else if (error.request) {
-      // Requisição foi feita mas não houve resposta
-      console.error('❌ API: Sem resposta do servidor (verifique a conexão)')
+      console.error('❌ [API Error] Sem resposta do servidor:', error.message)
     } else {
-      // Erro na configuração da requisição
-      console.error('❌ API Error:', error.message)
+      console.error('❌ [API Error]', error.message)
     }
-    
     return Promise.reject(error)
   }
 )
-
-// Helper para verificar se a API está acessível
-export const checkApiHealth = async () => {
-  try {
-    const response = await api.get('/health')
-    return response.data
-  } catch (error) {
-    console.error('❌ API Health Check falhou:', error)
-    throw error
-  }
-}
 
 export default api

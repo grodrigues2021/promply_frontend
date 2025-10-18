@@ -1,9 +1,10 @@
-// src/App.jsx
+// src/App.jsx - VERSÃO ORIGINAL
+import React from 'react'
 import { useState, useEffect } from 'react'
 import AuthPage from './components/AuthPage.jsx'
 import ResetPasswordPage from './components/ResetPasswordPage.jsx'
 import PromptManager from './components/PromptManager.jsx'
-import { useAuth } from './hooks/useAuth.jsx' // ← Mude para .jsx
+import { useAuth } from './hooks/useAuth.jsx'
 
 function App() {
   const { 
@@ -14,12 +15,9 @@ function App() {
   
   const [currentPage, setCurrentPage] = useState('main')
 
-  // DEBUG
   useEffect(() => {
-    console.log('🔐 DEBUG App - isAuthenticated:', isAuthenticated)
-    console.log('👤 DEBUG App - user:', user)
-    console.log('📄 DEBUG App - currentPage:', currentPage)
-  }, [isAuthenticated, user, currentPage])
+    console.log('🔐 [APP] Estado:', { isAuthenticated, isLoading, user })
+  }, [isAuthenticated, user, isLoading])
 
   // Verificar página de reset de senha
   useEffect(() => {
@@ -44,8 +42,6 @@ function App() {
     return <ResetPasswordPage />
   }
 
-  console.log('🎯 DEBUG - Renderizando:', isAuthenticated ? 'PromptManager' : 'AuthPage')
-  
   if (!isAuthenticated) {
     return <AuthPage />
   }

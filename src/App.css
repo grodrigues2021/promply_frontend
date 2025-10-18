@@ -119,6 +119,86 @@
   }
 }
 
+/* ==============================================
+   TOAST NOTIFICATIONS - Estilos Customizados
+   ============================================== */
 
+/* Toast padrão escuro */
+[data-sonner-toast].my-toast {
+  background: #18181b !important;
+  color: #fff !important;
+  border: 1px solid #27272a !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+}
 
+/* Toast para copiar com efeito neon verde - MÁXIMA ESPECIFICIDADE */
+[data-sonner-toast].toast-copied,
+.toast-copied[data-sonner-toast],
+div[data-sonner-toast][class*="toast-copied"],
+li[data-sonner-toast].toast-copied {
+  background: #A6F0AE !important;  /* ⬅️ Cor sólida verde claro */
+  border: 1px solid #8CE895 !important;  /* ⬅️ Borda um pouco mais escura */
+  color: #1a5a1f !important;  /* ⬅️ Texto verde escuro para contraste */
+  box-shadow: 0 0 20px rgba(166, 240, 174, 0.6),
+              0 0 40px rgba(166, 240, 174, 0.4),
+              0 0 60px rgba(166, 240, 174, 0.2) !important;
+  animation: pulse-glow 1.5s ease-in-out !important;
 
+  max-width: 200px !important;  /* Largura máxima */
+  min-width: 200px !important;  /* Largura mínima */
+  width: auto !important;       /* Largura automática baseada no conteúdo */
+}
+
+/* Animação de pulso verde brilhante */
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(166, 240, 174, 0.6),
+                0 0 40px rgba(166, 240, 174, 0.4);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(166, 240, 174, 0.8),
+                0 0 60px rgba(166, 240, 174, 0.6),
+                0 0 90px rgba(166, 240, 174, 0.4);
+    transform: scale(1.02);
+  }
+}
+
+/* Título do toast copiado - todas as variações possíveis */
+.toast-copied [data-title],
+.toast-copied [data-content] > div:first-child,
+[data-sonner-toast].toast-copied [data-title],
+[data-sonner-toast].toast-copied [data-content] > div:first-child,
+[data-sonner-toast].toast-copied > div > div:first-child {
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  color: #ffffff !important;
+}
+
+/* Descrição do toast copiado */
+.toast-copied [data-description],
+.toast-copied [data-content] > div:last-child,
+[data-sonner-toast].toast-copied [data-description],
+[data-sonner-toast].toast-copied [data-content] > div:last-child,
+[data-sonner-toast].toast-copied > div > div:last-child {
+  color: rgba(255, 255, 255, 0.9) !important;
+  font-size: 13px !important;
+}
+
+/* Toast de sucesso padrão (não copiado) */
+[data-sonner-toast][data-type="success"]:not(.toast-copied) {
+  background: #18181b !important;
+  border: 1px solid #22c55e !important;
+}
+
+/* Toast de erro */
+[data-sonner-toast][data-type="error"] {
+  background: #18181b !important;
+  border: 1px solid #ef4444 !important;
+}
+
+/* Garante que o texto fique branco no toast copiado */
+[data-sonner-toast].toast-copied * {
+  color: #ffffff !important;
+}

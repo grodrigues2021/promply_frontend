@@ -1,0 +1,149 @@
+import axios from 'axios'
+
+// src/lib/api.js - CORRIJA A BASE URL
+
+// ✅ Configuração CORRIGIDA - usa proxy em desenvolvimento
+const getApiBaseUrl = () => {
+  // Desenvolvimento: usa proxy do Vite (/api → localhost:5000)
+  if (import.meta.env.DEV) {
+    return '/api'  // ✅ MUDOU para /api
+  }
+  
+  // Produção: usa URL do ambiente
+  return import.meta.env.VITE_API_URL || ''
+}
+
+const API_BASE_URL = getApiBaseUrl()
+
+console.log('🌐 API Base URL:', API_BASE_URL)
+console.log('🔧 Ambiente:', import.meta.env.MODE)
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 30000,
+})
+
+// ... resto do código permanece igual
+
+// ✅ Interceptor de Request Melhorado
+api.interceptors.request.use(
+  (config) => {
+    // Log detalhado em desenvolvimento
+    if (import.meta.env.DEV) {
+      console.log(`🌐 [API] ${config.method?.toUpperCase()} ${config.baseURL || ''}${config.url}`, {
+        data: config.data,
+        params: config.params
+      })
+    }
+    return config
+  },
+  (error) => {
+    console.error('❌ [API] Erro na configuração da requisição:', error)
+    return Promise.reject(error)
+  }
+)
+
+// ✅ Interceptor de Response Melhorado
+api.interceptors.response.use(
+  (response) => {
+    // Log em desenvolvimento
+    if (import.meta.env.DEV) {
+      console.log(`✅ [API] ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`)
+    }
+    return response
+  },
+  (error) => {
+    // ✅ Tratamento de erros mais detalhado
+    if (error.code === 'ECONNABORTED') {
+      console.error('❌ [API] Timeout - Servidor não respondeu em 30s')
+    } else if (error.response) {
+      // Servidor respondeu com erro
+      const { status, data } = error.response
+      const method = error.config?.method?.toUpperCase()
+      const url = error.config?.url
+      
+      console.group(`❌ [API] Erro ${status} ${method} ${url}`)
+      console.log('Resposta:', data)
+      console.groupEnd()
+      
+      // Tratamento específico por status
+      switch (status) {
+        case 401:
+          console.warn('⚠️ [API] Não autenticado - redirecionando para login')
+          // Opcional: disparar evento global de logout
+          break
+        case 403:
+          console.warn('⚠️ [API] Acesso negado - sem permissões')
+          break
+        case 404:
+          console.warn('⚠️ [API] Endpoint não encontrado')
+          break
+        case 429:
+          console.warn('⚠️ [API] Muitas requisições - rate limiting')
+          break
+        case 500:
+          console.error('❌ [API] Erro interno do servidor')
+          break
+        case 502:
+        case 503:
+        case 504:
+          console.error('❌ [API] Servidor indisponível')
+          break
+        default:
+          console.error(`❌ [API] Erro ${status}`)
+      }
+    } else if (error.request) {
+      // Requisição foi feita mas não houve resposta
+      console.error('❌ [API] Sem resposta do servidor - verifique:', {
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        message: 'Verifique se o backend está rodando e acessível'
+      })
+    } else {
+      // Erro na configuração da requisição
+      console.error('❌ [API] Erro de configuração:', error.message)
+    }
+    
+    return Promise.reject(error)
+  }
+)
+
+// ✅ Helper para verificar saúde da API
+export const checkApiHealth = async () => {
+  try {
+    const response = await api.get('/health')
+    console.log('🏥 [API] Health check:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('❌ [API] Health check falhou:', error)
+    throw error
+  }
+}
+
+// ✅ Helper para testar conectividade
+export const testConnection = async () => {
+  try {
+    const startTime = Date.now()
+    const response = await api.get('/health')
+    const endTime = Date.now()
+    
+    return {
+      success: true,
+      status: response.status,
+      responseTime: `${endTime - startTime}ms`,
+      data: response.data
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      code: error.code
+    }
+  }
+}
+
+export default api

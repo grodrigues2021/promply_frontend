@@ -1,13 +1,15 @@
+import { toast } from 'sonner'  // ← Adicione esta linha no início
+import api from '../lib/api'
 import React, { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
-import { Badge } from '@/components/ui/badge.jsx'
-import { Textarea } from '@/components/ui/textarea.jsx'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog.jsx'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select.jsx'
-import { ScrollArea } from '@/components/ui/scroll-area.jsx'
-import { Label } from '@/components/ui/label.jsx'
+import { Button } from './ui/button'
+import { Input } from './ui/input'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { Badge } from './ui/badge'
+import { Textarea } from './ui/textarea'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { ScrollArea } from './ui/scroll-area'
+import { Label } from './ui/label'
 import {
   Search,
   Plus,
@@ -66,10 +68,9 @@ export default function TemplatesPage({ user, onBack }) {
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/templates`, {
-        credentials: 'include'
-      })
-      const data = await response.json()
+      const response = await api.get('/templates')
+      const data = response.data
+
       if (data.success) {
         setTemplates(Array.isArray(data.data) ? data.data : [])
       }
@@ -81,10 +82,9 @@ export default function TemplatesPage({ user, onBack }) {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/categories`, {
-        credentials: 'include'
-      })
-      const data = await response.json()
+      const response = await api.get('/categories')
+      const data = response.data
+
       if (data.success) {
         const templateCats = Array.isArray(data.templates) ? data.templates : []
         setCategories(templateCats)
@@ -97,10 +97,9 @@ export default function TemplatesPage({ user, onBack }) {
 
   const loadMyCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/categories`, {
-        credentials: 'include'
-      })
-      const data = await response.json()
+      const response = await api.get('/categories')
+      const data = response.data
+
       if (data.success) {
         const userCats = Array.isArray(data.categories) ? data.categories : []
         setMyCategories(userCats)
@@ -125,25 +124,25 @@ export default function TemplatesPage({ user, onBack }) {
 
   const useTemplate = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/templates/${selectedTemplate.id}/use`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: useTemplateForm.title || selectedTemplate.title,
-          category_id: useTemplateForm.category_id !== 'none' ? useTemplateForm.category_id : null,
-          is_favorite: useTemplateForm.is_favorite
-        })
+          const response = await api.post(`/templates/${selectedTemplate.id}/use`, {
+        title: useTemplateForm.title || selectedTemplate.title,
+        category_id:
+          useTemplateForm.category_id !== 'none'
+            ? Number(useTemplateForm.category_id)
+            : null,
+        is_favorite: useTemplateForm.is_favorite,
       })
 
-      const data = await response.json()
+      const data = response.data
+
       if (data.success) {
         alert('✅ Prompt criado a partir do template com sucesso!')
         setIsUseTemplateDialogOpen(false)
         resetUseTemplateForm()
+        
+        // ✅ Volta e força refresh da página
         onBack()
+        window.location.reload()  // ← Recarrega tudo
       } else {
         alert('❌ ' + (data.error || 'Erro ao usar template'))
       }
@@ -172,15 +171,22 @@ export default function TemplatesPage({ user, onBack }) {
     })
   }
 
-  const copyToClipboard = async (template) => {
-    try {
-      await navigator.clipboard.writeText(template.content)
-      alert('📋 Template copiado para a área de transferência!')
-    } catch (error) {
-      console.error('Erro ao copiar template:', error)
-      alert('❌ Erro ao copiar template')
-    }
+ // ✅ NOVO (com toast verde)
+const copyToClipboard = async (template) => {
+  try {
+    await navigator.clipboard.writeText(template.content)
+    
+    toast.success('Template copiado!', {
+      duration: 2000,
+      className: 'toast-copied',  // ⬅️ Usa o mesmo estilo verde do PromptManager
+    })
+  } catch (error) {
+    console.error('Erro ao copiar template:', error)
+    toast.error('Erro ao copiar', {
+      description: 'Não foi possível copiar o template'
+    })
   }
+}
 
   const saveTemplate = async () => {
     if (!user?.is_admin) {
@@ -454,7 +460,6 @@ export default function TemplatesPage({ user, onBack }) {
                         <SelectContent 
                           className="max-h-[320px] min-w-[var(--radix-select-trigger-width)]"
                           position="popper"
-                          sideOffset={8}
                           align="start"
                         >
                           <SelectItem 
