@@ -1,3 +1,4 @@
+
 import { toast } from 'sonner'
 import React, { useState, useEffect } from 'react'
 import { Button } from './ui/button'
@@ -616,16 +617,10 @@ const openVideoModal = (url) => {
              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6 2xl:gap-8">
 
                 {filteredPrompts.length > 0 ? (
-                  filteredPrompts.map((prompt) => {
-                    const rawVideoUrl =
-      prompt.video_url || prompt.videoUrl || prompt.youtube_url || prompt.youtubeUrl || "";
-    const videoId = extractYouTubeId(rawVideoUrl);
-    const hasVideo = !!videoId;
- return (
-
+                  filteredPrompts.map((prompt) => (
 <div
   key={prompt.id}
-  className="flex bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200 h-[230px] relative"
+  className="flex bg-white rounded-xl overflow-hidden border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200 h-[230px]"
 >
   {/* Conteúdo à esquerda */}
   <div className="flex-1 flex flex-col justify-between p-4">
@@ -707,55 +702,51 @@ const openVideoModal = (url) => {
     </div>
   </div>
 
+{/* Mídia à direita (com zoom + lupa + YouTube label) */}
 {/* Mídia à direita */}
-<div className="relative w-48 h-full flex-shrink-0 bg-slate-100">
-  {(hasVideo || prompt.image_url) ? (
-    <>
-      {/* Selo YouTube */}
-      {hasVideo && (
-        <div className="absolute top-2 right-2 z-50 pointer-events-none">
-          <div className="flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M10 15V9l5 3-5 3z" />
-            </svg>
-            <span>YouTube</span>
-          </div>
-        </div>
-      )}
-
-      {/* Camada com zoom */}
-      <div className="absolute inset-0 overflow-clip group rounded-r-xl">
-        {/* Botão clicável cobrindo toda a mídia */}
-       <button
-  type="button"
-  aria-label="Abrir mídia"
-  className="absolute inset-0 w-full h-full cursor-pointer"
-  onClick={() =>
-    hasVideo
-      ? openVideoModal(rawVideoUrl)
-      : openImageModal(prompt.image_url, prompt.title)
-  }
->
-  <img
-    src={
-      hasVideo
-        ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-        : prompt.image_url
-    }
-    alt={prompt.title}
-    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-  />
-</button>
-
-        {/* Overlay de hover NÃO bloqueia clique */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-all duration-300 pointer-events-none">
-  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/95 p-2 rounded-full shadow-lg transform scale-90 group-hover:scale-100">
-    <Search className="text-slate-800 w-5 h-5" />
+{/* Mídia à direita */}
+{/* Mídia à direita */}
+<div className="relative w-48 h-full flex-shrink-0 rounded-r-xl bg-slate-100 group overflow-hidden">
+  
+  {/* 🔴 Selo YouTube - POSIÇÃO CORRIGIDA */}
+{prompt.video_url && (
+  <div className="absolute -top-1 -right-1 z-50">
+    <div className="flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg rounded-tr-xl shadow-lg">
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M10 15V9l5 3-5 3z" />
+      </svg>
+      <span>YouTube</span>
+    </div>
   </div>
-</div>
+)}
 
+  {/* 🔲 Conteúdo da mídia (vídeo ou imagem) */}
+  {(prompt.video_url || prompt.image_url) ? (
+    <div
+      className="relative w-full h-full cursor-pointer overflow-hidden"
+      onClick={() =>
+        prompt.video_url
+          ? openVideoModal(prompt.video_url)
+          : openImageModal(prompt.image_url, prompt.title)
+      }
+    >
+      <img
+        src={
+          prompt.video_url
+            ? `https://img.youtube.com/vi/${extractYouTubeId(prompt.video_url)}/maxresdefault.jpg`
+            : prompt.image_url
+        }
+        alt={prompt.title}
+        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+      />
+
+      {/* 🔍 Lupa no hover */}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-all duration-300">
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/95 p-2 rounded-full shadow-lg transform scale-90 group-hover:scale-100">
+          <Search className="text-slate-800 w-5 h-5" />
+        </div>
       </div>
-    </>
+    </div>
   ) : (
     <div className="flex items-center justify-center w-full h-full text-slate-400 text-sm select-none">
       Sem imagem
@@ -766,12 +757,11 @@ const openVideoModal = (url) => {
 
 
 
+
 </div>
 
 
-                  
- );
-  })  // 👈 fecha o bloco do map aqui
+                  ))
                 ) : (
                   <p className="text-center text-slate-500 col-span-full">Nenhum prompt encontrado.</p>
                 )}
