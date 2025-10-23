@@ -265,19 +265,44 @@ const openVideoModal = (url) => {
     }
   }
 
-  const toggleFavorite = async (prompt) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/prompts/${prompt.id}/favorite`, {
-        method: 'POST',
-        credentials: 'include'
-      })
-      const data = await response.json()
-      if (data.success) {
-        loadPrompts()
-        loadStats()
-      }
-    } catch {}
+
+// ✅ Atualização otimista de favoritos
+const toggleFavorite = async (prompt) => {
+  setPrompts((prev) =>
+    prev.map((p) =>
+      p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
+    )
+  );
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/prompts/${prompt.id}/favorite`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      loadStats(); // atualiza apenas os contadores
+    }
+
+    if (!data.success) {
+      setPrompts((prev) =>
+        prev.map((p) =>
+          p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
+        )
+      );
+      toast.error('Erro ao atualizar favorito');
+    }
+  } catch (err) {
+    setPrompts((prev) =>
+      prev.map((p) =>
+        p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
+      )
+    );
+    toast.error('Erro ao conectar ao servidor');
   }
+};
+
 
   const copyToClipboard = async (prompt) => {
     try {
