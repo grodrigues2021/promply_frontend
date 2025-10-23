@@ -42,6 +42,30 @@ export default function TemplatesPage({ user, onBack }) {
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  // ========= MODAL DE VÍDEO =========
+const [showVideoModal, setShowVideoModal] = useState(false);
+const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
+
+
+
+const openVideoModal = (url) => {
+  setCurrentVideoUrl(url);
+  setShowVideoModal(true);
+};
+
+// ✅ Extrai o ID de vídeos do YouTube em diferentes formatos
+const extractYouTubeId = (url) => {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) return match[1];
+  }
+  return null;
+};
 
   // ========= MODAIS =========
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
@@ -56,6 +80,7 @@ export default function TemplatesPage({ user, onBack }) {
     category_id: "none",
     tags: "",
     image_url: "",
+    video_url: "", // ✅ NOVO CAMPO
   });
   const [editingCategory, setEditingCategory] = useState(null); // ✅ ADICIONE ESTA LINHA
   const [categoryForm, setCategoryForm] = useState({
@@ -192,11 +217,19 @@ const saveCategory = async () => {
 
 // ========= EXCLUIR CATEGORIA =========
 const deleteCategory = async (id) => {
-  if (!confirm("Tem certeza que deseja deletar esta categoria?")) return;
+  if (!confirm("Tem certeza que deseja excluir esta categoria?")) return;
+
+  // Verifica se há templates usando essa categoria
+  const hasTemplates = templates.some((t) => t.category_id === id);
+  if (hasTemplates) {
+    toast.error("Esta categoria não pode ser excluída porque possui templates atribuídos.");
+    return;
+  }
+
   try {
     const res = await api.delete(`/categories/${id}`);
     if (res.data.success) {
-      toast.success("Categoria excluída!");
+      toast.success("Categoria excluída com sucesso!");
       loadCategories();
     } else {
       toast.error(res.data.error || "Erro ao excluir categoria");
@@ -236,6 +269,7 @@ const deleteCategory = async (id) => {
               .filter(Boolean)
           : [],
         image_url: templateForm.image_url || null,
+        video_url: templateForm.video_url || null, // ✅ ADICIONADO
       };
 
       const res = await method(url, body);
@@ -288,22 +322,25 @@ const deleteCategory = async (id) => {
   };
 
   // ========= EDITAR TEMPLATE =========
-  const editTemplate = (template) => {
-    setEditingTemplate(template);
-    setTemplateForm({
-      title: template.title,
-      description: template.description || "",
-      content: template.content || "",
-      category_id: template.category_id
-        ? String(template.category_id)
-        : "none",
-      tags: Array.isArray(template.tags)
-        ? template.tags.join(", ")
-        : template.tags || "",
-      image_url: template.image_url || "",
-    });
-    setIsTemplateDialogOpen(true);
-  };
+// ========= EDITAR TEMPLATE =========
+const editTemplate = (template) => {
+  setEditingTemplate(template);
+  setTemplateForm({
+    title: template.title,
+    description: template.description || "",
+    content: template.content || "",
+    category_id: template.category_id
+      ? String(template.category_id)
+      : "none",
+    tags: Array.isArray(template.tags)
+      ? template.tags.join(", ")
+      : template.tags || "",
+    image_url: template.image_url || "",
+    video_url: template.video_url || "", // ✅ agora mantém o vídeo no modo edição
+  });
+  setIsTemplateDialogOpen(true);
+};
+
 
   // ========= USAR TEMPLATE =========
   const openUseDialog = (template) => {
@@ -598,6 +635,13 @@ const deleteCategory = async (id) => {
                   (c) => c.id === t.category_id
                 );
                 const color = category?.color || "#6366f1";
+              
+
+              const rawVideoUrl = t.video_url || t.videoUrl || t.youtube_url || t.youtubeUrl || "";
+const videoId = extractYouTubeId(rawVideoUrl);
+const hasVideo = !!videoId;
+
+
                 return (
                   <div
                     key={t.id}
@@ -671,32 +715,58 @@ const deleteCategory = async (id) => {
                     </div>
 
          {/* Imagem direita */}
-                    <div className="w-[140px] h-full flex-shrink-0 relative overflow-hidden bg-gradient-to-r from-indigo-500 to-purple-600">
-                      {t.image_url ? (
-                        <button
-                          onClick={() => openImageModal(t.image_url, t.title)}
-                          className="w-full h-full relative group cursor-pointer"
-                        >
-                          <img
-                            src={t.image_url}
-                            alt={t.title}
-                            className="w-full h-full object-cover transition-transform group-hover:scale-110"
-                          />
-                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 rounded-full p-2">
-                              <Search className="w-5 h-5 text-indigo-600" />
-                            </div>
-                          </div>
-                        </button>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-white/70 text-xs">
-                          <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          Sem imagem
-                        </div>
-                      )}
-                    </div>
+                   {/* Mídia direita (vídeo ou imagem) */}
+<div className="w-[140px] h-full flex-shrink-0 relative overflow-hidden bg-gradient-to-r from-indigo-500 to-purple-600">
+  {(hasVideo || t.image_url) ? (
+    <>
+      {hasVideo && (
+        <div className="absolute top-2 right-2 z-50 pointer-events-none">
+          <div className="flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10 15V9l5 3-5 3z" />
+            </svg>
+            <span>YouTube</span>
+          </div>
+        </div>
+      )}
+
+   <button
+  type="button"
+  aria-label="Abrir mídia"
+  onClick={() =>
+    hasVideo
+      ? openVideoModal(rawVideoUrl)
+      : openImageModal(t.image_url, t.title)
+  }
+  className="absolute inset-0 w-full h-full relative group cursor-pointer"
+>
+  <img
+    src={
+      hasVideo
+        ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+        : t.image_url
+    }
+    alt={t.title}
+    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+  />
+  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-all duration-300 pointer-events-none">
+    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 p-2 rounded-full shadow-lg transform scale-90 group-hover:scale-100">
+      <Search className="text-indigo-600 w-5 h-5" />
+    </div>
+  </div>
+</button>
+
+    </>
+  ) : (
+    <div className="flex flex-col items-center justify-center h-full text-white/70 text-xs">
+      <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      Sem imagem
+    </div>
+  )}
+</div>
+
                   </div>
                 );
               })}
@@ -923,11 +993,26 @@ const deleteCategory = async (id) => {
                     className="hidden"
                   />
                 </div>
-                <p className="text-xs text-gray-500">
                   Formatos suportados: JPG, PNG, SVG (máx. 5MB)
-                </p>
+
               </div>
             </div>
+            {/* ✅ LINK DO VÍDEO (YOUTUBE) */}
+<div>
+  <Label>Link do vídeo (YouTube)</Label>
+  <Input
+    type="url"
+    placeholder="https://www.youtube.com/watch?v=..."
+    value={templateForm.video_url || ""}
+    onChange={(e) =>
+      setTemplateForm({ ...templateForm, video_url: e.target.value })
+    }
+  />
+  <p className="text-xs text-gray-500 mt-1">
+    Se preencher este campo, a imagem será substituída pelo preview do vídeo.
+  </p>
+</div>
+
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <Button
@@ -1079,6 +1164,38 @@ const deleteCategory = async (id) => {
     </div>
   </DialogContent>
 </Dialog>
+
+{/* ========== MODAL DE VÍDEO ========== */}
+<Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
+  <DialogContent className="max-w-4xl p-0 bg-black overflow-hidden">
+    <div className="relative">
+      <button
+        onClick={() => {
+          setShowVideoModal(false);
+          setCurrentVideoUrl(null);
+        }}
+        className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
+      >
+        ✕
+      </button>
+
+      {currentVideoUrl && (
+        <div key={currentVideoUrl}>
+          <iframe
+            src={`https://www.youtube.com/embed/${extractYouTubeId(currentVideoUrl)}?autoplay=1&rel=0&modestbranding=1`}
+            title="YouTube player"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="w-full aspect-video"
+          ></iframe>
+        </div>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
+
+
+
     </div>
   );
 }
