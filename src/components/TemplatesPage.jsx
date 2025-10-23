@@ -57,7 +57,7 @@ export default function TemplatesPage({ user, onBack }) {
     tags: "",
     image_url: "",
   });
-
+  const [editingCategory, setEditingCategory] = useState(null); // ✅ ADICIONE ESTA LINHA
   const [categoryForm, setCategoryForm] = useState({
     name: "",
     description: "",
@@ -149,30 +149,65 @@ export default function TemplatesPage({ user, onBack }) {
       toast.error("Erro ao carregar suas categorias");
     }
   };
+// ========= EDITAR CATEGORIA =========
+const editCategory = (category) => {
+  setCategoryForm({
+    name: category.name,
+    description: category.description || "",
+    color: category.color || "#6366f1",
+    is_template: true,
+  });
+  setEditingCategory(category);
+  setIsCategoryDialogOpen(true);
+};
 
-  // ========= SALVAR CATEGORIA =========
-  const saveCategory = async () => {
-    try {
-      const res = await api.post("/categories", categoryForm);
-      if (res.data.success) {
-        toast.success("Categoria criada com sucesso!");
-        setIsCategoryDialogOpen(false);
-        setCategoryForm({
-          name: "",
-          description: "",
-          color: "#6366f1",
-          is_template: true,
-        });
-        loadCategories();
-      } else {
-        toast.error(res.data.error || "Erro ao criar categoria");
-      }
-    } catch (err) {
-      console.error("Erro ao criar categoria:", err);
-      toast.error("Erro ao criar categoria");
+// ========= SALVAR (atualizado para editar também) =========
+const saveCategory = async () => {
+  try {
+    const url = editingCategory
+      ? `/categories/${editingCategory.id}`
+      : "/categories";
+    const method = editingCategory ? api.put : api.post;
+
+    const res = await method(url, categoryForm);
+    if (res.data.success) {
+      toast.success(editingCategory ? "Categoria atualizada!" : "Categoria criada!");
+      setIsCategoryDialogOpen(false);
+      setEditingCategory(null);
+      setCategoryForm({
+        name: "",
+        description: "",
+        color: "#6366f1",
+        is_template: true,
+      });
+      loadCategories();
+    } else {
+      toast.error(res.data.error || "Erro ao salvar categoria");
     }
-  };
+  } catch (err) {
+    console.error("Erro ao salvar categoria:", err);
+    toast.error("Erro ao salvar categoria");
+  }
+};
 
+// ========= EXCLUIR CATEGORIA =========
+const deleteCategory = async (id) => {
+  if (!confirm("Tem certeza que deseja deletar esta categoria?")) return;
+  try {
+    const res = await api.delete(`/categories/${id}`);
+    if (res.data.success) {
+      toast.success("Categoria excluída!");
+      loadCategories();
+    } else {
+      toast.error(res.data.error || "Erro ao excluir categoria");
+    }
+  } catch (err) {
+    console.error("Erro ao excluir categoria:", err);
+    toast.error("Erro ao excluir categoria");
+  }
+};
+
+ 
   // ========= SALVAR TEMPLATE =========
   const saveTemplate = async () => {
     if (!user?.is_admin) {
@@ -448,25 +483,53 @@ export default function TemplatesPage({ user, onBack }) {
             >
               <span className="text-sm">Todos</span>
             </div>
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border-2 transition ${
-                  selectedCategory === cat.name
-                    ? "border-indigo-500 bg-indigo-50/40 text-indigo-600 font-semibold"
-                    : "border-transparent text-gray-600 hover:bg-gray-100"
-                }`}
-                onClick={() => setSelectedCategory(cat.name)}
-              >
-                <span className="flex items-center gap-2 text-sm">
-                  <span
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: cat.color }}
-                  ></span>
-                  {cat.name}
-                </span>
-              </div>
-            ))}
+           {categories.map((cat) => (
+  <div
+    key={cat.id}
+    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border-2 transition ${
+      selectedCategory === cat.name
+        ? "border-indigo-500 bg-indigo-50/40 text-indigo-600 font-semibold"
+        : "border-transparent text-gray-600 hover:bg-gray-100"
+    }`}
+    onClick={() => setSelectedCategory(cat.name)}
+  >
+    <span className="flex items-center gap-2 text-sm">
+      <span
+        className="w-3 h-3 rounded-full"
+        style={{ backgroundColor: cat.color }}
+      ></span>
+      {cat.name}
+    </span>
+
+    {/* Botões visíveis apenas para admin */}
+    {user?.is_admin && (
+      <div className="flex gap-1 ml-2">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            editCategory(cat);
+          }}
+          className="p-1 text-gray-500 hover:text-indigo-600 transition"
+          title="Editar categoria"
+        >
+          <Edit className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteCategory(cat.id);
+          }}
+          className="p-1 text-gray-500 hover:text-red-600 transition"
+          title="Excluir categoria"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    )}
+  </div>
+))}
+
           </div>
         </aside>
 
@@ -645,7 +708,10 @@ export default function TemplatesPage({ user, onBack }) {
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Criar Nova Categoria</DialogTitle>
+            <DialogTitle>
+  {editingCategory ? "Editar Categoria" : "Criar Nova Categoria"}
+</DialogTitle>
+
             <DialogDescription>
               Categorias ajudam a organizar seus templates.
             </DialogDescription>
@@ -701,11 +767,11 @@ export default function TemplatesPage({ user, onBack }) {
               Cancelar
             </Button>
             <Button
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
-              onClick={saveCategory}
-            >
-              Salvar Categoria
-            </Button>
+  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+  onClick={saveCategory}
+>
+  {editingCategory ? "Salvar Alterações" : "Salvar Categoria"}
+</Button>
           </div>
         </DialogContent>
       </Dialog>
