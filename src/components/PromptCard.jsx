@@ -15,7 +15,9 @@ const cardVariants = cva(
     variants: {
       layout: {
         vertical: "flex flex-col",
-       horizontal: "flex flex-row items-stretch justify-between flex-nowrap",
+       horizontal: "flex flex-col sm:flex-row items-stretch flex-wrap sm:flex-nowrap",
+
+
 
 
 
@@ -39,7 +41,9 @@ const mediaVariants = cva(
     variants: {
       layout: {
         vertical: "w-full h-40",
-        horizontal: "flex-shrink-0 w-[45%] sm:w-52 h-auto sm:h-[230px] rounded-r-xl object-cover self-stretch",
+        horizontal: "flex-shrink-0 w-full sm:w-52 h-[200px] sm:h-[230px] rounded-t-xl sm:rounded-r-xl",
+
+
 
 
 
@@ -56,9 +60,7 @@ const contentVariants = cva(
     variants: {
       layout: {
         vertical: "flex-1",
-        horizontal: "flex-1 min-w-0 overflow-visible sm:overflow-hidden h-auto sm:h-[230px] pr-3 flex justify-between flex-col",
-
-
+        horizontal: "flex-1 h-auto sm:h-[230px] min-w-0 overflow-visible sm:overflow-hidden",
 
 
       },
