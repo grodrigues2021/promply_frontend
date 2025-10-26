@@ -2,18 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
-import {
-  ArrowLeft,
-  Check,
-  Copy,
-  Edit,
-  Trash2,
-  Plus,
-  Sparkles,
-  Search,
-  X,
-  Download,
-} from "lucide-react";
+import { ArrowLeft, Plus, Search, X, Menu, Download } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -32,47 +21,20 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import TemplateCard from "./TemplateCard";
+import PromptGrid from "./PromptGrid";
 
 export default function TemplatesPage({ user, onBack }) {
-  // ========= STATES PRINCIPAIS =========
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [myCategories, setMyCategories] = useState([]); // ✅ ADICIONADO
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  // ========= MODAL DE VÍDEO =========
-const [showVideoModal, setShowVideoModal] = useState(false);
-const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-
-
-const openVideoModal = (url) => {
-  setCurrentVideoUrl(url);
-  setShowVideoModal(true);
-};
-
-// ✅ Extrai o ID de vídeos do YouTube em diferentes formatos
-const extractYouTubeId = (url) => {
-  if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) return match[1];
-  }
-  return null;
-};
-
-  // ========= MODAIS =========
+  // Modal de template (criar/editar)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
-
-  // ========= FORMULÁRIOS =========
   const [templateForm, setTemplateForm] = useState({
     title: "",
     description: "",
@@ -80,215 +42,134 @@ const extractYouTubeId = (url) => {
     category_id: "none",
     tags: "",
     image_url: "",
-    video_url: "", // ✅ NOVO CAMPO
+    video_url: "",
   });
-  const [editingCategory, setEditingCategory] = useState(null); // ✅ ADICIONE ESTA LINHA
+
+  // Modal de categoria (criar/editar)
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [categoryForm, setCategoryForm] = useState({
     name: "",
     description: "",
-    color: "#6366f1", // indigo padrão
-    is_template: true,
+    color: "#6366f1",
   });
 
-  // ========= DIALOGO USAR TEMPLATE =========
-  const [isUseDialogOpen, setIsUseDialogOpen] = useState(false);
+  // Modal Usar Template (escolher categoria pessoal)
+  const [isUseTemplateDialogOpen, setIsUseTemplateDialogOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [useForm, setUseForm] = useState({
-    title: "",
+  const [myCategories, setMyCategories] = useState([]);
+  const [useTemplateForm, setUseTemplateForm] = useState({
     category_id: "none",
+    title: "",
     is_favorite: false,
   });
 
-  // ========= MODAL DE VISUALIZAÇÃO DE IMAGEM =========
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  
-  // ========= UPLOAD DE IMAGEM =========
-  const [uploadingImage, setUploadingImage] = useState(false);
+  // 🆕 Modais de Preview de Mídia
+  const [imagePreview, setImagePreview] = useState({ open: false, url: "", title: "" });
+  const [videoPreview, setVideoPreview] = useState({ open: false, url: "" });
 
-  // ========= EFEITOS =========
   useEffect(() => {
     loadTemplates();
     loadCategories();
     loadMyCategories();
   }, []);
 
-  // 🔄 Recarrega categorias pessoais ao abrir o modal "Usar Template"
-  useEffect(() => {
-    if (isUseDialogOpen) {
-      loadMyCategories(); // ✅ Garante que as categorias pessoais estejam atualizadas
-    }
-  }, [isUseDialogOpen]);
-
-  // ========= CARREGAR TEMPLATES =========
   const loadTemplates = async () => {
     try {
       setLoading(true);
       const res = await api.get("/templates");
-      const data = res.data?.data || [];
-      setTemplates(data);
-    } catch (err) {
-      console.error("Erro ao carregar templates:", err);
+      setTemplates(res.data?.data || []);
+    } catch {
       toast.error("Erro ao carregar templates");
     } finally {
       setLoading(false);
     }
   };
 
-  // ========= CARREGAR CATEGORIAS (TEMPLATES PÚBLICOS) =========
   const loadCategories = async () => {
     try {
       const res = await api.get("/categories");
-      const list =
-        res.data?.data?.length > 0
-          ? res.data.data
-          : res.data?.templates || [];
-      const onlyTemplates = list.filter((c) => c.is_template);
-      setCategories(onlyTemplates);
-    } catch (err) {
-      console.error("Erro ao carregar categorias:", err);
+      const list = res.data?.data || [];
+      setCategories(list.filter((c) => c.is_template));
+    } catch {
       toast.error("Erro ao carregar categorias");
     }
   };
 
-  // ========= CARREGAR CATEGORIAS PESSOAIS =========
   const loadMyCategories = async () => {
     try {
-      console.log("🔄 Carregando categorias pessoais...");
       const res = await api.get("/categories");
-      const list =
-        res.data?.data?.length > 0
-          ? res.data.data
-          : res.data?.categories || [];
-
-      // Filtra apenas as categorias pessoais (não são templates)
-      const personalCats = list.filter((c) => !c.is_template);
-      console.log(`✅ ${personalCats.length} categorias pessoais encontradas`);
-      setMyCategories(personalCats);
-      
-      if (personalCats.length === 0) {
-        console.log("ℹ️ Você não tem categorias pessoais ainda");
-      }
-    } catch (err) {
-      console.error("Erro ao carregar categorias pessoais:", err);
-      toast.error("Erro ao carregar suas categorias");
+      const list = res.data?.data || [];
+      setMyCategories(list.filter((c) => !c.is_template));
+    } catch {
+      console.log("Erro ao carregar categorias pessoais");
     }
   };
-// ========= EDITAR CATEGORIA =========
-const editCategory = (category) => {
-  setCategoryForm({
-    name: category.name,
-    description: category.description || "",
-    color: category.color || "#6366f1",
-    is_template: true,
-  });
-  setEditingCategory(category);
-  setIsCategoryDialogOpen(true);
-};
 
-// ========= SALVAR (atualizado para editar também) =========
-const saveCategory = async () => {
-  try {
-    const url = editingCategory
-      ? `/categories/${editingCategory.id}`
-      : "/categories";
-    const method = editingCategory ? api.put : api.post;
-
-    const res = await method(url, categoryForm);
-    if (res.data.success) {
-      toast.success(editingCategory ? "Categoria atualizada!" : "Categoria criada!");
-      setIsCategoryDialogOpen(false);
-      setEditingCategory(null);
-      setCategoryForm({
-        name: "",
-        description: "",
-        color: "#6366f1",
-        is_template: true,
-      });
-      loadCategories();
-    } else {
-      toast.error(res.data.error || "Erro ao salvar categoria");
-    }
-  } catch (err) {
-    console.error("Erro ao salvar categoria:", err);
-    toast.error("Erro ao salvar categoria");
-  }
-};
-
-// ========= EXCLUIR CATEGORIA =========
-const deleteCategory = async (id) => {
-  if (!confirm("Tem certeza que deseja excluir esta categoria?")) return;
-
-  // Verifica se há templates usando essa categoria
-  const hasTemplates = templates.some((t) => t.category_id === id);
-  if (hasTemplates) {
-    toast.error("Esta categoria não pode ser excluída porque possui templates atribuídos.");
-    return;
-  }
-
-  try {
-    const res = await api.delete(`/categories/${id}`);
-    if (res.data.success) {
-      toast.success("Categoria excluída com sucesso!");
-      loadCategories();
-    } else {
-      toast.error(res.data.error || "Erro ao excluir categoria");
-    }
-  } catch (err) {
-    console.error("Erro ao excluir categoria:", err);
-    toast.error("Erro ao excluir categoria");
-  }
-};
-
- 
-  // ========= SALVAR TEMPLATE =========
-  const saveTemplate = async () => {
-    if (!user?.is_admin) {
-      toast.error("Apenas administradores podem criar templates");
+  // ===== Categoria (criar/editar/excluir)
+  const saveCategory = async () => {
+    if (!categoryForm.name.trim()) {
+      toast.error("Informe o nome da categoria");
       return;
     }
-
     try {
-      const url = editingTemplate
-        ? `/templates/${editingTemplate.id}`
-        : "/templates";
-      const method = editingTemplate ? api.put : api.post;
-
-      const body = {
-        title: templateForm.title,
-        description: templateForm.description,
-        content: templateForm.content,
-        category_id:
-          templateForm.category_id !== "none"
-            ? Number(templateForm.category_id)
-            : null,
-        tags: templateForm.tags
-          ? templateForm.tags
-              .split(",")
-              .map((t) => t.trim())
-              .filter(Boolean)
-          : [],
-        image_url: templateForm.image_url || null,
-        video_url: templateForm.video_url || null, // ✅ ADICIONADO
-      };
-
-      const res = await method(url, body);
+      const url = editingCategory
+        ? `/categories/${editingCategory.id}`
+        : "/categories";
+      const method = editingCategory ? api.put : api.post;
+      const res = await method(url, {
+        name: categoryForm.name,
+        description: categoryForm.description,
+        color: categoryForm.color,
+        is_template: true,
+      });
       if (res.data.success) {
-        toast.success("Template salvo com sucesso!");
-        setIsTemplateDialogOpen(false);
-        setEditingTemplate(null);
-        resetTemplateForm();
-        loadTemplates();
+        toast.success(editingCategory ? "Categoria atualizada!" : "Categoria criada!");
+        setIsCategoryDialogOpen(false);
+        setEditingCategory(null);
+        setCategoryForm({ name: "", description: "", color: "#6366f1" });
+        loadCategories();
       } else {
-        toast.error(res.data.error || "Erro ao salvar template");
+        toast.error(res.data.error || "Erro ao salvar categoria");
       }
-    } catch (err) {
-      console.error("Erro ao salvar template:", err);
-      toast.error("Erro ao salvar template");
+    } catch {
+      toast.error("Erro ao salvar categoria");
     }
   };
 
-  const resetTemplateForm = () => {
+  const deleteCategory = async (cat) => {
+    if (!confirm(`Deseja excluir a categoria "${cat.name}"?`)) return;
+    try {
+      const res = await api.delete(`/categories/${cat.id}`);
+      if (res.data.success) {
+        toast.success("Categoria excluída!");
+        loadCategories();
+      } else {
+        toast.error(res.data.error || "Erro ao excluir categoria");
+      }
+    } catch {
+      toast.error("Erro ao excluir categoria");
+    }
+  };
+
+  // ===== Template (upload, abrir modal, salvar, excluir, editar)
+  const convertToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const base64 = await convertToBase64(file);
+    setTemplateForm({ ...templateForm, image_url: base64 });
+  };
+
+  const openTemplateDialog = () => {
+    setEditingTemplate(null);
     setTemplateForm({
       title: "",
       description: "",
@@ -296,161 +177,109 @@ const deleteCategory = async (id) => {
       category_id: "none",
       tags: "",
       image_url: "",
+      video_url: "",
     });
+    setIsTemplateDialogOpen(true);
   };
 
-  // ========= DELETAR TEMPLATE =========
-  const deleteTemplate = async (id) => {
-    if (!user?.is_admin) {
-      toast.error("Apenas administradores podem deletar templates");
-      return;
-    }
-    if (!confirm("Tem certeza que deseja deletar este template?")) return;
+  const editTemplate = (template) => {
+    if (!template) return;
+    setEditingTemplate(template);
+    setTemplateForm({
+      title: template.title || "",
+      description: template.description || "",
+      content: template.content || "",
+      category_id: template.category_id ? String(template.category_id) : "none",
+      tags: Array.isArray(template.tags) ? template.tags.join(", ") : (template.tags || ""),
+      image_url: template.image_url || "",
+      video_url: template.video_url || "",
+    });
+    setIsTemplateDialogOpen(true);
+  };
 
+  const saveTemplate = async () => {
+    try {
+      const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
+      const method = editingTemplate ? api.put : api.post;
+      const res = await method(url, templateForm);
+      if (res.data.success) {
+        toast.success(editingTemplate ? "Template atualizado!" : "Template criado!");
+        setIsTemplateDialogOpen(false);
+        setEditingTemplate(null);
+        loadTemplates();
+      } else {
+        toast.error(res.data.error || "Erro ao salvar template");
+      }
+    } catch {
+      toast.error("Erro ao salvar template");
+    }
+  };
+
+  const deleteTemplate = async (id) => {
+    if (!confirm("Tem certeza que deseja excluir este template?")) return;
     try {
       const res = await api.delete(`/templates/${id}`);
       if (res.data.success) {
-        toast.success("Template deletado!");
+        toast.success("Template excluído!");
         loadTemplates();
-      } else {
-        toast.error(res.data.error || "Erro ao deletar template");
       }
-    } catch (err) {
-      console.error("Erro ao deletar template:", err);
-      toast.error("Erro ao deletar template");
+    } catch {
+      toast.error("Erro ao excluir template");
     }
   };
 
-  // ========= EDITAR TEMPLATE =========
-// ========= EDITAR TEMPLATE =========
-const editTemplate = (template) => {
-  setEditingTemplate(template);
-  setTemplateForm({
-    title: template.title,
-    description: template.description || "",
-    content: template.content || "",
-    category_id: template.category_id
-      ? String(template.category_id)
-      : "none",
-    tags: Array.isArray(template.tags)
-      ? template.tags.join(", ")
-      : template.tags || "",
-    image_url: template.image_url || "",
-    video_url: template.video_url || "", // ✅ agora mantém o vídeo no modo edição
-  });
-  setIsTemplateDialogOpen(true);
-};
-
-
-  // ========= USAR TEMPLATE =========
-  const openUseDialog = (template) => {
+  // ===== Usar Template (abre modal + submit)
+  const openUseTemplateDialog = (template) => {
+    if (!template) return;
     setSelectedTemplate(template);
-    setUseForm({
-      title: template.title,
+    setUseTemplateForm({
       category_id: "none",
+      title: template.title || "",
       is_favorite: false,
     });
-    setIsUseDialogOpen(true);
+    setIsUseTemplateDialogOpen(true);
   };
 
   const useTemplate = async () => {
     if (!selectedTemplate) return;
     try {
       const res = await api.post(`/templates/${selectedTemplate.id}/use`, {
-        title: useForm.title || selectedTemplate.title,
-        category_id:
-          useForm.category_id !== "none" ? Number(useForm.category_id) : null,
-        is_favorite: useForm.is_favorite,
+        title: useTemplateForm.title || selectedTemplate.title,
+        category_id: useTemplateForm.category_id === "none" ? null : useTemplateForm.category_id,
+        is_favorite: useTemplateForm.is_favorite,
       });
-
       if (res.data.success) {
-        toast.success("Prompt criado a partir do template!");
-        setIsUseDialogOpen(false);
-        onBack?.();
-        window.location.reload();
+        toast.success("Template adicionado com sucesso!");
+        setIsUseTemplateDialogOpen(false);
+        resetUseTemplateForm();
       } else {
         toast.error(res.data.error || "Erro ao usar template");
       }
-    } catch (err) {
-      console.error("Erro ao usar template:", err);
-      toast.error("Erro ao criar prompt");
+    } catch {
+      toast.error("Erro ao usar template");
     }
   };
 
-  // ========= COPIAR TEMPLATE =========
-  const copyToClipboard = async (template) => {
-    try {
-      await navigator.clipboard.writeText(template.content);
-      toast.success("Template copiado!");
-    } catch (err) {
-      console.error("Erro ao copiar template:", err);
-      toast.error("Erro ao copiar conteúdo");
-    }
+  const resetUseTemplateForm = () => {
+    setSelectedTemplate(null);
+    setUseTemplateForm({ category_id: "none", title: "", is_favorite: false });
   };
 
-  // ========= VISUALIZAR IMAGEM =========
-  const openImageModal = (imageUrl, title) => {
-    setSelectedImage({ url: imageUrl, title: title });
-    setIsImageModalOpen(true);
+  // 🆕 Funções de Preview de Mídia
+  const handleOpenImage = (url, title = "") => {
+    setImagePreview({ open: true, url, title });
   };
 
-  // ========= UPLOAD DE IMAGEM =========
-  const handleImageUpload = async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  // Validar tipo
-  if (!file.type.startsWith('image/')) {
-    toast.error('Por favor, selecione uma imagem válida');
-    return;
-  }
-
-  // Validar tamanho (5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('Imagem muito grande! Máximo 5MB');
-    return;
-  }
-
-  try {
-    setUploadingImage(true);
-    
-    // Converter para base64
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result;
-      setTemplateForm({ ...templateForm, image_url: base64String });
-      toast.success('Imagem carregada!');
-      setUploadingImage(false);
-    };
-    reader.onerror = () => {
-      toast.error('Erro ao ler imagem');
-      setUploadingImage(false);
-    };
-    reader.readAsDataURL(file);
-  } catch (err) {
-    console.error('Erro ao fazer upload:', err);
-    toast.error('Erro ao carregar imagem');
-    setUploadingImage(false);
-  }
-};
-
-  const removeImage = () => {
-    setTemplateForm({ ...templateForm, image_url: '' });
-    toast.success('Imagem removida');
+  const handleOpenVideo = (url) => {
+    setVideoPreview({ open: true, url });
   };
 
-  // ========= FILTRO =========
   const filteredTemplates = templates.filter((t) => {
-    const matchesCategory =
-      selectedCategory === "Todos" ||
-      (t.category_name && t.category_name === selectedCategory);
-    const matchesSearch = t.title
-      ?.toLowerCase()
-      .includes(searchTerm.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const matchCat = selectedCategory === "Todos" || t.category_name === selectedCategory;
+    const matchSearch = t.title?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchCat && matchSearch;
   });
 
-  // ========== JSX ==========
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Header */}
@@ -458,335 +287,226 @@ const editTemplate = (template) => {
         <div className="max-w-[1800px] mx-auto flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={onBack}
+              onClick={() => {
+                if (onBack) {
+                  onBack();
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 300);
+                } else {
+                  window.history.back();
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 300);
+                }
+              }}
               className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
             >
               <ArrowLeft className="w-4 h-4" />
               Voltar
             </button>
+
             <h1 className="text-2xl font-bold flex items-center gap-2">
               📚 Biblioteca de Templates
             </h1>
           </div>
-          
-          <div className="flex items-center gap-3">
-            {user?.is_admin && (
-              <button
-                onClick={() => {
-                  setEditingTemplate(null);
-                  resetTemplateForm();
-                  setIsTemplateDialogOpen(true);
-                }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:-translate-y-0.5 hover:shadow-lg transition"
-              >
-                <Plus className="w-4 h-4" />
-                Novo Template
-              </button>
-            )}
-          </div>
+
+          {user?.is_admin && (
+            <Button
+              onClick={openTemplateDialog}
+              className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:-translate-y-0.5 hover:shadow-lg transition"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Template
+            </Button>
+          )}
+
+          <button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+          >
+            <Menu className="w-6 h-6 text-gray-600" />
+          </button>
         </div>
       </header>
 
-      {/* Main Layout */}
-      <div className="max-w-[1800px] mx-auto flex flex-col lg:flex-row gap-6 p-6">
-        {/* Sidebar */}
-        <aside className="lg:w-[240px] flex-shrink-0 bg-white rounded-xl p-5 h-fit sticky top-24 shadow-sm">
-          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl p-4 mb-5">
-            <div className="text-sm opacity-90">Total de Templates</div>
-            <div className="text-3xl font-bold">{templates.length}</div>
-          </div>
-
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-bold text-gray-900">Categorias</h3>
-            {user?.is_admin && (
-              <button
-                onClick={() => setIsCategoryDialogOpen(true)}
-                className="p-1 rounded-md hover:bg-gray-100 text-gray-600 transition"
-                title="Criar nova categoria"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div
-              onClick={() => setSelectedCategory("Todos")}
-              className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border-2 transition ${
-                selectedCategory === "Todos"
-                  ? "border-indigo-500 bg-indigo-50/40 text-indigo-600 font-semibold"
-                  : "border-transparent text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <span className="text-sm">Todos</span>
-            </div>
-           {categories.map((cat) => (
-  <div
-    key={cat.id}
-    className={`flex items-center justify-between p-3 rounded-lg cursor-pointer border-2 transition ${
-      selectedCategory === cat.name
-        ? "border-indigo-500 bg-indigo-50/40 text-indigo-600 font-semibold"
-        : "border-transparent text-gray-600 hover:bg-gray-100"
-    }`}
-    onClick={() => setSelectedCategory(cat.name)}
-  >
-    <span className="flex items-center gap-2 text-sm">
-      <span
-        className="w-3 h-3 rounded-full"
-        style={{ backgroundColor: cat.color }}
-      ></span>
-      {cat.name}
-    </span>
-
-    {/* Botões visíveis apenas para admin */}
-    {user?.is_admin && (
-      <div className="flex gap-1 ml-2">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            editCategory(cat);
-          }}
-          className="p-1 text-gray-500 hover:text-indigo-600 transition"
-          title="Editar categoria"
-        >
-          <Edit className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteCategory(cat.id);
-          }}
-          className="p-1 text-gray-500 hover:text-red-600 transition"
-          title="Excluir categoria"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-    )}
-  </div>
-))}
-
-          </div>
-        </aside>
-
-        {/* Content Area */}
-        <main className="flex-1 flex flex-col gap-6">
-          {/* Search */}
-          <div className="bg-white rounded-xl p-4 flex items-center gap-3 shadow-sm">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nome ou tags..."
-                className="w-full border-2 border-gray-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.currentTarget.blur();
-                  }
-                }}
-              />
-            </div>
-            <button
-              onClick={() => {
-                // Força re-render se necessário
-                setSearchTerm(searchTerm.trim());
-              }}
-              className="px-5 py-2 rounded-lg font-semibold text-sm text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:shadow-md transition flex items-center gap-2 whitespace-nowrap"
-            >
-              <Search className="w-4 h-4" />
-              Buscar
-            </button>
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm("")}
-                className="px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition flex items-center"
-                title="Limpar busca"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500 font-medium">
-              {loading
-                ? "Carregando templates..."
-                : `Mostrando ${filteredTemplates.length} de ${templates.length} templates`}
-            </span>
-          </div>
-
-          {/* Templates Grid */}
-          {loading ? (
-            <div className="text-center text-gray-400 py-10">
-              ⏳ Carregando templates...
-            </div>
-          ) : filteredTemplates.length === 0 ? (
-            <div className="text-center text-gray-400 py-10">
-              Nenhum template encontrado.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-              {filteredTemplates.map((t) => {
-                const category = categories.find(
-                  (c) => c.id === t.category_id
-                );
-                const color = category?.color || "#6366f1";
-              
-
-              const rawVideoUrl = t.video_url || t.videoUrl || t.youtube_url || t.youtubeUrl || "";
-const videoId = extractYouTubeId(rawVideoUrl);
-const hasVideo = !!videoId;
-
-
-                return (
-                  <div
-                    key={t.id}
-                    className="flex bg-white rounded-xl overflow-hidden border-2 border-transparent hover:border-indigo-500 shadow-sm hover:shadow-lg transition transform hover:-translate-y-0.5 h-[200px]"
-                  >
-                    {/* Conteúdo esquerdo */}
-                    <div className="flex-1 flex flex-col p-4 min-w-0">
-                      {/* Conteúdo superior (categoria, título, descrição) */}
-                      <div className="flex flex-col gap-2 flex-1">
-                        <span
-                          className="text-[11px] font-semibold text-white rounded-md px-2.5 py-0.5 w-fit"
-                          style={{
-                            backgroundColor: color,
-                          }}
-                        >
-                          {t.category_name || "Sem categoria"}
-                        </span>
-
-                        <h3 className="text-sm font-bold leading-snug line-clamp-2">
-                          {t.title}
-                        </h3>
-
-                        <p className="text-xs text-gray-500 line-clamp-3">
-                          {t.description || "Sem descrição"}
-                        </p>
-                      </div>
-
-                      {/* Botões - sempre no final */}
-                      <div className="flex flex-wrap gap-2 items-center pt-3 mt-auto">
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
-                          onClick={() => openUseDialog(t)}
-                        >
-                          Usar Template
-                        </Button>
-
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            title="Copiar conteúdo"
-                            onClick={() => copyToClipboard(t)}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-
-                          {user?.is_admin && (
-                            <>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                title="Editar template"
-                                onClick={() => editTemplate(t)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                title="Excluir template"
-                                className="text-red-600 hover:text-red-700"
-                                onClick={() => deleteTemplate(t.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-         {/* Imagem direita */}
-                   {/* Mídia direita (vídeo ou imagem) */}
-<div className="w-[140px] h-full flex-shrink-0 relative overflow-hidden bg-gradient-to-r from-indigo-500 to-purple-600">
-  {(hasVideo || t.image_url) ? (
-    <>
-      {hasVideo && (
-        <div className="absolute top-2 right-2 z-50 pointer-events-none">
-          <div className="flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M10 15V9l5 3-5 3z" />
-            </svg>
-            <span>YouTube</span>
-          </div>
-        </div>
+      {/* Overlay para fechar sidebar no mobile */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
       )}
 
-   <button
-  type="button"
-  aria-label="Abrir mídia"
-  onClick={() =>
-    hasVideo
-      ? openVideoModal(rawVideoUrl)
-      : openImageModal(t.image_url, t.title)
-  }
-  className="absolute inset-0 w-full h-full relative group cursor-pointer"
->
-  <img
-    src={
-      hasVideo
-        ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-        : t.image_url
-    }
-    alt={t.title}
-    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-  />
-  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-all duration-300 pointer-events-none">
-    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/90 p-2 rounded-full shadow-lg transform scale-90 group-hover:scale-100">
-      <Search className="text-indigo-600 w-5 h-5" />
-    </div>
-  </div>
-</button>
-
-    </>
-  ) : (
-    <div className="flex flex-col items-center justify-center h-full text-white/70 text-xs">
-      <svg className="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      </svg>
-      Sem imagem
-    </div>
-  )}
-</div>
-
-                  </div>
-                );
-              })}
+      <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
+          {/* Sidebar */}
+          <aside
+            className={`fixed lg:static top-0 left-0 h-full lg:h-auto bg-white lg:bg-transparent w-64 lg:w-[240px] shadow-lg lg:shadow-none p-5 rounded-r-xl lg:rounded-xl transform transition-transform duration-300 ease-in-out z-50 ${
+              isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+            }`}
+          >
+            {/* Cabeçalho mobile da sidebar */}
+            <div className="flex items-center justify-between mb-4 lg:hidden">
+              <h3 className="text-lg font-semibold text-gray-900">Categorias</h3>
+              <button
+                onClick={() => setIsMobileSidebarOpen(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
             </div>
-          )}
-        </main>
+
+            {/* Título + novo (admin) */}
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-2 h-6 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full" />
+                Categorias
+              </h4>
+              {user?.is_admin && (
+                <button
+                  onClick={() => {
+                    setEditingCategory(null);
+                    setIsCategoryDialogOpen(true);
+                  }}
+                  className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600"
+                  title="Nova categoria"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Lista de categorias */}
+            <div className="flex flex-col gap-2 overflow-y-auto max-h-[80vh]">
+              <button
+                onClick={() => {
+                  setSelectedCategory("Todos");
+                  setIsMobileSidebarOpen(false);
+                }}
+                className={`p-2 rounded-lg text-left ${
+                  selectedCategory === "Todos"
+                    ? "bg-indigo-100 text-indigo-600 font-semibold"
+                    : "hover:bg-gray-100"
+                }`}
+              >
+                Todos
+              </button>
+
+              {categories.map((cat) => (
+                <div
+                  key={cat.id}
+                  className={`group flex items-center justify-between p-2 rounded-lg ${
+                    selectedCategory === cat.name
+                      ? "bg-indigo-100 text-indigo-600 font-semibold"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  <button
+                    onClick={() => {
+                      setSelectedCategory(cat.name);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                    className="flex items-center gap-2 flex-1 text-left"
+                  >
+                    <span
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{ backgroundColor: cat.color || "#6366f1" }}
+                    />
+                    <span className="truncate">{cat.name}</span>
+                  </button>
+
+                  {user?.is_admin && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => {
+                          setEditingCategory(cat);
+                          setCategoryForm({
+                            name: cat.name,
+                            description: cat.description || "",
+                            color: cat.color || "#6366f1",
+                          });
+                          setIsCategoryDialogOpen(true);
+                        }}
+                        className="p-1 text-gray-500 hover:text-indigo-600"
+                        title="Editar categoria"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => deleteCategory(cat)}
+                        className="p-1 text-gray-500 hover:text-red-600"
+                        title="Excluir categoria"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </aside>
+
+          {/* Conteúdo principal */}
+          <main className="flex flex-col gap-6">
+            <div className="bg-white rounded-xl p-4 flex items-center gap-3 shadow-sm">
+              <Search className="text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                placeholder="Buscar templates..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="flex-1 border-none focus:ring-0 outline-none text-sm"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Grid de cards */}
+            <PromptGrid
+              prompts={filteredTemplates}
+              isLoading={loading}
+              CardComponent={(props) => <TemplateCard {...props} user={user} />}
+              onEdit={editTemplate}
+              onDelete={(id) => deleteTemplate(id)}
+              onShare={(template) => openUseTemplateDialog(template)}
+              onCopy={async (template) => {
+                try {
+                  const text = template.content || template.description || "";
+                  await navigator.clipboard.writeText(text);
+                  toast.success("Conteúdo copiado!");
+                } catch {
+                  toast.error("Erro ao copiar conteúdo");
+                }
+              }}
+              onOpenImage={handleOpenImage}
+              onOpenVideo={handleOpenVideo}
+            />
+          </main>
+        </div>
       </div>
-      {/* ========== MODAL NOVA CATEGORIA ========== */}
+
+      {/* === Modal Criar/Editar Categoria === */}
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-md bg-white shadow-lg rounded-xl p-6">
           <DialogHeader>
             <DialogTitle>
-  {editingCategory ? "Editar Categoria" : "Criar Nova Categoria"}
-</DialogTitle>
-
+              {editingCategory ? "Editar Categoria" : "Nova Categoria de Template"}
+            </DialogTitle>
             <DialogDescription>
-              Categorias ajudam a organizar seus templates.
+              {editingCategory
+                ? "Atualize as informações desta categoria pública."
+                : "Crie uma nova categoria pública para templates."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+
+          <div className="space-y-4">
             <div>
               <Label>Nome</Label>
               <Input
@@ -794,122 +514,131 @@ const hasVideo = !!videoId;
                 onChange={(e) =>
                   setCategoryForm({ ...categoryForm, name: e.target.value })
                 }
+                placeholder="Ex: Redes Sociais"
               />
             </div>
+
             <div>
               <Label>Descrição</Label>
               <Textarea
-                rows={3}
+                rows={2}
                 value={categoryForm.description}
                 onChange={(e) =>
-                  setCategoryForm({
-                    ...categoryForm,
-                    description: e.target.value,
-                  })
+                  setCategoryForm({ ...categoryForm, description: e.target.value })
                 }
+                placeholder="Breve descrição da categoria"
               />
             </div>
+
             <div>
-              <Label>Cor</Label>
-              <div className="flex gap-2 items-center">
+              <Label>Cor da Categoria</Label>
+              <div className="flex items-center gap-3">
                 <input
                   type="color"
-                  className="w-10 h-10 rounded-md border"
                   value={categoryForm.color}
                   onChange={(e) =>
-                    setCategoryForm({
-                      ...categoryForm,
-                      color: e.target.value,
-                    })
+                    setCategoryForm({ ...categoryForm, color: e.target.value })
                   }
+                  className="w-10 h-10 rounded-md border shadow-sm cursor-pointer"
                 />
-                <span className="text-sm text-gray-500">
-                  {categoryForm.color}
+                <span className="text-sm text-gray-600">
+                  {categoryForm.color.toUpperCase()}
                 </span>
               </div>
             </div>
           </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsCategoryDialogOpen(false)}
-            >
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
               Cancelar
             </Button>
             <Button
-  className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
-  onClick={saveCategory}
->
-  {editingCategory ? "Salvar Alterações" : "Salvar Categoria"}
-</Button>
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
+              onClick={saveCategory}
+            >
+              {editingCategory ? "Salvar Alterações" : "Criar Categoria"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ========== MODAL TEMPLATE ========== */}
-      <Dialog
-        open={isTemplateDialogOpen}
-        onOpenChange={setIsTemplateDialogOpen}
-      >
-<DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl">
+      {/* === Modal Criar/Editar Template === */}
+      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-lg p-6">
           <DialogHeader>
-            <DialogTitle>
-              {editingTemplate ? "Editar Template" : "Novo Template"}
-            </DialogTitle>
-            <DialogDescription>
-              Preencha os detalhes do template público.
-            </DialogDescription>
+            <DialogTitle>{editingTemplate ? "Editar Template" : "Novo Template"}</DialogTitle>
+            <DialogDescription>Configure os detalhes do template.</DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4">
             <div>
               <Label>Título</Label>
               <Input
                 value={templateForm.title}
-                onChange={(e) =>
-                  setTemplateForm({ ...templateForm, title: e.target.value })
-                }
+                onChange={(e) => setTemplateForm({ ...templateForm, title: e.target.value })}
+                placeholder="Título do template"
               />
             </div>
+
             <div>
               <Label>Descrição</Label>
               <Textarea
                 rows={2}
                 value={templateForm.description}
                 onChange={(e) =>
-                  setTemplateForm({
-                    ...templateForm,
-                    description: e.target.value,
-                  })
+                  setTemplateForm({ ...templateForm, description: e.target.value })
                 }
+                placeholder="Descrição breve"
               />
             </div>
+
             <div>
               <Label>Conteúdo</Label>
               <Textarea
-                rows={8}
-                className="font-mono text-sm"
+                rows={6}
                 value={templateForm.content}
-                onChange={(e) =>
-                  setTemplateForm({ ...templateForm, content: e.target.value })
-                }
+                onChange={(e) => setTemplateForm({ ...templateForm, content: e.target.value })}
+                placeholder="Conteúdo do template"
               />
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Imagem</Label>
+                <Input type="file" accept="image/*" onChange={handleImageUpload} />
+                {templateForm.image_url && (
+                  <img
+                    src={templateForm.image_url}
+                    alt="preview"
+                    className="mt-2 w-full h-40 object-cover rounded-md border"
+                  />
+                )}
+              </div>
+
+              <div>
+                <Label>Link do YouTube</Label>
+                <Input
+                  placeholder="https://youtube.com/watch?v=..."
+                  value={templateForm.video_url}
+                  onChange={(e) => setTemplateForm({ ...templateForm, video_url: e.target.value })}
+                />
+              </div>
+            </div>
+
             <div>
-              <Label>Tags (separadas por vírgula)</Label>
+              <Label>Tags</Label>
               <Input
+                placeholder="Ex: marketing, redes sociais"
                 value={templateForm.tags}
-                onChange={(e) =>
-                  setTemplateForm({ ...templateForm, tags: e.target.value })
-                }
+                onChange={(e) => setTemplateForm({ ...templateForm, tags: e.target.value })}
               />
             </div>
+
             <div>
               <Label>Categoria</Label>
               <Select
                 value={templateForm.category_id}
-                onValueChange={(v) =>
-                  setTemplateForm({ ...templateForm, category_id: v })
-                }
+                onValueChange={(v) => setTemplateForm({ ...templateForm, category_id: v })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Escolha uma categoria" />
@@ -924,166 +653,60 @@ const hasVideo = !!videoId;
                 </SelectContent>
               </Select>
             </div>
-
-            {/* ✅ UPLOAD DE IMAGEM */}
-            <div>
-              <Label>Imagem do Template</Label>
-              <div className="space-y-3">
-                {/* Preview da imagem */}
-                {templateForm.image_url && (
-                  <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
-                    <img
-                      src={templateForm.image_url}
-                      alt="Preview"
-                      className="w-full h-full object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
-                      title="Remover imagem"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-
-                {/* Botão de upload */}
-                <div className="flex items-center gap-3">
-                  <label
-                    htmlFor="image-upload"
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
-                      uploadingImage
-                        ? "border-gray-300 bg-gray-50 cursor-wait"
-                        : "border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50"
-                    }`}
-                  >
-                    {uploadingImage ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
-                        <span className="text-sm text-gray-600">Carregando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-5 h-5 text-indigo-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <span className="text-sm font-medium text-gray-700">
-                          {templateForm.image_url ? "Trocar imagem" : "Selecionar imagem"}
-                        </span>
-                      </>
-                    )}
-                  </label>
-                  <input
-                    id="image-upload"
-                    type="file"
-                    accept="image/jpeg,image/png,image/svg+xml"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImage}
-                    className="hidden"
-                  />
-                </div>
-                  Formatos suportados: JPG, PNG, SVG (máx. 5MB)
-
-              </div>
-            </div>
-            {/* ✅ LINK DO VÍDEO (YOUTUBE) */}
-<div>
-  <Label>Link do vídeo (YouTube)</Label>
-  <Input
-    type="url"
-    placeholder="https://www.youtube.com/watch?v=..."
-    value={templateForm.video_url || ""}
-    onChange={(e) =>
-      setTemplateForm({ ...templateForm, video_url: e.target.value })
-    }
-  />
-  <p className="text-xs text-gray-500 mt-1">
-    Se preencher este campo, a imagem será substituída pelo preview do vídeo.
-  </p>
-</div>
-
           </div>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setIsTemplateDialogOpen(false)}
-            >
+
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
-              onClick={saveTemplate}
-            >
-              Salvar Template
+            <Button className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white" onClick={saveTemplate}>
+              {editingTemplate ? "Salvar Alterações" : "Criar Template"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ========== MODAL USAR TEMPLATE (✅ CORRIGIDO) ========== */}
-      <Dialog open={isUseDialogOpen} onOpenChange={setIsUseDialogOpen}>
-        <DialogContent className="max-w-lg">
+      {/* === Modal Usar Template === */}
+      <Dialog
+        open={isUseTemplateDialogOpen}
+        onOpenChange={(open) => {
+          setIsUseTemplateDialogOpen(open);
+          if (!open) resetUseTemplateForm();
+        }}
+      >
+        <DialogContent className="max-w-md bg-white rounded-xl p-6 shadow-lg">
           <DialogHeader>
-            <DialogTitle>Usar Template: {selectedTemplate?.title}</DialogTitle>
+            <DialogTitle>Usar Template</DialogTitle>
             <DialogDescription>
-              Crie um novo prompt a partir deste template e salve em suas categorias pessoais.
+              Escolha uma categoria pessoal para adicionar este template.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <Label>Título do novo prompt</Label>
+              <Label>Título</Label>
               <Input
-                value={useForm.title}
-                onChange={(e) => setUseForm({ ...useForm, title: e.target.value })}
-                placeholder="Título do seu prompt"
+                value={useTemplateForm.title}
+                onChange={(e) => setUseTemplateForm({ ...useTemplateForm, title: e.target.value })}
               />
             </div>
 
-            {/* ✅ CORRIGIDO: Usa myCategories */}
             <div>
-              <Label>Categoria Pessoal</Label>
+              <Label>Categoria</Label>
               <Select
-                value={useForm.category_id}
-                onValueChange={(v) => setUseForm({ ...useForm, category_id: v })}
+                value={useTemplateForm.category_id}
+                onValueChange={(v) => setUseTemplateForm({ ...useTemplateForm, category_id: v })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma categoria" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem categoria</SelectItem>
-                  {myCategories.length > 0 ? (
-                    myCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={String(cat.id)}>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: cat.color }}
-                          ></span>
-                          {cat.name}
-                        </div>
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="px-3 py-4 text-center text-sm text-gray-500">
-                      Você ainda não tem categorias pessoais.
-                      <br />
-                      <span className="text-xs text-gray-400">
-                        Crie uma categoria na página principal primeiro.
-                      </span>
-                    </div>
-                  )}
+                  {myCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={String(cat.id)}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -1091,111 +714,102 @@ const hasVideo = !!videoId;
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                id="fav"
-                checked={useForm.is_favorite}
+                checked={useTemplateForm.is_favorite}
                 onChange={(e) =>
-                  setUseForm({ ...useForm, is_favorite: e.target.checked })
+                  setUseTemplateForm({ ...useTemplateForm, is_favorite: e.target.checked })
                 }
               />
-              <Label htmlFor="fav">Marcar como favorito</Label>
-            </div>
-
-            <div>
-              <Label>Conteúdo do Template (preview)</Label>
-              <div className="p-3 bg-gray-50 rounded-lg border border-gray-200 max-h-48 overflow-y-auto">
-                <pre className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {selectedTemplate?.content || "Nenhum conteúdo disponível"}
-                </pre>
-              </div>
+              <Label>Marcar como favorito</Label>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-5">
-            <Button variant="outline" onClick={() => setIsUseDialogOpen(false)}>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button variant="outline" onClick={() => setIsUseTemplateDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
-              onClick={useTemplate}
-            >
-              Criar Prompt
+            <Button className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white" onClick={useTemplate}>
+              Adicionar
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ========== MODAL VISUALIZAR IMAGEM ========== */}
-<Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-  <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
-    <DialogHeader className="p-6 pb-3 border-b">
-      <DialogTitle className="text-lg">{selectedImage?.title}</DialogTitle>
-      <DialogDescription>Imagem do template</DialogDescription>
-    </DialogHeader>
-    
-    {/* ✅ Container com scroll e centralização */}
-    <div className="relative w-full h-full max-h-[70vh] overflow-auto bg-gray-50 flex items-center justify-center p-6">
-      <img
-        src={selectedImage?.url}
-        alt={selectedImage?.title}
-        className="max-w-full max-h-full object-contain"
-        style={{ maxHeight: 'calc(70vh - 48px)' }}
-      />
-    </div>
-    
-    <div className="flex justify-end gap-2 p-6 pt-3 border-t bg-white">
-      <Button
-        variant="outline"
-        onClick={() => setIsImageModalOpen(false)}
-      >
-        Fechar
-      </Button>
-      <Button
-        onClick={() => {
-          const link = document.createElement('a');
-          link.href = selectedImage?.url;
-          link.download = `${selectedImage?.title || 'template'}.png`;
-          link.click();
-        }}
-        className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
-      >
-        <Download className="w-4 h-4 mr-2" />
-        Baixar Imagem
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
+      {/* 🆕 Modal de Preview de Imagem - COM FUNDO BRANCO FORÇADO */}
+      <Dialog open={imagePreview.open} onOpenChange={(open) => setImagePreview({ ...imagePreview, open })}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white">
+          <DialogHeader className="p-6 pb-3 border-b bg-white">
+            <DialogTitle className="text-lg text-gray-900">{imagePreview.title || "Imagem do Template"}</DialogTitle>
+            <DialogDescription className="text-gray-600">Visualização da imagem</DialogDescription>
+          </DialogHeader>
+          
+          <div className="relative w-full h-full max-h-[70vh] overflow-auto bg-gray-50 flex items-center justify-center p-6">
+            <img
+              src={imagePreview.url}
+              alt={imagePreview.title}
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+          
+          <div className="flex justify-end gap-2 p-6 pt-3 border-t border-gray-200 bg-white">
+            <Button 
+              variant="outline" 
+              onClick={() => setImagePreview({ open: false, url: "", title: "" })}
+            >
+              Fechar
+            </Button>
+            <Button
+              onClick={() => {
+                const link = document.createElement('a');
+                link.href = imagePreview.url;
+                link.download = `${imagePreview.title || 'template'}.png`;
+                link.click();
+              }}
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:opacity-90"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Baixar Imagem
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-{/* ========== MODAL DE VÍDEO ========== */}
-<Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
-  <DialogContent className="max-w-4xl p-0 bg-black overflow-hidden">
-    <div className="relative">
-      <button
-        onClick={() => {
-          setShowVideoModal(false);
-          setCurrentVideoUrl(null);
-        }}
-        className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
-      >
-        ✕
-      </button>
-
-      {currentVideoUrl && (
-        <div key={currentVideoUrl}>
-          <iframe
-            src={`https://www.youtube.com/embed/${extractYouTubeId(currentVideoUrl)}?autoplay=1&rel=0&modestbranding=1`}
-            title="YouTube player"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="w-full aspect-video"
-          ></iframe>
-        </div>
-      )}
-    </div>
-  </DialogContent>
-</Dialog>
-
-
-
+      {/* 🆕 Modal de Preview de Vídeo */}
+      <Dialog open={videoPreview.open} onOpenChange={(open) => setVideoPreview({ ...videoPreview, open })}>
+        <DialogContent className="max-w-5xl p-0 overflow-hidden">
+          <div className="relative pt-[56.25%]">
+            <button
+              onClick={() => setVideoPreview({ open: false, url: "" })}
+              className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-black/70 rounded-full transition"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            <iframe
+              className="absolute inset-0 w-full h-full"
+              src={videoPreview.url.includes("youtube.com") || videoPreview.url.includes("youtu.be")
+                ? `https://www.youtube.com/embed/${extractYouTubeId(videoPreview.url)}?autoplay=1`
+                : videoPreview.url
+              }
+              title="Video player"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+// Função auxiliar para extrair ID do YouTube
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) return match[1];
+  }
+  return null;
 }

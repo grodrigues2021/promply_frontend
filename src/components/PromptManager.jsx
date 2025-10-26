@@ -5,7 +5,7 @@ import { Input } from './ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Badge } from './ui/badge'
 import { Textarea } from './ui/textarea'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,   DialogOverlay, } from './ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { ScrollArea } from './ui/scroll-area'
 import { Label } from './ui/label'
@@ -23,9 +23,7 @@ import {
   Heart,
   Share2,
   X,
-  BookTemplate,
-  LibraryBig,
-  
+  Menu,
   BookText,
   MessageSquare,
   Star,
@@ -37,13 +35,13 @@ import { useAuth } from '../hooks/useAuth'
 import TemplatesPage from './TemplatesPage.jsx'
 import ChatModal from './ChatModal'
 import SharePromptModal from './SharePromptModal'
-
-
+import PromptCard from './PromptCard'
+import PromptGrid from './PromptGrid'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
-export default function PromptManager({ user, setIsAuthenticated, setUser }) {
-  const { logout } = useAuth()
+export default function PromptManager({ setIsAuthenticated, setUser }) {
+  const { user, logout, isAuthenticated, isLoading } = useAuth()
   const [prompts, setPrompts] = useState([])
   const [myCategories, setMyCategories] = useState([])
   const [templateCategories, setTemplateCategories] = useState([])
@@ -63,27 +61,26 @@ export default function PromptManager({ user, setIsAuthenticated, setUser }) {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [isImageModalOpen, setIsImageModalOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState(null)
-  const [showVideoModal, setShowVideoModal] = useState(false);
-const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
+  const [showVideoModal, setShowVideoModal] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [currentVideoUrl, setCurrentVideoUrl] = useState(null)
 
-const openVideoModal = (url) => {
-  setCurrentVideoUrl(url);
-  setShowVideoModal(true);
-};
-
+  const openVideoModal = (url) => {
+    setCurrentVideoUrl(url)
+    setShowVideoModal(true)
+  }
 
   const extractYouTubeId = (url) => {
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) return match[1];
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /^([a-zA-Z0-9_-]{11})$/
+    ]
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match && match[1]) return match[1]
+    }
+    return null
   }
-  return null;
-};
-
 
   const [promptForm, setPromptForm] = useState({
     title: '',
@@ -136,6 +133,7 @@ const openVideoModal = (url) => {
         return matchesSearch && matchesCategory && matchesFavorites
       })
     : []
+
   const loadPrompts = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/prompts`, { credentials: 'include' })
@@ -265,44 +263,41 @@ const openVideoModal = (url) => {
     }
   }
 
-
-// ✅ Atualização otimista de favoritos
-const toggleFavorite = async (prompt) => {
-  setPrompts((prev) =>
-    prev.map((p) =>
-      p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
-    )
-  );
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/prompts/${prompt.id}/favorite`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-
-    const data = await response.json();
-    if (data.success) {
-      loadStats(); // atualiza apenas os contadores
-    }
-
-    if (!data.success) {
-      setPrompts((prev) =>
-        prev.map((p) =>
-          p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
-        )
-      );
-      toast.error('Erro ao atualizar favorito');
-    }
-  } catch (err) {
+  const toggleFavorite = async (prompt) => {
     setPrompts((prev) =>
       prev.map((p) =>
         p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
       )
-    );
-    toast.error('Erro ao conectar ao servidor');
-  }
-};
+    )
 
+    try {
+      const response = await fetch(`${API_BASE_URL}/prompts/${prompt.id}/favorite`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        loadStats()
+      }
+
+      if (!data.success) {
+        setPrompts((prev) =>
+          prev.map((p) =>
+            p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
+          )
+        )
+        toast.error('Erro ao atualizar favorito')
+      }
+    } catch (err) {
+      setPrompts((prev) =>
+        prev.map((p) =>
+          p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
+        )
+      )
+      toast.error('Erro ao conectar ao servidor')
+    }
+  }
 
   const copyToClipboard = async (prompt) => {
     try {
@@ -409,6 +404,7 @@ const toggleFavorite = async (prompt) => {
     setSelectedImage({ url: imageBase64, title })
     setIsImageModalOpen(true)
   }
+
   const testConnection = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/stats`, { credentials: 'include' })
@@ -431,184 +427,248 @@ const toggleFavorite = async (prompt) => {
 
   return (
     <>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-         <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700 sticky top-0 z-50">
-  <div className="w-full px-8 lg:px-12 xl:px-16 py-4">
-    <div className="flex items-center justify-between">
-      <div className="flex items-center space-x-3">
-        <img src={PromplyLogo} alt="Logo Promply" className="w-10 h-10 object-contain" />
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Promply.app</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Organize e gerencie seus prompts</p>
-        </div>
-      </div>
+<div className="min-h-screen bg-gray-50 dark:bg-slate-900">
+<header className="bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:bg-slate-900 sticky top-0 z-50">
+          <div className="w-full px-8 lg:px-12 xl:px-16 py-4">
+            <div className="flex items-center justify-between">
+              <button
+                className="mobile-menu-btn lg:hidden"
+                onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                aria-label="Menu"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
 
-      <div className="flex items-center space-x-3">
-        {user && (
-          <>
-            <span className="text-sm text-slate-600 dark:text-slate-400">Olá, {user.name}</span>
-            {user.is_admin && (
-              <Badge variant="destructive" className="text-xs">Admin</Badge>
-            )}
-          </>
-        )}
-        <Button
-          variant={dbConnected ? 'outline' : 'destructive'}
-          size="sm"
-          onClick={testConnection}
-          className="flex items-center space-x-2"
-        >
-          <Database className="w-4 h-4" />
-          <span>{dbConnected ? 'Conectado' : 'Reconectar DB'}</span>
-        </Button>
+              <div className="flex items-center space-x-3">
+                <img src={PromplyLogo} alt="Logo Promply" className="w-10 h-10 object-contain" />
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Promply.app</h1>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Organize e gerencie seus prompts</p>
+                </div>
+              </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleLogout}
-          className="flex items-center space-x-2"
-        >
-          <span>Sair</span>
-        </Button>
-      </div>
-    </div>
+              <div className="flex items-center space-x-3">
+                {user && (
+  <div className="flex items-center gap-2">
+    <span className="text-sm text-slate-600 dark:text-slate-300 hidden md:inline">
+      Olá, {user.name}
+    </span>
+
+    {(user.is_admin || user.role === "admin") && (
+      <span className="bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-sm border border-red-700">
+        Admin
+      </span>
+    )}
   </div>
-</header>
+)}
+
+                <Button
+                  variant={dbConnected ? 'outline' : 'destructive'}
+                  size="sm"
+                  onClick={testConnection}
+                  className="flex items-center space-x-2"
+                >
+                  <Database className="w-4 h-4" />
+                  <span className="hidden sm:inline">{dbConnected ? 'Conectado' : 'Reconectar DB'}</span>
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="flex items-center space-x-2"
+                >
+                  <span>Sair</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
+{isMobileSidebarOpen && (
+  <div
+    className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-30 lg:hidden"
+    onClick={() => setIsMobileSidebarOpen(false)}
+  />
+)}
+
+
+
+            <aside
+  className={`promply-sidebar ${isMobileSidebarOpen ? 'mobile-open' : ''} z-40`}
+>
+
+              <div className="sidebar-mobile-header lg:hidden">
+                <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
+                <button
+                  onClick={() => setIsMobileSidebarOpen(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+               {/* Estatísticas - Ícones Responsivos */}
+<div className="grid grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3">
+
+  {/* PROMPTS */}
+  <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
+    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
+      {/* Mobile */}
+      <div className="flex flex-col items-center lg:hidden space-y-1">
+        <BookOpen className="w-5 h-5 text-blue-100" />
+        <p className="text-xs font-semibold">{stats.total_prompts || 0}</p>
+      </div>
+      {/* Desktop */}
+      <div className="hidden lg:flex flex-col w-full justify-between">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Prompts</p>
+          <BookOpen className="w-7 h-7 text-blue-100" />
+        </div>
+        <p className="text-xl font-bold mt-1">{stats.total_prompts || 0}</p>
+      </div>
+    </CardContent>
+  </Card>
+
+  {/* CATEGORIAS */}
+  <Card className="bg-purple-500/90 text-white border border-purple-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
+    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
+      <div className="flex flex-col items-center lg:hidden space-y-1">
+        <Tag className="w-5 h-5 text-purple-100" />
+        <p className="text-xs font-semibold">{stats.total_categories || 0}</p>
+      </div>
+      <div className="hidden lg:flex flex-col w-full justify-between">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Categorias</p>
+          <Tag className="w-7 h-7 text-purple-100" />
+        </div>
+        <p className="text-xl font-bold mt-1">{stats.total_categories || 0}</p>
+      </div>
+    </CardContent>
+  </Card>
+
+  {/* FAVORITOS */}
+  <Card className="bg-pink-500/90 text-white border border-pink-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
+    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
+      <div className="flex flex-col items-center lg:hidden space-y-1">
+        <Heart className="w-5 h-5 text-pink-100" />
+        <p className="text-xs font-semibold">{stats.favorite_prompts || 0}</p>
+      </div>
+      <div className="hidden lg:flex flex-col w-full justify-between">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">Favoritos</p>
+          <Heart className="w-7 h-7 text-pink-100" />
+        </div>
+        <p className="text-xl font-bold mt-1">{stats.favorite_prompts || 0}</p>
+      </div>
+    </CardContent>
+  </Card>
+
+</div>
 
 
 
 
+<Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] flex flex-col h-full border-0">
+                  <CardHeader className="pb-3 flex items-center justify-between">
+                    <CardTitle className="text-lg font-semibold text-slate-800">Minhas Categorias</CardTitle>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => {
+                        resetCategoryForm()
+                        setIsCategoryDialogOpen(true)
+                            setIsMobileSidebarOpen(false)  // ← ADICIONE ESTA LINHA
 
-     <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
-  <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-md"
+                    >
+                      <FolderPlus className="w-4 h-4" />
+                    </Button>
+                  </CardHeader>
 
+                  <CardContent className="flex-1 overflow-y-auto space-y-2 pr-1">
+                    <Button
+                      variant={selectedCategory === null ? 'default' : 'ghost'}
+                      className="w-full justify-start font-medium"
+                      onClick={() => {
+                        setSelectedCategory(null)
+                        setIsMobileSidebarOpen(false)
+                      }}
+                    >
+                      Todas as categorias
+                    </Button>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-                <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white border-0">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-blue-100 text-sm">Total Prompts</p>
-                      <p className="text-2xl font-bold">{stats.total_prompts || 0}</p>
-                    </div>
-                    <BookOpen className="w-8 h-8 text-blue-200" />
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white border-0">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-purple-100 text-sm">Categorias</p>
-                      <p className="text-2xl font-bold">{stats.total_categories || 0}</p>
-                    </div>
-                    <Tag className="w-8 h-8 text-purple-200" />
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-r from-pink-500 to-pink-600 text-white border-0">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-pink-100 text-sm">Favoritos</p>
-                      <p className="text-2xl font-bold">{stats.favorite_prompts || 0}</p>
-                    </div>
-                    <Heart className="w-8 h-8 text-pink-200" />
+                    {myCategories.map((category) => (
+                      <div
+                        key={category.id}
+                        className={`flex items-center justify-between rounded-md transition group ${
+                          selectedCategory === category.id
+                            ? 'bg-blue-600 text-white'
+                            : 'hover:bg-gray-50 text-slate-700'
+                        }`}
+                      >
+                        <div
+                          onClick={() => {
+                            setSelectedCategory(category.id)
+                            setIsMobileSidebarOpen(false)
+                          }}
+                          className="flex items-center gap-2 flex-1 text-left cursor-pointer overflow-hidden px-3 py-2 rounded-md"
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: category.color || '#3B82F6' }}
+                          ></span>
+                          <span
+                            className={`truncate text-sm font-medium leading-snug ${
+                              selectedCategory === category.id ? 'text-white' : 'text-slate-800'
+                            }`}
+                            title={category.name}
+                          >
+                            {category.name}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-1 flex-shrink-0 pr-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${
+                              selectedCategory === category.id
+                                ? 'text-white hover:text-blue-100'
+                                : 'text-slate-500 hover:text-blue-600'
+                            }`}
+                            onClick={() => editCategory(category)}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${
+                              selectedCategory === category.id
+                                ? 'text-white hover:text-blue-100'
+                                : 'text-slate-500 hover:text-red-600'
+                            }`}
+                            onClick={() => deleteCategory(category.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
               </div>
+            </aside>
 
-  <Card className="rounded-xl border border-slate-200 shadow-sm bg-white/70 backdrop-blur-sm flex flex-col h-full">
-  <CardHeader className="pb-3 flex items-center justify-between">
-    <CardTitle className="text-lg font-semibold text-slate-800">Minhas Categorias</CardTitle>
-    <Button
-      size="sm"
-      variant="default"
-      onClick={() => {
-        resetCategoryForm();
-        setIsCategoryDialogOpen(true);
-      }}
-      className="bg-blue-600 hover:bg-blue-700 text-white rounded-md"
-    >
-      <FolderPlus className="w-4 h-4" />
-    </Button>
-  </CardHeader>
-
-  <CardContent className="flex-1 overflow-y-auto space-y-2 pr-1">
-    <Button
-      variant={selectedCategory === null ? 'default' : 'ghost'}
-      className="w-full justify-start font-medium"
-      onClick={() => setSelectedCategory(null)}
-    >
-      Todas as categorias
-    </Button>
-
-{myCategories.map((category) => (
-  <div
-    key={category.id}
-    className={`flex items-center justify-between rounded-md transition group ${
-      selectedCategory === category.id
-        ? 'bg-blue-600 text-white'
-        : 'hover:bg-gray-50 text-slate-700'
-    }`}
-  >
-    {/* Nome da categoria */}
-    <div
-      onClick={() => setSelectedCategory(category.id)}
-      className="flex items-center gap-2 flex-1 text-left cursor-pointer overflow-hidden px-3 py-2 rounded-md"
-    >
-      <span
-        className="w-3 h-3 rounded-full flex-shrink-0"
-        style={{ backgroundColor: category.color || '#3B82F6' }}
-      ></span>
-      <span
-        className={`truncate text-sm font-medium leading-snug ${
-          selectedCategory === category.id ? 'text-white' : 'text-slate-800'
-        }`}
-        title={category.name}
-      >
-        {category.name}
-      </span>
-    </div>
-
-    {/* Ícones */}
-    <div className="flex items-center gap-1 flex-shrink-0 pr-2">
-      <Button
-  variant="ghost"
-  size="icon"
-  className={`h-6 w-6 ${
-    selectedCategory === category.id
-      ? 'text-white hover:text-blue-100'
-      : 'text-slate-500 hover:text-blue-600'
-  }`}
-  onClick={() => editCategory(category)}
->
-  <Edit3 className="h-4 w-4" />
-</Button>
-
-<Button
-  variant="ghost"
-  size="icon"
-  className={`h-6 w-6 ${
-    selectedCategory === category.id
-      ? 'text-white hover:text-blue-100'
-      : 'text-slate-500 hover:text-red-600'
-  }`}
-  onClick={() => deleteCategory(category.id)}
->
-  <Trash2 className="h-4 w-4" />
-</Button>
-
-    </div>
-  </div>
-))}
-
-  </CardContent>
-</Card>
-
-            </div>
-
-            {/* Main Content */}
             <div className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <div className="relative flex-grow">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-grow min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
                     type="text"
@@ -618,196 +678,71 @@ const toggleFavorite = async (prompt) => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Button variant={showFavoritesOnly ? 'default' : 'outline'} onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}>
+                <Button 
+                  variant={showFavoritesOnly ? 'default' : 'outline'} 
+                  onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                  size="sm"
+                >
                   <Star className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Favoritos</span>
                 </Button>
-                <Button onClick={() => setShowChatModal(true)} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                <Button 
+                  onClick={() => setShowChatModal(true)} 
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                  size="sm"
+                >
                   <MessageSquare className="w-4 h-4" />
-                  Chat
+                  <span className="hidden sm:inline">Chat</span>
                 </Button>
-
-
-                 <Button onClick={() => setShowTemplates(true)} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-                  <BookText  className="w-4 h-4" />
-                  Templates
+                <Button 
+                  onClick={() => setShowTemplates(true)} 
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  size="sm"
+                >
+                  <BookText className="w-4 h-4" />
+                  <span className="hidden sm:inline">Templates</span>
                 </Button>
-                
-                <Button onClick={() => { resetPromptForm(); setIsPromptDialogOpen(true) }}>
+                <Button 
+                  onClick={() => { 
+                    resetPromptForm()
+                    setIsPromptDialogOpen(true) 
+                  }}
+                  size="sm"
+                >
                   <Plus className="w-4 h-4 mr-2" />
-                  Novo Prompt
+                  <span className="hidden sm:inline">Novo</span>
                 </Button>
               </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 xl:gap-6 2xl:gap-8">
-
-                {filteredPrompts.length > 0 ? (
-                  filteredPrompts.map((prompt) => {
-                    const rawVideoUrl =
-      prompt.video_url || prompt.videoUrl || prompt.youtube_url || prompt.youtubeUrl || "";
-    const videoId = extractYouTubeId(rawVideoUrl);
-    const hasVideo = !!videoId;
- return (
-
-<div
-  key={prompt.id}
-  className="flex bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200 h-[230px] relative"
->
-  {/* Conteúdo à esquerda */}
-  <div className="flex-1 flex flex-col justify-between p-4">
-    <div>
-      <div className="flex items-center justify-between">
-        <CardTitle className="text-lg font-semibold line-clamp-1">
-          {prompt.title}
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => toggleFavorite(prompt)}
-          className="text-yellow-500"
-        >
-          {prompt.is_favorite ? <Star className="fill-current" /> : <StarOff />}
-        </Button>
-      </div>
-
-      {prompt.category && (
-        <Badge
-          className="mt-1"
-          style={{ backgroundColor: prompt.category.color || '#3B82F6' }}
-        >
-          {prompt.category.name}
-        </Badge>
-      )}
-
-      <p className="text-sm text-slate-600 mt-2 line-clamp-2">
-        {prompt.description || prompt.content}
-      </p>
-
-      {prompt.tags && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {(Array.isArray(prompt.tags)
-            ? prompt.tags
-            : prompt.tags.split(',').map((t) => t.trim()).filter((t) => t)
-          ).map((tag, index) => (
-            <Badge key={index} variant="secondary">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      )}
-    </div>
-
-    {/* Botões inferiores */}
-    <div className="flex justify-start gap-2 pt-4">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          setPromptToShare(prompt)
-          setShowShareModal(true)
-        }}
-      >
-        <Share2 className="w-4 h-4 mr-2" /> Compartilhar
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => copyToClipboard(prompt)}
-      >
-        <Copy className="w-4 h-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => editPrompt(prompt)}
-      >
-        <Edit className="w-4 h-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => deletePrompt(prompt.id)}
-      >
-        <Trash2 className="w-4 h-4" />
-      </Button>
-    </div>
-  </div>
-
-{/* Mídia à direita */}
-<div className="relative w-48 h-full flex-shrink-0 bg-slate-100">
-  {(hasVideo || prompt.image_url) ? (
-    <>
-      {/* Selo YouTube */}
-      {hasVideo && (
-        <div className="absolute top-2 right-2 z-50 pointer-events-none">
-          <div className="flex items-center gap-1 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full shadow-lg">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M10 15V9l5 3-5 3z" />
-            </svg>
-            <span>YouTube</span>
-          </div>
-        </div>
-      )}
-
-      {/* Camada com zoom */}
-      <div className="absolute inset-0 overflow-clip group rounded-r-xl">
-        {/* Botão clicável cobrindo toda a mídia */}
-       <button
-  type="button"
-  aria-label="Abrir mídia"
-  className="absolute inset-0 w-full h-full cursor-pointer"
-  onClick={() =>
-    hasVideo
-      ? openVideoModal(rawVideoUrl)
-      : openImageModal(prompt.image_url, prompt.title)
+      {/* NOVO: Grid com componentes modernos */}
+<PromptGrid
+  prompts={filteredPrompts}
+  isLoading={false}
+  emptyMessage={
+    searchTerm
+      ? `Nenhum resultado para "${searchTerm}"`
+      : selectedCategory
+      ? "Nenhum prompt nesta categoria"
+      : "Nenhum prompt encontrado"
   }
->
-  <img
-    src={
-      hasVideo
-        ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-        : prompt.image_url
-    }
-    alt={prompt.title}
-    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-  />
-</button>
-
-        {/* Overlay de hover NÃO bloqueia clique */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-all duration-300 pointer-events-none">
-  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/95 p-2 rounded-full shadow-lg transform scale-90 group-hover:scale-100">
-    <Search className="text-slate-800 w-5 h-5" />
-  </div>
-</div>
-
-      </div>
-    </>
-  ) : (
-    <div className="flex items-center justify-center w-full h-full text-slate-400 text-sm select-none">
-      Sem imagem
-    </div>
-  )}
-</div>
-
-
-
-
-</div>
-
-
-                  
- );
-  })  // 👈 fecha o bloco do map aqui
-                ) : (
-                  <p className="text-center text-slate-500 col-span-full">Nenhum prompt encontrado.</p>
-                )}
-              </div>
+  onEdit={editPrompt}
+  onDelete={deletePrompt}
+  onCopy={copyToClipboard}
+  onToggleFavorite={toggleFavorite}
+  onShare={(prompt) => {
+    setPromptToShare(prompt)
+    setShowShareModal(true)
+  }}
+  onOpenImage={openImageModal}
+  onOpenVideo={openVideoModal}
+/>
             </div>
           </div>
         </div>
       </div>
-      {/* Modal de Categoria */}
+
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-        <DialogContent>
+<DialogContent className="max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700">
           <DialogHeader>
             <DialogTitle>{editingCategory ? 'Editar Categoria' : 'Nova Categoria'}</DialogTitle>
             <DialogDescription>
@@ -853,9 +788,8 @@ const toggleFavorite = async (prompt) => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Prompt */}
       <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl">     
+<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700">
           <DialogHeader>
             <DialogTitle>{editingPrompt ? 'Editar Prompt' : 'Novo Prompt'}</DialogTitle>
             <DialogDescription>
@@ -897,7 +831,6 @@ const toggleFavorite = async (prompt) => {
               />
             </div>
 
-            {/* Upload de Imagem */}
             <div>
               <Label>Imagem do Prompt (opcional)</Label>
               <div className="space-y-3">
@@ -964,56 +897,56 @@ const toggleFavorite = async (prompt) => {
                 <p className="text-xs text-gray-500">Formatos suportados: JPG, PNG, SVG (máx. 5MB)</p>
               </div>
             </div>
+
             <div>
-  <Label>Link do vídeo (YouTube)</Label>
-  <Input
-    type="url"
-    placeholder="https://www.youtube.com/watch?v=..."
-    value={promptForm.video_url || ""}
-    onChange={(e) =>
-      setPromptForm({ ...promptForm, video_url: e.target.value })
-    }
-  />
-  <p className="text-xs text-slate-500 mt-1">
-    Se preencher este campo, a imagem será substituída pelo preview do vídeo.
-  </p>
-</div>
+              <Label>Link do vídeo (YouTube)</Label>
+              <Input
+                type="url"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={promptForm.video_url || ""}
+                onChange={(e) =>
+                  setPromptForm({ ...promptForm, video_url: e.target.value })
+                }
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Se preencher este campo, a imagem será substituída pelo preview do vídeo.
+              </p>
+            </div>
 
-
-        <div>
-  <Label>Categoria</Label>
-  <Select
-    onValueChange={(value) => {
-      const selected = myCategories.find((c) => String(c.id) === value);
-      setPromptForm({
-        ...promptForm,
-        category_id: value === "none" ? null : Number(value),
-        category_name: selected ? selected.name : "Sem categoria",
-      });
-    }}
-    value={
-      promptForm.category_id
-        ? String(promptForm.category_id)
-        : "none"
-    }
-  >
-    <SelectTrigger className="w-full">
-      <span className="truncate">
-        {myCategories.find((cat) => String(cat.id) === String(promptForm.category_id))
-          ? myCategories.find((cat) => String(cat.id) === String(promptForm.category_id)).name
-          : "Selecione uma categoria"}
-      </span>
-    </SelectTrigger>
-    <SelectContent>
-      <SelectItem value="none">Sem categoria</SelectItem>
-      {myCategories.map((category) => (
-        <SelectItem key={category.id} value={String(category.id)}>
-          {category.name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
+            <div>
+              <Label>Categoria</Label>
+              <Select
+                onValueChange={(value) => {
+                  const selected = myCategories.find((c) => String(c.id) === value)
+                  setPromptForm({
+                    ...promptForm,
+                    category_id: value === "none" ? null : Number(value),
+                    category_name: selected ? selected.name : "Sem categoria",
+                  })
+                }}
+                value={
+                  promptForm.category_id
+                    ? String(promptForm.category_id)
+                    : "none"
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <span className="truncate">
+                    {myCategories.find((cat) => String(cat.id) === String(promptForm.category_id))
+                      ? myCategories.find((cat) => String(cat.id) === String(promptForm.category_id)).name
+                      : "Selecione uma categoria"}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem categoria</SelectItem>
+                  {myCategories.map((category) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="flex items-center space-x-2">
               <input
@@ -1034,21 +967,24 @@ const toggleFavorite = async (prompt) => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Visualização da Imagem */}
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-3 border-b">
-            <DialogTitle className="text-lg">{selectedImage?.title}</DialogTitle>
-            <DialogDescription>Imagem do prompt</DialogDescription>
-          </DialogHeader>
-          <div className="relative w-full h-full max-h-[70vh] overflow-auto bg-gray-50 flex items-center justify-center p-6">
-            <img
-              src={selectedImage?.url}
-              alt={selectedImage?.title}
-              className="max-w-full max-h-full object-contain"
-            />
-          </div>
-          <div className="flex justify-end gap-2 p-6 pt-3 border-t bg-white">
+
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white dark:bg-slate-900 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
+  <DialogHeader className="p-6 pb-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+    <DialogTitle className="text-lg">{selectedImage?.title}</DialogTitle>
+    <DialogDescription>Imagem do prompt</DialogDescription>
+  </DialogHeader>
+
+  <div className="relative w-full h-full max-h-[70vh] overflow-auto bg-gray-50 flex items-center justify-center p-6">
+    <img
+      src={selectedImage?.url}
+      alt={selectedImage?.title}
+      className="max-w-full max-h-full object-contain"
+    />
+  </div>
+
+  <div className="flex justify-end gap-2 p-6 pt-3 shadow-[0_-1px_3px_rgba(0,0,0,0.08)] bg-white">
+
             <Button variant="outline" onClick={() => setIsImageModalOpen(false)}>Fechar</Button>
             <Button
               onClick={() => {
@@ -1062,6 +998,28 @@ const toggleFavorite = async (prompt) => {
               <Download className="w-4 h-4 mr-2" />
               Baixar Imagem
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
+        <DialogContent className="max-w-4xl p-0 bg-black overflow-hidden">
+          <div className="relative">
+            <button
+              onClick={() => setShowVideoModal(false)}
+              className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
+            >
+              ✕
+            </button>
+            {currentVideoUrl && (
+              <iframe
+                src={`https://www.youtube.com/embed/${extractYouTubeId(currentVideoUrl)}?autoplay=1&rel=0&modestbranding=1`}
+                title="YouTube player"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full aspect-video"
+              ></iframe>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -1083,29 +1041,6 @@ const toggleFavorite = async (prompt) => {
           }}
         />
       )}
-
-      <Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
-  <DialogContent className="max-w-4xl p-0 bg-black overflow-hidden">
-    <div className="relative">
-      <button
-        onClick={() => setShowVideoModal(false)}
-        className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
-      >
-        ✕
-      </button>
-      {currentVideoUrl && (
-        <iframe
-          src={`https://www.youtube.com/embed/${extractYouTubeId(currentVideoUrl)}?autoplay=1&rel=0&modestbranding=1`}
-          title="YouTube player"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="w-full aspect-video"
-        ></iframe>
-      )}
-    </div>
-  </DialogContent>
-</Dialog>
-
     </>
   )
 }

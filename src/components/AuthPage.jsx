@@ -89,7 +89,7 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+<Card className="w-full max-w-md bg-white/90 backdrop-blur-md shadow-xl border border-gray-200 rounded-2xl">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
             <img src={PromplyLogo} alt="Logo Promply" className="w-16 h-16 object-contain" />
