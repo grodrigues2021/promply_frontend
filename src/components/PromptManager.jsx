@@ -461,7 +461,7 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     )}
   </div>
 )}
-
+{/*
                 <Button
                   variant={dbConnected ? 'outline' : 'destructive'}
                   size="sm"
@@ -471,7 +471,7 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
                   <Database className="w-4 h-4" />
                   <span className="hidden sm:inline">{dbConnected ? 'Conectado' : 'Reconectar DB'}</span>
                 </Button>
-
+*/}
                 <Button
                   variant="outline"
                   size="sm"
