@@ -51,6 +51,23 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+  // ✅ Captura token JWT vindo da URL após login com Google
+  const params = new URLSearchParams(window.location.search);
+  const tokenFromUrl = params.get("token");
+
+  if (tokenFromUrl) {
+    console.log("✅ Token JWT recebido via URL:", tokenFromUrl.slice(0, 20) + "...");
+    localStorage.setItem("token", tokenFromUrl);
+    api.defaults.headers.common["Authorization"] = `Bearer ${tokenFromUrl}`;
+
+    // Limpa a URL (remove o token dos parâmetros)
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+}, []);
+
+
+  useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
