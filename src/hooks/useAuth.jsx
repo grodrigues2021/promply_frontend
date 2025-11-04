@@ -1,6 +1,7 @@
 // src/hooks/useAuth.jsx
 import React from 'react'
 import { useState, useCallback, createContext, useContext, useEffect } from "react";
+import api from "../lib/api";
 import api from "@/services/api"; // já deve existir no topo
 const AuthContext = createContext();
 
