@@ -2,7 +2,7 @@
 import React from 'react'
 import { useState, useCallback, createContext, useContext, useEffect } from "react";
 import api from "../lib/api";
-
+import api from "@/services/api"; // já deve existir no topo
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
@@ -45,24 +45,32 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (email, password) => {
-    try {
-      console.log('🔑 useAuth: Fazendo login...');
-      // ✅ CORRETO: sem /api no início
-      const resp = await api.post("/auth/login", { email, password });
-      
-      console.log('✅ useAuth: Login realizado com sucesso', resp.data);
-      
-      if (resp.data.success) {
-        setUser(resp.data.data);
-        setIsAuthenticated(true);
-      }
-      
-      return resp.data;
-    } catch (err) {
-      console.error("❌ useAuth: Erro no login:", err);
-      throw err;
+  try {
+    console.log('🔑 useAuth: Fazendo login...');
+    const resp = await api.post("/auth/login", { email, password });
+    console.log('✅ useAuth: Login realizado com sucesso', resp.data);
+
+    if (resp.data.access_token) {
+      // 🧩 Grava o token no localStorage para o modo staging
+      localStorage.setItem("token", resp.data.access_token);
+
+      // 🔒 Atualiza o header global imediatamente (AQUI)
+      api.defaults.headers.common["Authorization"] = `Bearer ${resp.data.access_token}`;
     }
-  }, []);
+
+    if (resp.data.success) {
+      setUser(resp.data.data);
+      setIsAuthenticated(true);
+    }
+
+    return resp.data;
+  } catch (err) {
+    console.error("❌ useAuth: Erro no login:", err);
+    throw err;
+  }
+}, []);
+
+
 
   const register = useCallback(async (name, email, password) => {
     try {
