@@ -1,77 +1,120 @@
-// src/lib/api.js
-import axios from 'axios'
+// api.js
+// Configuração centralizada do Axios
+import axios from 'axios';
 
-// ✅ Configuração dinâmica baseada no ambiente
-const getApiUrl = () => {
-  // 1. Tenta usar variável de ambiente do Vite
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL
-  }
-  
-  // 2. Detecta ambiente automaticamente
-  const hostname = window.location.hostname
-  
-  // ✅ CORRIGIDO: promply (não promptly)
-  if (hostname.includes('promply-frontend-staging.onrender.com')) {
-    return 'https://promply-backend-staging.onrender.com/api'
-  }
-  
-  if (hostname.includes('promply-frontend-prod.onrender.com')) {
-    return 'https://promply-backend-prod.onrender.com/api'
-  }
-  
-  // 3. Desenvolvimento local (padrão)
-  return 'http://localhost:5000/api'
+// =====================================
+// 🌍 Detecta Ambiente e URL
+// =====================================
+const MODE = import.meta.env.MODE || "development";
+const VITE_ENV = import.meta.env.VITE_ENV;
+
+let ENV;
+if (VITE_ENV) {
+  ENV = VITE_ENV;
+} else {
+  ENV = MODE;
 }
 
-const API_URL = getApiUrl()
+// URLs por ambiente
+const API_URLS = {
+  development: import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api",
+  staging: import.meta.env.VITE_API_URL_STAGING || "https://promply-backend-staging.onrender.com/api",
+  production: import.meta.env.VITE_API_URL_PROD || "https://promply-backend-prod.onrender.com/api"
+};
 
-console.log('🌐 API configurada para:', API_URL)
+const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
 
-const api = axios.create({
-  baseURL: API_URL,
-  withCredentials: true,  // ✅ CRUCIAL para cookies JWT
+console.log("🌐 Axios Configuração:");
+console.log(`   - Ambiente: ${ENV}`);
+console.log(`   - Base URL: ${API_BASE_URL}`);
+
+// =====================================
+// 📡 Cria instância do Axios
+// =====================================
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  },
-  timeout: 30000,
-})
+    'Accept': 'application/json'
+  }
+});
 
-// Interceptor para debug
+// =====================================
+// 🔐 Request Interceptor (JWT)
+// =====================================
 api.interceptors.request.use(
   (config) => {
-    console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
-    return config
+    // Log da requisição (apenas em dev)
+    if (ENV === 'development') {
+      console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    }
+
+    // Adiciona token JWT se existir
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    return config;
   },
   (error) => {
-    console.error('❌ [API Request Error]', error)
-    return Promise.reject(error)
+    console.error('❌ [API Request Error]', error);
+    return Promise.reject(error);
   }
-)
+);
 
+// =====================================
+// 📥 Response Interceptor (Tratamento de erros)
+// =====================================
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ [API Response] ${response.status} ${response.config.url}`)
-    return response
+    // Log da resposta (apenas em dev)
+    if (ENV === 'development') {
+      console.log(`✅ [API Response] ${response.status} ${response.config.url}`);
+    }
+    return response;
   },
   (error) => {
-    if (error.response) {
-      console.error(`❌ [API Error] ${error.response.status} ${error.config?.url}`, error.response.data)
-      
-      // Se receber 401, pode ser token expirado
-      if (error.response.status === 401) {
-        console.warn('⚠️ Token JWT inválido ou expirado - redirecionando para login')
-        // Opcional: redirecionar automaticamente
-        // window.location.href = '/login'
-      }
-    } else if (error.request) {
-      console.error('❌ [API Error] Sem resposta do servidor:', error.message)
-    } else {
-      console.error('❌ [API Error]', error.message)
-    }
-    return Promise.reject(error)
-  }
-)
+    const status = error.response?.status;
+    const url = error.config?.url;
 
-export default api
+    console.error(`❌ [API Error] ${status} ${url}`, error.response?.data);
+
+    // Tratamento específico por status
+    switch (status) {
+      case 401:
+        // Token inválido ou expirado
+        console.warn('⚠️ Token inválido - Redirecionando para login');
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        break;
+
+      case 403:
+        console.warn('⚠️ Acesso negado');
+        break;
+
+      case 404:
+        console.warn('⚠️ Recurso não encontrado');
+        break;
+
+      case 500:
+        console.error('❌ Erro interno do servidor');
+        break;
+
+      default:
+        console.error('❌ Erro desconhecido:', error);
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// =====================================
+// 📤 Exports
+// =====================================
+export const apiBaseUrl = API_BASE_URL;
+export const currentEnv = ENV;
+
+export default api;
