@@ -30,27 +30,46 @@ function AuthPage() {
   const [registerSuccess, setRegisterSuccess] = useState('')
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    setLoginError('')
+  e.preventDefault();
+  setLoginError('');
 
-    try {
-      console.log('🔐 AuthPage: Iniciando login...')
-      const data = await authLogin(loginEmail, loginPassword)
-      console.log('📨 AuthPage: Resposta do login:', data)
-      
-      if (data.success) {
-        console.log('✅ AuthPage: Login bem-sucedido!')
-        // ✅ O useAuth já atualizou o estado automaticamente
-        // O App.jsx vai detectar a mudança e redirecionar
-      } else {
-        console.log('❌ AuthPage: Erro no login:', data.error)
-        setLoginError(data.error || 'Erro ao fazer login')
-      }
-    } catch (error) {
-      console.error('💥 AuthPage: Erro no login:', error)
-      setLoginError(error.response?.data?.error || 'Erro ao conectar com o servidor')
+  console.group("🟢 [AuthPage] Fluxo de Login");
+  console.log("📤 Enviando credenciais:");
+  console.log("   - Email:", loginEmail);
+  console.log("   - Senha: (oculta)");
+  
+  try {
+    console.log("🕐 Chamando useAuth.login...");
+    const data = await authLogin(loginEmail, loginPassword);
+
+    console.log("📨 Resposta completa do useAuth.login:");
+    console.log(data);
+    console.log("🔍 Campos retornados:");
+    console.log("   • access_token:", data?.access_token);
+    console.log("   • success:", data?.success);
+    console.log("   • data:", data?.data);
+    console.log("   • error:", data?.error);
+    console.log("💾 Token atual no localStorage:", localStorage.getItem("token"));
+
+    if (data?.access_token || data?.success) {
+      console.log("✅ Login bem-sucedido!");
+      // O useAuth já atualiza o estado automaticamente
+      // O App.jsx deve reagir ao isAuthenticated = true
+    } else {
+      console.warn("⚠️ Login sem sucesso — backend não retornou token ou success");
+      setLoginError(data?.error || "Erro ao fazer login");
     }
+  } catch (error) {
+    console.error("💥 Erro capturado no try/catch do AuthPage:");
+    console.error("   • Tipo:", error?.name);
+    console.error("   • Mensagem:", error?.message);
+    console.error("   • Resposta completa:", error?.response?.data || error);
+    setLoginError(error.response?.data?.error || "Erro ao conectar com o servidor");
+  } finally {
+    console.groupEnd();
   }
+};
+
 
   const handleRegister = async (e) => {
     e.preventDefault()
