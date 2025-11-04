@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Share2, Loader2 } from 'lucide-react';
 import api from '../lib/api';
+import { notifyPromptShared } from '../hooks/useBroadcastSync';
 
 const SharePromptModal = ({ prompt, onClose, onSuccess }) => {
   const [message, setMessage] = useState('');
@@ -17,6 +18,15 @@ const SharePromptModal = ({ prompt, onClose, onSuccess }) => {
       });
       
       if (response.data.success) {
+        // 🔥 NOTIFICA JANELAS ABERTAS SOBRE O NOVO PROMPT COMPARTILHADO
+        notifyPromptShared({
+          promptId: prompt.id,
+          promptTitle: prompt.title,
+          timestamp: Date.now()
+        });
+        
+        console.log('📡 Notificação de prompt compartilhado enviada');
+        
         onSuccess();
       }
     } catch (error) {
@@ -33,6 +43,8 @@ const SharePromptModal = ({ prompt, onClose, onSuccess }) => {
   };
 
   // ✅ Função para normalizar tags (aceita string ou array)
+  if (!prompt) return null;
+
   const getTags = () => {
     if (!prompt.tags) return [];
     
@@ -127,6 +139,9 @@ const SharePromptModal = ({ prompt, onClose, onSuccess }) => {
             </p>
             <p className="text-xs text-blue-600 mt-1">
               🚀 Após compartilhar, o chat abrirá automaticamente com seu post!
+            </p>
+            <p className="text-xs text-green-600 mt-1 font-medium">
+              ✨ Janelas abertas serão atualizadas automaticamente!
             </p>
           </div>
 

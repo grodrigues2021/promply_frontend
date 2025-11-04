@@ -1,14 +1,13 @@
-// src/main.jsx - FASE 4
+// src/main.jsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './App.css'
 import { AuthProvider } from './hooks/useAuth.jsx'
-
-import { Toaster } from 'sonner'  // ← Adicione esta linha
+import { Toaster } from 'sonner'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
+  // <React.StrictMode>
     <AuthProvider>
       <App />
       <Toaster 
@@ -24,8 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         }}
       />
     </AuthProvider>
-  </React.StrictMode>,
+  // </React.StrictMode>
 )
 
-console.log('🚀 Aplicação com AuthProvider...')
-
+console.log('🚀 Aplicação com AuthProvider (modo não-strict para WebSocket)...')

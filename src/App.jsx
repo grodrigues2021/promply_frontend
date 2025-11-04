@@ -1,31 +1,30 @@
-// src/App.jsx - VERSÃO ORIGINAL
-import React from 'react'
-import { useState, useEffect } from 'react'
-import AuthPage from './components/AuthPage.jsx'
-import ResetPasswordPage from './components/ResetPasswordPage.jsx'
-import PromptManager from './components/PromptManager.jsx'
-import { useAuth } from './hooks/useAuth.jsx'
+// src/App.jsx – versão ajustada com suporte a /chat-popup
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import AuthPage from './components/AuthPage.jsx';
+import ResetPasswordPage from './components/ResetPasswordPage.jsx';
+import PromptManager from './components/PromptManager.jsx';
+import { useAuth } from './hooks/useAuth.jsx';
+import ChatFeed from './components/ChatFeed.jsx';
+import ChatInput from './components/ChatInput.jsx';
+import ChatWorkspace from './components/ChatWorkspace.jsx';
+
 
 function App() {
-  const { 
-    user, 
-    isAuthenticated,
-    isLoading 
-  } = useAuth()
-  
-  const [currentPage, setCurrentPage] = useState('main')
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const [currentPage, setCurrentPage] = useState('main');
 
   useEffect(() => {
-    console.log('🔐 [APP] Estado:', { isAuthenticated, isLoading, user })
-  }, [isAuthenticated, user, isLoading])
+    console.log('🔐 [APP] Estado:', { isAuthenticated, isLoading, user });
+  }, [isAuthenticated, user, isLoading]);
 
-  // Verificar página de reset de senha
+  // Verifica se é página de redefinição de senha
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
+    const params = new URLSearchParams(window.location.search);
     if (window.location.pathname === '/reset-password' || params.get('token')) {
-      setCurrentPage('reset-password')
+      setCurrentPage('reset-password');
     }
-  }, [])
+  }, []);
 
   if (isLoading) {
     return (
@@ -35,18 +34,32 @@ function App() {
           <p className="mt-4 text-slate-600">Carregando...</p>
         </div>
       </div>
-    )
+    );
   }
 
-  if (currentPage === 'reset-password') {
-    return <ResetPasswordPage />
-  }
+  return (
+    <Router>
+      <Routes>
+        {/* Rota padrão: autenticação e gerenciador */}
+        <Route
+          path="/"
+          element={
+            !isAuthenticated ? (
+              <AuthPage />
+            ) : currentPage === 'reset-password' ? (
+              <ResetPasswordPage />
+            ) : (
+              <PromptManager user={user} />
+            )
+          }
+        />
 
-  if (!isAuthenticated) {
-    return <AuthPage />
-  }
+        {/* 🔹 Nova rota: janela destacada do chat */}
 
-  return <PromptManager user={user} />
+<Route path="/chat-workspace" element={<ChatWorkspace />} />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+export default App;

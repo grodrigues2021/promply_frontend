@@ -14,17 +14,34 @@ export default defineConfig({
   
   // ✅ Configuração para desenvolvimento local
   server: {
-    port: 5173,
-    host: true,  // Permite acesso externo
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-      }
-    }
+  port: 5173,
+  host: true,
+  cors: {
+    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    credentials: true,
   },
+  proxy: {
+    '/api': {
+      target: 'http://127.0.0.1:5000',
+      changeOrigin: true,
+      secure: false,
+      ws: true,
+      configure: (proxy) => {
+        proxy.on('proxyReq', (proxyReq, req, res) => {
+          req.setTimeout(0); // sem timeout
+        });
+        proxy.on('error', (err) => {
+          console.error('Erro no proxy:', err);
+        });
+      },
+      proxyTimeout: 0,
+      timeout: 0,
+    },
+  },
+},
+
+
+
   
   // ✅ Configuração para build de produção
   build: {

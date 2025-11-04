@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -40,8 +40,10 @@ import PromptGrid from './PromptGrid'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
-export default function PromptManager({ setIsAuthenticated, setUser }) {
+export default function PromptManager({ setIsAuthenticated, setUser, defaultView = "prompts", isPopupMode = false }) {
   const { user, logout, isAuthenticated, isLoading } = useAuth()
+  const [activeView, setActiveView] = useState(defaultView);
+
   const [prompts, setPrompts] = useState([])
   const [myCategories, setMyCategories] = useState([])
   const [templateCategories, setTemplateCategories] = useState([])
@@ -64,24 +66,8 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
   const [showVideoModal, setShowVideoModal] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null)
-
-  const openVideoModal = (url) => {
-    setCurrentVideoUrl(url)
-    setShowVideoModal(true)
-  }
-
-  const extractYouTubeId = (url) => {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /^([a-zA-Z0-9_-]{11})$/
-    ]
-    for (const pattern of patterns) {
-      const match = url.match(pattern)
-      if (match && match[1]) return match[1]
-    }
-    return null
-  }
-
+  const [refreshKey, setRefreshKey] = useState(0)
+  const [isChatDetached, setIsChatDetached] = useState(false)
   const [promptForm, setPromptForm] = useState({
     title: '',
     content: '',
@@ -90,7 +76,9 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     category_id: 'none',
     is_favorite: false,
     image_url: '',
-    video_url: ''
+    video_url: '',
+    videoFile: null,  
+    imageFile: null   
   })
 
   const [categoryForm, setCategoryForm] = useState({
@@ -100,41 +88,212 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     is_template: false
   })
 
-  useEffect(() => {
-    loadPrompts()
-    loadCategories()
-    loadStats()
-  }, [])
+const handleImageUpload = useCallback((e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-  if (showTemplates) {
-    return <TemplatesPage user={user} onBack={() => setShowTemplates(false)} />
+  if (!file.type.startsWith('image/')) {
+    toast.error('Selecione uma imagem válida');
+    return;
   }
 
-  const handleLogout = async () => {
-    try {
-      await logout()
-    } catch {
-      window.location.href = '/'
-    }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('Imagem muito grande! Máx. 5MB');
+    return;
   }
 
-  const filteredPrompts = Array.isArray(prompts)
-    ? prompts.filter(prompt => {
-        const matchesSearch =
-          (prompt.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            prompt.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (prompt.tags && (
-              Array.isArray(prompt.tags)
-                ? prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-                : prompt.tags.toLowerCase().includes(searchTerm.toLowerCase())
-            )))
-        const matchesCategory = !selectedCategory || prompt.category_id === selectedCategory
-        const matchesFavorites = !showFavoritesOnly || prompt.is_favorite
-        return matchesSearch && matchesCategory && matchesFavorites
-      })
-    : []
+  setUploadingImage(true);
+  const reader = new FileReader();
 
-  const loadPrompts = async () => {
+  reader.onloadend = () => {
+    setPromptForm(prev => ({
+      ...prev,
+      imageFile: file,
+      image_url: reader.result
+    }));
+    setUploadingImage(false);
+    toast.success('Imagem carregada!');
+  };
+
+  reader.onerror = () => {
+    toast.error('Erro ao carregar imagem');
+    setUploadingImage(false);
+  };
+
+  reader.readAsDataURL(file);
+}, []);
+
+const removeImage = useCallback(() => {
+  setPromptForm(prev => ({ ...prev, image_url: '' }))
+  toast.success('Imagem removida')
+}, [])
+
+const handleVideoUpload = useCallback((e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('video/')) {
+    toast.error('Selecione um vídeo válido');
+    return;
+  }
+
+  if (file.size > 50 * 1024 * 1024) {
+    toast.error('Vídeo muito grande! Máx. 50MB');
+    return;
+  }
+
+  setUploadingImage(true);
+
+  const videoURL = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.muted = true;
+  video.playsInline = true;
+
+  video.onloadeddata = () => {
+    video.currentTime = Math.min(1, video.duration / 2);
+  };
+
+  video.onseeked = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const thumbnailBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+    canvas.toBlob((blob) => {
+      const thumbnailFile = new File([blob], 'video-thumbnail.jpg', { type: 'image/jpeg' });
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPromptForm(prev => ({
+          ...prev,
+          videoFile: file,
+          video_url: reader.result,
+          image_url: prev.image_url || thumbnailBase64,
+          imageFile: prev.imageFile || thumbnailFile
+        }));
+        setUploadingImage(false);
+        toast.success('Vídeo e thumbnail capturados!');
+        
+        URL.revokeObjectURL(videoURL);
+        video.remove();
+        canvas.remove();
+      };
+
+      reader.onerror = () => {
+        toast.error('Erro ao carregar vídeo');
+        setUploadingImage(false);
+        URL.revokeObjectURL(videoURL);
+        video.remove();
+        canvas.remove();
+      };
+
+      reader.readAsDataURL(file);
+    }, 'image/jpeg', 0.8);
+  };
+
+  video.onerror = () => {
+    toast.error('Erro ao processar vídeo');
+    setUploadingImage(false);
+    URL.revokeObjectURL(videoURL);
+    video.remove();
+  };
+
+  video.src = videoURL;
+}, []);
+
+const openVideoModal = useCallback((url) => {
+  setCurrentVideoUrl(url)
+  setShowVideoModal(true)
+}, [])
+
+const openImageModal = useCallback((imageBase64, title) => {
+  setSelectedImage({ url: imageBase64, title })
+  setIsImageModalOpen(true)
+}, [])
+
+const extractYouTubeId = useCallback((url) => {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match && match[1]) return match[1]
+  }
+  return null
+}, [])
+
+const normalizeTags = useCallback((tags) => {
+  if (!tags) return ''
+  if (Array.isArray(tags)) return tags.join(', ')
+  return tags
+}, [])
+
+const resetPromptForm = useCallback(() => {
+  setPromptForm({
+    title: '',
+    content: '',
+    description: '',
+    tags: '',
+    category_id: 'none',
+    is_favorite: false,
+    image_url: '',
+    video_url: ''
+  })
+  setEditingPrompt(null)
+}, [])
+
+const resetCategoryForm = useCallback(() => {
+  setCategoryForm({
+    name: '',
+    description: '',
+    color: '#3B82F6',
+    is_template: false
+  })
+  setEditingCategory(null)
+}, [])
+
+const editPrompt = useCallback((prompt) => {
+  console.log('✏️ Editando prompt:', prompt);
+  console.log('📁 Categoria atual:', prompt.category);
+  
+  const categoryId = prompt.category?.id 
+    ? String(prompt.category.id) 
+    : (prompt.category_id ? String(prompt.category_id) : 'none');
+  
+  console.log('🔢 Category ID para form:', categoryId);
+  
+  setPromptForm({
+    title: prompt.title,
+    content: prompt.content,
+    description: prompt.description || '',
+    tags: normalizeTags(prompt.tags),
+    category_id: categoryId,
+    is_favorite: prompt.is_favorite,
+    image_url: prompt.image_url || '',
+    video_url: prompt.video_url || ''
+  })
+  setEditingPrompt(prompt)
+  setIsPromptDialogOpen(true)
+}, [normalizeTags])
+
+const editCategory = useCallback((category) => {
+  setCategoryForm({
+    name: category.name,
+    description: category.description || '',
+    color: category.color,
+    is_template: category.is_template || false
+  })
+  setEditingCategory(category)
+  setIsCategoryDialogOpen(true)
+}, [])
+
+const loadPrompts = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/prompts`, { credentials: 'include' })
       const data = await response.json()
@@ -173,35 +332,203 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     }
   }
 
-  const savePrompt = async () => {
-    try {
-      const url = editingPrompt
-        ? `${API_BASE_URL}/prompts/${editingPrompt.id}`
-        : `${API_BASE_URL}/prompts`
-      const method = editingPrompt ? 'PUT' : 'POST'
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          ...promptForm,
-          tags: typeof promptForm.tags === 'string'
-            ? promptForm.tags.split(',').map(t => t.trim()).filter(Boolean)
-            : promptForm.tags
-        })
-      })
-      const data = await response.json()
-      if (data.success) {
-        loadPrompts()
+const testConnection = useCallback(async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/stats`, { 
+      credentials: 'include' 
+    })
+    const data = await response.json()
+    
+    if (data.success) {
+      setDbConnected(true)
+      toast.success('Conexão com o banco estabelecida!')
+      await Promise.all([
+        loadPrompts(),
+        loadCategories(),
         loadStats()
-        resetPromptForm()
-        setIsPromptDialogOpen(false)
-      } else toast.error(data.error || 'Erro ao salvar prompt')
-    } catch {
-      toast.error('Erro ao salvar prompt')
+      ])
+    } else {
+      setDbConnected(false)
+      toast.error('Erro ao conectar: ' + (data.error || 'desconhecido'))
     }
+  } catch (error) {
+    console.error('Erro no teste de conexão:', error)
+    setDbConnected(false)
+    toast.error('Erro ao conectar com o banco de dados')
   }
+}, [loadPrompts, loadCategories, loadStats])
+
+const handleLogout = useCallback(async () => {
+  try {
+    await logout()
+  } catch {
+    window.location.href = '/'
+  }
+}, [logout])
+
+const handlePromptSaved = useCallback(() => {
+  setRefreshKey(prev => prev + 1);
+  loadPrompts();
+  loadStats();
+  toast.success('✅ Prompt adicionado com sucesso!');
+}, []);
+
+// ✅✅✅ NOVA FUNÇÃO: Abre chat de forma inteligente ✅✅✅
+const openChatIntelligently = useCallback(() => {
+  if (isChatDetached) {
+    // Chat destacado - apenas dá foco
+    const channel = new BroadcastChannel('promply-chat-status');
+    channel.postMessage({ type: 'focus-chat' });
+    channel.close();
+    toast.success('💬 Chat destacado atualizado!');
+  } else {
+    // Chat não destacado - abre modal
+    setShowChatModal(true);
+  }
+}, [isChatDetached]);
+
+ useEffect(() => {
+  loadPrompts()
+  loadCategories()
+  loadStats()
+}, [refreshKey])
+
+// 🔗 Monitora se o chat está destacado em outra janela
+useEffect(() => {
+  const channel = new BroadcastChannel('promply-chat-status');
+  
+  channel.onmessage = (event) => {
+    if (event.data.type === 'chat-detached') {
+      setIsChatDetached(true);
+      setShowChatModal(false);
+      console.log('✅ Chat destacado detectado');
+    } else if (event.data.type === 'chat-closed') {
+      setIsChatDetached(false);
+      console.log('❌ Chat destacado fechado');
+    } else if (event.data.type === 'pong') {
+      setIsChatDetached(true);
+      setShowChatModal(false);
+      console.log('✅ Chat destacado já estava aberto');
+    }
+  };
+
+  channel.postMessage({ type: 'ping' });
+  return () => channel.close();
+}, [])
+  const filteredPrompts = Array.isArray(prompts)
+    ? prompts.filter(prompt => {
+        const matchesSearch =
+          (prompt.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            prompt.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (prompt.tags && (
+              Array.isArray(prompt.tags)
+                ? prompt.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+                : prompt.tags.toLowerCase().includes(searchTerm.toLowerCase())
+            )))
+        const matchesCategory = !selectedCategory || prompt.category_id === selectedCategory
+        const matchesFavorites = !showFavoritesOnly || prompt.is_favorite
+        return matchesSearch && matchesCategory && matchesFavorites
+      })
+    : []
+
+const savePrompt = async () => {
+  try {
+    const url = editingPrompt
+      ? `${API_BASE_URL}/prompts/${editingPrompt.id}`
+      : `${API_BASE_URL}/prompts`;
+    const method = editingPrompt ? "PUT" : "POST";
+
+    console.log('💾 Salvando prompt:', {
+      editando: !!editingPrompt,
+      category_id: promptForm.category_id,
+      method
+    });
+
+    let body;
+    let headers = {};
+
+    if (promptForm.videoFile || promptForm.imageFile) {
+      body = new FormData();
+      body.append("title", promptForm.title);
+      body.append("content", promptForm.content);
+      body.append("description", promptForm.description);
+      body.append(
+        "tags",
+        Array.isArray(promptForm.tags)
+          ? promptForm.tags.join(",")
+          : promptForm.tags
+      );
+      const categoryValue = (!promptForm.category_id || promptForm.category_id === "none") 
+        ? "" 
+        : String(promptForm.category_id);
+      
+      body.append("category_id", categoryValue);
+      console.log('📁 Category_id enviado (FormData):', categoryValue);
+
+      body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+
+      if (promptForm.video_url && !promptForm.video) {
+        body.append("video_url", promptForm.video_url);
+      }
+
+      if (promptForm.imageFile) body.append("file", promptForm.imageFile);
+      if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify({
+        title: promptForm.title,
+        content: promptForm.content,
+        description: promptForm.description,
+        tags:
+          typeof promptForm.tags === "string"
+            ? promptForm.tags
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean)
+            : promptForm.tags,
+        category_id:
+          (!promptForm.category_id || promptForm.category_id === "none")
+            ? null
+            : Number(promptForm.category_id),
+        is_favorite: promptForm.is_favorite,
+        image_url: promptForm.image_url || "",
+        video_url: promptForm.video_url || "",
+      });
+    }
+console.log('🚀 Enviando requisição:', { url, method });
+    const response = await fetch(url, {
+      method,
+      headers,
+      credentials: "include",
+      body,
+    });
+
+    const data = await response.json();
+console.log('📥 Resposta do servidor:', data);
+    if (data.success) {
+      if (editingPrompt) {
+        setPrompts((prev) =>
+          prev.map((p) => (p.id === editingPrompt.id ? data.data : p))
+        );
+      } else {
+        setPrompts((prev) => [data.data, ...prev]);
+      }
+
+      await loadStats();
+      resetPromptForm();
+      setIsPromptDialogOpen(false);
+      toast.success(
+        editingPrompt ? "Prompt atualizado!" : "Prompt criado com sucesso!"
+      );
+    } else {
+      toast.error(data.error || "Erro ao salvar prompt");
+    }
+  } catch (err) {
+    console.error("❌ ERRO:", err);
+    toast.error("Erro ao salvar prompt");
+  }
+};
 
   const saveCategory = async () => {
     try {
@@ -313,122 +640,35 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     }
   }
 
-  const resetPromptForm = () => {
-    setPromptForm({
-      title: '',
-      content: '',
-      description: '',
-      tags: '',
-      category_id: 'none',
-      is_favorite: false,
-      image_url: '',
-      video_url: ''
-    })
-    setEditingPrompt(null)
+useEffect(() => {
+  if (isPopupMode && defaultView === "chat") {
+    setShowChatModal(true);
   }
+}, [isPopupMode, defaultView]);
 
-  const resetCategoryForm = () => {
-    setCategoryForm({
-      name: '',
-      description: '',
-      color: '#3B82F6',
-      is_template: false
-    })
-    setEditingCategory(null)
-  }
-
-  const normalizeTags = (tags) => {
-    if (!tags) return ''
-    if (Array.isArray(tags)) return tags.join(', ')
-    return tags
-  }
-
-  const editPrompt = (prompt) => {
-    setPromptForm({
-      title: prompt.title,
-      content: prompt.content,
-      description: prompt.description || '',
-      tags: normalizeTags(prompt.tags),
-      category_id: prompt.category?.id ? String(prompt.category.id) : (prompt.category_id ? String(prompt.category_id) : 'none'),
-      is_favorite: prompt.is_favorite,
-      image_url: prompt.image_url || '',
-      video_url: prompt.video_url || ''
-    })
-    setEditingPrompt(prompt)
-    setIsPromptDialogOpen(true)
-  }
-
-  const editCategory = (category) => {
-    setCategoryForm({
-      name: category.name,
-      description: category.description || '',
-      color: category.color,
-      is_template: category.is_template || false
-    })
-    setEditingCategory(category)
-    setIsCategoryDialogOpen(true)
-  }
-
-  const handleImageUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!file.type.startsWith('image/')) {
-      toast.error('Selecione uma imagem válida')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Imagem muito grande! Máx. 5MB')
-      return
-    }
-
-    setUploadingImage(true)
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      setPromptForm({ ...promptForm, image_url: reader.result })
-      setUploadingImage(false)
-      toast.success('Imagem carregada!')
-    }
-    reader.onerror = () => {
-      toast.error('Erro ao carregar imagem')
-      setUploadingImage(false)
-    }
-    reader.readAsDataURL(file)
-  }
-
-  const removeImage = () => {
-    setPromptForm({ ...promptForm, image_url: '' })
-    toast.success('Imagem removida')
-  }
-
-  const openImageModal = (imageBase64, title) => {
-    setSelectedImage({ url: imageBase64, title })
-    setIsImageModalOpen(true)
-  }
-
-  const testConnection = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/stats`, { credentials: 'include' })
-      const data = await response.json()
-      if (data.success) {
-        setDbConnected(true)
-        toast.success('Conexão com o banco estabelecida!')
-        loadPrompts()
-        loadCategories()
-        loadStats()
-      } else {
-        setDbConnected(false)
-        toast.error('Erro ao conectar: ' + (data.error || 'desconhecido'))
-      }
-    } catch {
-      setDbConnected(false)
-      toast.error('Erro ao conectar com o banco de dados')
-    }
-  }
+if (showTemplates) {
+  return (
+    <TemplatesPage 
+      user={user} 
+      onBack={() => {
+        setShowTemplates(false);
+        loadPrompts();
+        loadCategories();
+        loadStats();
+      }} 
+    />
+  );
+}
 
   return (
     <>
-<div className="min-h-screen bg-gray-50 dark:bg-slate-900">
-<header className="bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:bg-slate-900 sticky top-0 z-50">
+  <div
+    className={`min-h-screen ${
+      isPopupMode ? "bg-white" : "bg-gray-50 dark:bg-slate-900"
+    }`}
+  >
+    {!isPopupMode && (
+      <header className="bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:bg-slate-900 sticky top-0 z-50">
           <div className="w-full px-8 lg:px-12 xl:px-16 py-4">
             <div className="flex items-center justify-between">
               <button
@@ -461,17 +701,6 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     )}
   </div>
 )}
-{/*
-                <Button
-                  variant={dbConnected ? 'outline' : 'destructive'}
-                  size="sm"
-                  onClick={testConnection}
-                  className="flex items-center space-x-2"
-                >
-                  <Database className="w-4 h-4" />
-                  <span className="hidden sm:inline">{dbConnected ? 'Conectado' : 'Reconectar DB'}</span>
-                </Button>
-*/}
                 <Button
                   variant="outline"
                   size="sm"
@@ -484,6 +713,7 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
             </div>
           </div>
         </header>
+      )}
 
         <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
@@ -494,12 +724,9 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
   />
 )}
 
-
-
             <aside
   className={`promply-sidebar ${isMobileSidebarOpen ? 'mobile-open' : ''} z-40`}
 >
-
               <div className="sidebar-mobile-header lg:hidden">
                 <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
                 <button
@@ -511,18 +738,13 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
               </div>
 
               <div className="space-y-6">
-               {/* Estatísticas - Ícones Responsivos */}
 <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3">
-
-  {/* PROMPTS */}
   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
     <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-      {/* Mobile */}
       <div className="flex flex-col items-center lg:hidden space-y-1">
         <BookOpen className="w-5 h-5 text-blue-100" />
         <p className="text-xs font-semibold">{stats.total_prompts || 0}</p>
       </div>
-      {/* Desktop */}
       <div className="hidden lg:flex flex-col w-full justify-between">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium">Prompts</p>
@@ -533,7 +755,6 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     </CardContent>
   </Card>
 
-  {/* CATEGORIAS */}
   <Card className="bg-purple-500/90 text-white border border-purple-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
     <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
       <div className="flex flex-col items-center lg:hidden space-y-1">
@@ -550,7 +771,6 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
     </CardContent>
   </Card>
 
-  {/* FAVORITOS */}
   <Card className="bg-pink-500/90 text-white border border-pink-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
     <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
       <div className="flex flex-col items-center lg:hidden space-y-1">
@@ -566,11 +786,7 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
       </div>
     </CardContent>
   </Card>
-
 </div>
-
-
-
 
 <Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] flex flex-col h-full border-0">
                   <CardHeader className="pb-3 flex items-center justify-between">
@@ -581,8 +797,7 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
                       onClick={() => {
                         resetCategoryForm()
                         setIsCategoryDialogOpen(true)
-                            setIsMobileSidebarOpen(false)  // ← ADICIONE ESTA LINHA
-
+                        setIsMobileSidebarOpen(false)
                       }}
                       className="bg-blue-600 hover:bg-blue-700 text-white rounded-md"
                     >
@@ -687,7 +902,7 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
                   <span className="hidden sm:inline">Favoritos</span>
                 </Button>
                 <Button 
-                  onClick={() => setShowChatModal(true)} 
+                  onClick={openChatIntelligently}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                   size="sm"
                 >
@@ -714,7 +929,6 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
                 </Button>
               </div>
 
-      {/* NOVO: Grid com componentes modernos */}
 <PromptGrid
   prompts={filteredPrompts}
   isLoading={false}
@@ -788,187 +1002,261 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700">
-          <DialogHeader>
-            <DialogTitle>{editingPrompt ? 'Editar Prompt' : 'Novo Prompt'}</DialogTitle>
-            <DialogDescription>
-              {editingPrompt ? 'Edite os detalhes do seu prompt' : 'Crie um novo prompt'}
-            </DialogDescription>
-          </DialogHeader>
+<Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
+  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700">
+    <DialogHeader>
+      <DialogTitle>{editingPrompt ? 'Editar Prompt' : 'Novo Prompt'}</DialogTitle>
+      <DialogDescription>
+        {editingPrompt ? 'Edite os detalhes do seu prompt' : 'Crie um novo prompt'}
+      </DialogDescription>
+    </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label>Título</Label>
-              <Input
-                value={promptForm.title}
-                onChange={(e) => setPromptForm({ ...promptForm, title: e.target.value })}
-                placeholder="Título do prompt"
-              />
-            </div>
-            <div>
-              <Label>Conteúdo</Label>
-              <Textarea
-                value={promptForm.content}
-                onChange={(e) => setPromptForm({ ...promptForm, content: e.target.value })}
-                rows={10}
-                className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
-              />
-            </div>
-            <div>
-              <Label>Descrição</Label>
-              <Textarea
-                value={promptForm.description}
-                onChange={(e) => setPromptForm({ ...promptForm, description: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Tags</Label>
-              <Input
-                value={promptForm.tags}
-                onChange={(e) => setPromptForm({ ...promptForm, tags: e.target.value })}
-                placeholder="tag1, tag2, tag3"
-              />
-            </div>
+    <div className="space-y-4">
+      <div>
+        <Label>Título</Label>
+        <Input
+          value={promptForm.title}
+          onChange={(e) => setPromptForm({ ...promptForm, title: e.target.value })}
+          placeholder="Título do prompt"
+        />
+      </div>
 
-            <div>
-              <Label>Imagem do Prompt (opcional)</Label>
-              <div className="space-y-3">
-                {promptForm.image_url && (
-                  <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
-                    <img
-                      src={promptForm.image_url}
-                      alt="Preview"
-                      className="w-full h-full object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-                <div className="flex items-center gap-3">
-                  <label
-                    htmlFor="prompt-image-upload"
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
-                      uploadingImage
-                        ? 'border-gray-300 bg-gray-50 cursor-wait'
-                        : 'border-blue-300 hover:border-blue-500 hover:bg-blue-50'
-                    }`}
-                  >
-                    {uploadingImage ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                        <span className="text-sm text-gray-600">Carregando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-5 h-5 text-blue-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <span className="text-sm font-medium text-gray-700">
-                          {promptForm.image_url ? 'Trocar imagem' : 'Selecionar imagem'}
-                        </span>
-                      </>
-                    )}
-                  </label>
-                  <input
-                    id="prompt-image-upload"
-                    type="file"
-                    accept="image/jpeg,image/png,image/svg+xml"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImage}
-                    className="hidden"
-                  />
-                </div>
-                <p className="text-xs text-gray-500">Formatos suportados: JPG, PNG, SVG (máx. 5MB)</p>
-              </div>
-            </div>
+      <div>
+        <Label>Conteúdo</Label>
+        <Textarea
+          value={promptForm.content}
+          onChange={(e) => setPromptForm({ ...promptForm, content: e.target.value })}
+          rows={10}
+          className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
+        />
+      </div>
 
-            <div>
-              <Label>Link do vídeo (YouTube)</Label>
-              <Input
-                type="url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={promptForm.video_url || ""}
-                onChange={(e) =>
-                  setPromptForm({ ...promptForm, video_url: e.target.value })
-                }
+      <div>
+        <Label>Descrição</Label>
+        <Textarea
+          value={promptForm.description}
+          onChange={(e) => setPromptForm({ ...promptForm, description: e.target.value })}
+        />
+      </div>
+
+      <div>
+        <Label>Tags</Label>
+        <Input
+          value={promptForm.tags}
+          onChange={(e) => setPromptForm({ ...promptForm, tags: e.target.value })}
+          placeholder="tag1, tag2, tag3"
+        />
+      </div>
+
+      <div>
+        <Label>Imagem do Prompt (opcional)</Label>
+        <div className="space-y-3">
+          {promptForm.image_url && (
+            <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
+              <img
+                src={promptForm.image_url}
+                alt="Preview"
+                className="w-full h-full object-contain"
               />
-              <p className="text-xs text-slate-500 mt-1">
-                Se preencher este campo, a imagem será substituída pelo preview do vídeo.
-              </p>
-            </div>
-
-            <div>
-              <Label>Categoria</Label>
-              <Select
-                onValueChange={(value) => {
-                  const selected = myCategories.find((c) => String(c.id) === value)
-                  setPromptForm({
-                    ...promptForm,
-                    category_id: value === "none" ? null : Number(value),
-                    category_name: selected ? selected.name : "Sem categoria",
-                  })
-                }}
-                value={
-                  promptForm.category_id
-                    ? String(promptForm.category_id)
-                    : "none"
-                }
+              <button
+                type="button"
+                onClick={removeImage}
+                className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
               >
-                <SelectTrigger className="w-full">
-                  <span className="truncate">
-                    {myCategories.find((cat) => String(cat.id) === String(promptForm.category_id))
-                      ? myCategories.find((cat) => String(cat.id) === String(promptForm.category_id)).name
-                      : "Selecione uma categoria"}
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-3">
+            <label
+              htmlFor="prompt-image-upload"
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
+                uploadingImage
+                  ? 'border-gray-300 bg-gray-50 cursor-wait'
+                  : 'border-blue-300 hover:border-blue-500 hover:bg-blue-50'
+              }`}
+            >
+              {uploadingImage ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  <span className="text-sm text-gray-600">Carregando...</span>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="w-5 h-5 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-700">
+                    {promptForm.image_url ? 'Trocar imagem' : 'Selecionar imagem'}
                   </span>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sem categoria</SelectItem>
-                  {myCategories.map((category) => (
-                    <SelectItem key={category.id} value={String(category.id)}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="prompt-favorite"
-                checked={promptForm.is_favorite}
-                onChange={(e) => setPromptForm({ ...promptForm, is_favorite: e.target.checked })}
-                className="form-checkbox h-4 w-4 text-blue-600"
-              />
-              <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsPromptDialogOpen(false)}>Cancelar</Button>
-              <Button onClick={savePrompt}>{editingPrompt ? 'Salvar' : 'Criar'}</Button>
-            </div>
+                </>
+              )}
+            </label>
+            <input
+              id="prompt-image-upload"
+              type="file"
+              accept="image/jpeg,image/png,image/svg+xml"
+              onChange={handleImageUpload}
+              disabled={uploadingImage}
+              className="hidden"
+            />
           </div>
-        </DialogContent>
-      </Dialog>
+          <p className="text-xs text-gray-500">Formatos suportados: JPG, PNG, SVG (máx. 5MB)</p>
+        </div>
+      </div>
+
+<div className="space-y-3">
+  <Label>Vídeo do Prompt (opcional)</Label>
+
+  {promptForm.video_url && promptForm.video_url.startsWith("data:video") && (
+    <div className="relative w-full h-56 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
+      <video
+        src={promptForm.video_url}
+        controls
+        className="w-full h-full object-cover"
+      />
+      <button
+        type="button"
+        onClick={() => setPromptForm({ ...promptForm, video_url: "" })}
+        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  )}
+
+  <div className="flex items-center gap-3">
+    <label
+      htmlFor="prompt-video-upload"
+      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
+        uploadingImage
+          ? 'border-gray-300 bg-gray-50 cursor-wait'
+          : 'border-purple-300 hover:border-purple-500 hover:bg-purple-50'
+      }`}
+    >
+      {uploadingImage ? (
+        <>
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+          <span className="text-sm text-gray-600">Carregando...</span>
+        </>
+      ) : (
+        <>
+          <svg
+            className="w-5 h-5 text-purple-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M15.172 7l-6.586 6.586a2 2 0 01-2.828 0L3 11.828m6-6L21 3m0 0v6m0-6h-6"
+            />
+          </svg>
+          <span className="text-sm font-medium text-gray-700">
+            {promptForm.video_url ? 'Trocar vídeo' : 'Selecionar vídeo'}
+          </span>
+        </>
+      )}
+    </label>
+    <input
+      id="prompt-video-upload"
+      type="file"
+      accept="video/mp4,video/webm,video/ogg,video/mov"
+      onChange={handleVideoUpload}
+      disabled={uploadingImage}
+      className="hidden"
+    />
+  </div>
+
+  <p className="text-xs text-gray-500">
+    🎞️ Formatos suportados: MP4, WebM, OGG, MOV (máx. 50MB)
+  </p>
+
+  <div>
+    <Label>ou cole o link do YouTube</Label>
+    <Input
+      type="url"
+      placeholder="https://www.youtube.com/watch?v=..."
+      value={promptForm.video_url?.startsWith("data:video") ? "" : promptForm.video_url || ""}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, video_url: e.target.value })
+      }
+    />
+  </div>
+</div>
+
+     <div>
+        <Label>Categoria</Label>
+        <Select
+          onValueChange={(value) => {
+            console.log('📝 Categoria selecionada:', value);
+            console.log('📝 Estado anterior:', promptForm.category_id);
+            setPromptForm(prev => ({
+              ...prev,
+              category_id: value === "none" ? 'none' : value
+            }));
+          }}
+          value={promptForm.category_id === null || promptForm.category_id === undefined ? "none" : String(promptForm.category_id)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Selecione uma categoria">
+              {promptForm.category_id === 'none' || !promptForm.category_id
+                ? "Sem categoria"
+                : myCategories.find((cat) => String(cat.id) === String(promptForm.category_id))?.name || "Selecione uma categoria"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Sem categoria</SelectItem>
+            {myCategories.map((category) => (
+              <SelectItem key={category.id} value={String(category.id)}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {/* 🐛 Debug: Mostrar valor atual */}
+        <p className="text-xs text-gray-500 mt-1">
+          Valor atual: {promptForm.category_id === 'none' || !promptForm.category_id ? 'Sem categoria' : promptForm.category_id}
+        </p>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <input
+          type="checkbox"
+          id="prompt-favorite"
+          checked={promptForm.is_favorite}
+          onChange={(e) => setPromptForm({ ...promptForm, is_favorite: e.target.checked })}
+          className="form-checkbox h-4 w-4 text-blue-600"
+        />
+        <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
+      </div>
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => setIsPromptDialogOpen(false)}>
+          Cancelar
+        </Button>
+        <Button onClick={savePrompt}>
+          {editingPrompt ? 'Salvar' : 'Criar'}
+        </Button>
+      </div>
+    </div>
+  </DialogContent>
+</Dialog>
 
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white dark:bg-slate-900 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
   <DialogHeader className="p-6 pb-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
     <DialogTitle className="text-lg">{selectedImage?.title}</DialogTitle>
@@ -984,7 +1272,6 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
   </div>
 
   <div className="flex justify-end gap-2 p-6 pt-3 shadow-[0_-1px_3px_rgba(0,0,0,0.08)] bg-white">
-
             <Button variant="outline" onClick={() => setIsImageModalOpen(false)}>Fechar</Button>
             <Button
               onClick={() => {
@@ -1002,29 +1289,57 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
-        <DialogContent className="max-w-4xl p-0 bg-black overflow-hidden">
-          <div className="relative">
-            <button
-              onClick={() => setShowVideoModal(false)}
-              className="absolute top-2 right-2 bg-white/10 hover:bg-white/20 text-white rounded-full w-8 h-8 flex items-center justify-center z-10"
-            >
-              ✕
-            </button>
-            {currentVideoUrl && (
+<Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
+  <DialogContent className="max-w-5xl p-0 overflow-hidden bg-black">
+    <DialogHeader className="sr-only">
+      <DialogTitle>Reproduzir Vídeo</DialogTitle>
+      <DialogDescription>Player de vídeo do prompt</DialogDescription>
+    </DialogHeader>
+
+    <div className="relative">
+      <button
+        onClick={() => setShowVideoModal(false)}
+        className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-black/70 rounded-full transition"
+      >
+        <X className="w-6 h-6 text-white" />
+      </button>
+      
+      {currentVideoUrl && (
+        <>
+          {(currentVideoUrl.includes("youtube.com") || currentVideoUrl.includes("youtu.be")) ? (
+            <div className="relative pt-[56.25%]">
               <iframe
-                src={`https://www.youtube.com/embed/${extractYouTubeId(currentVideoUrl)}?autoplay=1&rel=0&modestbranding=1`}
+                className="absolute inset-0 w-full h-full"
+                src={`https://www.youtube.com/embed/${extractYouTubeId(currentVideoUrl)}?autoplay=1`}
                 title="YouTube player"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-                className="w-full aspect-video"
-              ></iframe>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+              />
+            </div>
+          ) : (
+            <div className="relative pt-[56.25%]">
+              <video
+                src={currentVideoUrl}
+                controls
+                autoPlay
+                className="absolute inset-0 w-full h-full object-contain"
+                preload="metadata"
+              >
+                Seu navegador não suporta vídeos.
+              </video>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
 
-      <ChatModal isOpen={showChatModal} onClose={() => setShowChatModal(false)} />
+      <ChatModal 
+  isOpen={showChatModal} 
+  onClose={() => setShowChatModal(false)}
+  onPromptSaved={handlePromptSaved}
+/>
 
       {showShareModal && promptToShare && (
         <SharePromptModal
@@ -1036,7 +1351,7 @@ export default function PromptManager({ setIsAuthenticated, setUser }) {
           onSuccess={() => {
             setShowShareModal(false)
             setPromptToShare(null)
-            setShowChatModal(true)
+            openChatIntelligently()
             loadPrompts()
           }}
         />

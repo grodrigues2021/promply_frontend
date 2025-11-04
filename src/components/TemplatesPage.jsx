@@ -31,6 +31,7 @@ export default function TemplatesPage({ user, onBack }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false); // ✅ NOVO
 
   // Modal de template (criar/editar)
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
@@ -43,6 +44,8 @@ export default function TemplatesPage({ user, onBack }) {
     tags: "",
     image_url: "",
     video_url: "",
+    imageFile: null,  // ✅ NOVO
+    videoFile: null   // ✅ NOVO
   });
 
   // Modal de categoria (criar/editar)
@@ -64,7 +67,7 @@ export default function TemplatesPage({ user, onBack }) {
     is_favorite: false,
   });
 
-  // 🆕 Modais de Preview de Mídia
+  // Modais de Preview de Mídia
   const [imagePreview, setImagePreview] = useState({ open: false, url: "", title: "" });
   const [videoPreview, setVideoPreview] = useState({ open: false, url: "" });
 
@@ -152,22 +155,153 @@ export default function TemplatesPage({ user, onBack }) {
     }
   };
 
-  // ===== Template (upload, abrir modal, salvar, excluir, editar)
-  const convertToBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
-
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
+  // ===== 🖼️ UPLOAD DE IMAGEM (REPLICADO DO PromptManager)
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
     if (!file) return;
-    const base64 = await convertToBase64(file);
-    setTemplateForm({ ...templateForm, image_url: base64 });
+
+    // Validação de tipo
+    if (!file.type.startsWith('image/')) {
+      toast.error('Selecione uma imagem válida');
+      return;
+    }
+
+    // Validação de tamanho (máx. 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Imagem muito grande! Máx. 5MB');
+      return;
+    }
+
+    setUploadingMedia(true);
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      // ✅ Salva a pré-visualização e o arquivo real
+      setTemplateForm(prev => ({
+        ...prev,
+        imageFile: file,          // ← arquivo físico para enviar ao backend
+        image_url: reader.result  // ← preview base64 para mostrar na tela
+      }));
+      setUploadingMedia(false);
+      toast.success('Imagem carregada!');
+    };
+
+    reader.onerror = () => {
+      toast.error('Erro ao carregar imagem');
+      setUploadingMedia(false);
+    };
+
+    reader.readAsDataURL(file);
   };
 
+  // ===== 🗑️ REMOVER IMAGEM
+  const removeImage = () => {
+    setTemplateForm(prev => ({ 
+      ...prev, 
+      image_url: '', 
+      imageFile: null 
+    }));
+    toast.success('Imagem removida');
+  };
+
+// ===== 🎥 UPLOAD DE VÍDEO LOCAL COM SNAPSHOT AUTOMÁTICO
+const handleVideoUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Validação de tipo
+  if (!file.type.startsWith('video/')) {
+    toast.error('Selecione um vídeo válido');
+    return;
+  }
+
+  // Validação de tamanho (máx. 50MB)
+  if (file.size > 50 * 1024 * 1024) {
+    toast.error('Vídeo muito grande! Máx. 50MB');
+    return;
+  }
+
+  setUploadingMedia(true);
+
+  // 📹 Cria URL temporária do vídeo
+  const videoURL = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.preload = 'metadata';
+  video.muted = true;
+  video.playsInline = true;
+
+  video.onloadeddata = () => {
+    // ⏭️ Vai para 1 segundo do vídeo (ou metade se for muito curto)
+    video.currentTime = Math.min(1, video.duration / 2);
+  };
+
+  video.onseeked = () => {
+    // 📸 Captura o frame atual como imagem
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Converte canvas para base64
+    const thumbnailBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+    // ✅ Converte base64 para Blob/File para enviar ao backend
+    canvas.toBlob((blob) => {
+      const thumbnailFile = new File([blob], 'video-thumbnail.jpg', { type: 'image/jpeg' });
+
+      // 📹 Lê o vídeo como base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTemplateForm(prev => ({
+          ...prev,
+          videoFile: file,
+          video_url: reader.result,
+          // ✅ Salva thumbnail como base64 E como arquivo
+          image_url: prev.image_url || thumbnailBase64,
+          imageFile: prev.imageFile || thumbnailFile  // ← Agora envia o arquivo!
+        }));
+        setUploadingMedia(false);
+        toast.success('Vídeo e thumbnail capturados!');
+        
+        // Limpa recursos
+        URL.revokeObjectURL(videoURL);
+        video.remove();
+        canvas.remove();
+      };
+
+      reader.onerror = () => {
+        toast.error('Erro ao carregar vídeo');
+        setUploadingMedia(false);
+        URL.revokeObjectURL(videoURL);
+        video.remove();
+        canvas.remove();
+      };
+
+      reader.readAsDataURL(file);
+    }, 'image/jpeg', 0.8);
+  };
+
+  video.onerror = () => {
+    toast.error('Erro ao processar vídeo');
+    setUploadingMedia(false);
+    URL.revokeObjectURL(videoURL);
+    video.remove();
+  };
+
+  video.src = videoURL;
+};
+  // ===== 🗑️ REMOVER VÍDEO
+  const removeVideo = () => {
+    setTemplateForm(prev => ({ 
+      ...prev, 
+      video_url: '', 
+      videoFile: null 
+    }));
+    toast.success('Vídeo removido');
+  };
+
+  // ===== ABRIR MODAL DE TEMPLATE
   const openTemplateDialog = () => {
     setEditingTemplate(null);
     setTemplateForm({
@@ -178,6 +312,8 @@ export default function TemplatesPage({ user, onBack }) {
       tags: "",
       image_url: "",
       video_url: "",
+      imageFile: null,
+      videoFile: null
     });
     setIsTemplateDialogOpen(true);
   };
@@ -193,24 +329,100 @@ export default function TemplatesPage({ user, onBack }) {
       tags: Array.isArray(template.tags) ? template.tags.join(", ") : (template.tags || ""),
       image_url: template.image_url || "",
       video_url: template.video_url || "",
+      imageFile: null,  // ✅ Não carrega arquivo ao editar
+      videoFile: null   // ✅ Não carrega arquivo ao editar
     });
     setIsTemplateDialogOpen(true);
   };
 
+  // ===== 💾 SALVAR TEMPLATE (REPLICADO DO PromptManager)
   const saveTemplate = async () => {
     try {
       const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
-      const method = editingTemplate ? api.put : api.post;
-      const res = await method(url, templateForm);
-      if (res.data.success) {
+      const method = editingTemplate ? "PUT" : "POST";
+
+      let body;
+      let headers = {};
+
+      // 🔹 Se houver upload de vídeo ou imagem (arquivo local), usar FormData
+      if (templateForm.videoFile || templateForm.imageFile) {
+        body = new FormData();
+        body.append("title", templateForm.title);
+        body.append("content", templateForm.content);
+        body.append("description", templateForm.description);
+        body.append(
+          "tags",
+          Array.isArray(templateForm.tags)
+            ? templateForm.tags.join(",")
+            : templateForm.tags
+        );
+        body.append(
+          "category_id",
+          templateForm.category_id === "none" ? "" : templateForm.category_id
+        );
+
+        // 🔹 Envia link do YouTube (se houver e não for arquivo local)
+        if (templateForm.video_url && !templateForm.videoFile) {
+          body.append("video_url", templateForm.video_url);
+        }
+
+        // 🔹 Envia imagem ou vídeo local (se houver)
+        if (templateForm.imageFile) body.append("file", templateForm.imageFile);
+        if (templateForm.videoFile) body.append("video", templateForm.videoFile);
+
+        console.log("📤 ENVIANDO FormData com arquivos");
+        console.log("🔍 DEBUG - FormData sendo enviado:");
+        console.log("📹 videoFile:", templateForm.videoFile);
+        console.log("🖼️ imageFile:", templateForm.imageFile);
+        console.log("🖼️ image_url (preview):", templateForm.image_url?.substring(0, 50) + "...");
+        for (let pair of body.entries()) {
+          console.log(pair[0] + ':', pair[1]);
+          }
+      } else {
+        // 🔹 Caso contrário, envia como JSON normal
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify({
+          title: templateForm.title,
+          content: templateForm.content,
+          description: templateForm.description,
+          tags:
+            typeof templateForm.tags === "string"
+              ? templateForm.tags
+                  .split(",")
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+              : templateForm.tags,
+          category_id:
+            templateForm.category_id === "none"
+              ? null
+              : templateForm.category_id,
+          image_url: templateForm.image_url || "",
+          video_url: templateForm.video_url || "",
+        });
+
+        console.log("📤 ENVIANDO JSON");
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}${url}`, {
+        method,
+        headers,
+        credentials: "include",
+        body,
+      });
+
+      const data = await response.json();
+      console.log("📥 RESPOSTA:", data);
+
+      if (data.success) {
         toast.success(editingTemplate ? "Template atualizado!" : "Template criado!");
         setIsTemplateDialogOpen(false);
         setEditingTemplate(null);
         loadTemplates();
       } else {
-        toast.error(res.data.error || "Erro ao salvar template");
+        toast.error(data.error || "Erro ao salvar template");
       }
-    } catch {
+    } catch (err) {
+      console.error("❌ ERRO:", err);
       toast.error("Erro ao salvar template");
     }
   };
@@ -265,7 +477,7 @@ export default function TemplatesPage({ user, onBack }) {
     setUseTemplateForm({ category_id: "none", title: "", is_favorite: false });
   };
 
-  // 🆕 Funções de Preview de Mídia
+  // Funções de Preview de Mídia
   const handleOpenImage = (url, title = "") => {
     setImagePreview({ open: true, url, title });
   };
@@ -286,25 +498,19 @@ export default function TemplatesPage({ user, onBack }) {
       <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-[1800px] mx-auto flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                if (onBack) {
-                  onBack();
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 300);
-                } else {
-                  window.history.back();
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 300);
-                }
-              }}
-              className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar
-            </button>
+          <button
+  onClick={() => {
+    if (onBack) {
+      onBack(); // ✅ Executa callback que recarrega dados
+    } else {
+      window.history.back();
+    }
+  }}
+  className="flex items-center gap-2 px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-100 transition"
+>
+  <ArrowLeft className="w-4 h-4" />
+  Voltar
+</button>
 
             <h1 className="text-2xl font-bold flex items-center gap-2">
               📚 Biblioteca de Templates
@@ -602,25 +808,157 @@ export default function TemplatesPage({ user, onBack }) {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Imagem</Label>
-                <Input type="file" accept="image/*" onChange={handleImageUpload} />
+            {/* 🖼️ UPLOAD DE IMAGEM - REPLICADO DO PromptManager */}
+            <div>
+              <Label>Imagem do Template (opcional)</Label>
+              <div className="space-y-3">
                 {templateForm.image_url && (
-                  <img
-                    src={templateForm.image_url}
-                    alt="preview"
-                    className="mt-2 w-full h-40 object-cover rounded-md border"
-                  />
+                  <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
+                    <img
+                      src={templateForm.image_url}
+                      alt="Preview"
+                      className="w-full h-full object-contain"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 )}
+                
+                <div className="flex items-center gap-3">
+                  <label
+                    htmlFor="template-image-upload"
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
+                      uploadingMedia
+                        ? 'border-gray-300 bg-gray-50 cursor-wait'
+                        : 'border-blue-300 hover:border-blue-500 hover:bg-blue-50'
+                    }`}
+                  >
+                    {uploadingMedia ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                        <span className="text-sm text-gray-600">Carregando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg
+                          className="w-5 h-5 text-blue-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="text-sm font-medium text-gray-700">
+                          {templateForm.image_url ? 'Trocar imagem' : 'Selecionar imagem'}
+                        </span>
+                      </>
+                    )}
+                  </label>
+                  <input
+                    id="template-image-upload"
+                    type="file"
+                    accept="image/jpeg,image/png,image/svg+xml"
+                    onChange={handleImageUpload}
+                    disabled={uploadingMedia}
+                    className="hidden"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">Formatos suportados: JPG, PNG, SVG (máx. 5MB)</p>
+              </div>
+            </div>
+
+            {/* 🎥 VÍDEO: UPLOAD LOCAL + LINK DO YOUTUBE - REPLICADO DO PromptManager */}
+            <div className="space-y-3">
+              <Label>Vídeo do Template (opcional)</Label>
+
+              {/* Pré-visualização do vídeo local */}
+              {templateForm.video_url && templateForm.video_url.startsWith("data:video") && (
+                <div className="relative w-full h-56 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
+                  <video
+                    src={templateForm.video_url}
+                    controls
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeVideo}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Botão para upload de vídeo local */}
+              <div className="flex items-center gap-3">
+                <label
+                  htmlFor="template-video-upload"
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
+                    uploadingMedia
+                      ? 'border-gray-300 bg-gray-50 cursor-wait'
+                      : 'border-purple-300 hover:border-purple-500 hover:bg-purple-50'
+                  }`}
+                >
+                  {uploadingMedia ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
+                      <span className="text-sm text-gray-600">Carregando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="w-5 h-5 text-purple-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M15.172 7l-6.586 6.586a2 2 0 01-2.828 0L3 11.828m6-6L21 3m0 0v6m0-6h-6"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-700">
+                        {templateForm.video_url ? 'Trocar vídeo' : 'Selecionar vídeo'}
+                      </span>
+                    </>
+                  )}
+                </label>
+                <input
+                  id="template-video-upload"
+                  type="file"
+                  accept="video/mp4,video/webm,video/ogg,video/mov"
+                  onChange={handleVideoUpload}
+                  disabled={uploadingMedia}
+                  className="hidden"
+                />
               </div>
 
+              <p className="text-xs text-gray-500">
+                🎞️ Formatos suportados: MP4, WebM, OGG, MOV (máx. 50MB)
+              </p>
+
+              {/* Campo opcional para link do YouTube */}
               <div>
-                <Label>Link do YouTube</Label>
+                <Label>ou cole o link do YouTube</Label>
                 <Input
-                  placeholder="https://youtube.com/watch?v=..."
-                  value={templateForm.video_url}
-                  onChange={(e) => setTemplateForm({ ...templateForm, video_url: e.target.value })}
+                  type="url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  value={templateForm.video_url?.startsWith("data:video") ? "" : templateForm.video_url || ""}
+                  onChange={(e) =>
+                    setTemplateForm({ ...templateForm, video_url: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -733,13 +1071,16 @@ export default function TemplatesPage({ user, onBack }) {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* 🆕 Modal de Preview de Imagem - COM FUNDO BRANCO FORÇADO */}
+{/* Modal de Preview de Imagem */}
       <Dialog open={imagePreview.open} onOpenChange={(open) => setImagePreview({ ...imagePreview, open })}>
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white">
           <DialogHeader className="p-6 pb-3 border-b bg-white">
-            <DialogTitle className="text-lg text-gray-900">{imagePreview.title || "Imagem do Template"}</DialogTitle>
-            <DialogDescription className="text-gray-600">Visualização da imagem</DialogDescription>
+            <DialogTitle className="text-lg text-gray-900">
+              {imagePreview.title || "Imagem do Template"}
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
+              Visualização da imagem
+            </DialogDescription>
           </DialogHeader>
           
           <div className="relative w-full h-full max-h-[70vh] overflow-auto bg-gray-50 flex items-center justify-center p-6">
@@ -773,30 +1114,57 @@ export default function TemplatesPage({ user, onBack }) {
         </DialogContent>
       </Dialog>
 
-      {/* 🆕 Modal de Preview de Vídeo */}
-      <Dialog open={videoPreview.open} onOpenChange={(open) => setVideoPreview({ ...videoPreview, open })}>
-        <DialogContent className="max-w-5xl p-0 overflow-hidden">
-          <div className="relative pt-[56.25%]">
-            <button
-              onClick={() => setVideoPreview({ open: false, url: "" })}
-              className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-black/70 rounded-full transition"
-            >
-              <X className="w-6 h-6 text-white" />
-            </button>
-            <iframe
-              className="absolute inset-0 w-full h-full"
-              src={videoPreview.url.includes("youtube.com") || videoPreview.url.includes("youtu.be")
-                ? `https://www.youtube.com/embed/${extractYouTubeId(videoPreview.url)}?autoplay=1`
-                : videoPreview.url
-              }
-              title="Video player"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Modal de Preview de Vídeo - SUPORTA YOUTUBE E MP4 LOCAL */}
+<Dialog open={videoPreview.open} onOpenChange={(open) => setVideoPreview({ ...videoPreview, open })}>
+  <DialogContent className="max-w-5xl p-0 overflow-hidden bg-black">
+    {/* ✅ ADICIONE ISTO */}
+    <DialogHeader className="sr-only">
+      <DialogTitle>Reproduzir Vídeo</DialogTitle>
+      <DialogDescription>Player de vídeo do template</DialogDescription>
+    </DialogHeader>
+
+    <div className="relative">
+      <button
+        onClick={() => setVideoPreview({ open: false, url: "" })}
+        className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-black/70 rounded-full transition"
+      >
+        <X className="w-6 h-6 text-white" />
+      </button>
+      
+   {videoPreview.url && (
+  <>
+    {/* YouTube */}
+    {(videoPreview.url.includes("youtube.com") || videoPreview.url.includes("youtu.be")) ? (
+      <div className="relative pt-[56.25%]">
+        <iframe
+          className="absolute inset-0 w-full h-full"
+          src={`https://www.youtube.com/embed/${extractYouTubeId(videoPreview.url)}?autoplay=1`}
+          title="YouTube player"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    ) : (
+      /* Vídeo Local MP4 WebM etc */
+      <div className="relative pt-[56.25%]">
+        <video
+          src={videoPreview.url}
+          controls
+          autoPlay
+          className="absolute inset-0 w-full h-full object-contain"
+          preload="metadata"
+        >
+          Seu navegador não suporta vídeos.
+        </video>
+      </div>
+    )}
+  </>
+)}
     </div>
+  </DialogContent>
+</Dialog>
+
+       </div>
   );
 }
 

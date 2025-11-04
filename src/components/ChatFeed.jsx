@@ -1,75 +1,361 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+// src/components/ChatFeed.jsx - OTIMIZADO COM WEBSOCKET + FALLBACK + BROADCAST SYNC
+import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
+import { Loader2, AlertCircle, WifiOff, Wifi } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import api from '../lib/api';
+import { getUserColor } from '../utils/chatUtils';
+import { socket } from "../socket";
+import { useBroadcastSync, BroadcastMessageTypes } from '../hooks/useBroadcastSync';
 
-const ChatFeed = ({ refreshTrigger }) => {
+/**
+ * Feed de conversas - Com WebSocket, Fallback e BroadcastSync
+ */
+const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userScrolled, setUserScrolled] = useState(false);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
+  const previousPostsCount = useRef(0);
+  const typingTimers = useRef({});
+  const pollingIntervalRef = useRef(null);
 
-  // Scroll para o final
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // 📜 SCROLL INTELIGENTE
+  const scrollToBottom = useCallback((force = false) => {
+    if (!userScrolled || force) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setHasNewMessages(false);
+      setUserScrolled(false);
+    }
+  }, [userScrolled]);
 
-  const fetchPosts = async () => {
+  // ✅ Expõe função para o componente pai
+  useImperativeHandle(ref, () => ({
+    scrollToBottom: (force = false) => {
+      scrollToBottom(force);
+    }
+  }), [scrollToBottom]);
+
+  // 👀 DETECTA SE USUÁRIO ROLOU PRA CIMA
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
+
+    if (!isAtBottom && !userScrolled) {
+      setUserScrolled(true);
+    }
+    
+    if (isAtBottom && userScrolled) {
+      setUserScrolled(false);
+      setHasNewMessages(false);
+    }
+  }, [userScrolled]);
+
+  // ✅ Notifica mudanças no estado
+  useEffect(() => {
+    if (onScrollStateChange) {
+      onScrollStateChange(userScrolled, hasNewMessages);
+    }
+  }, [userScrolled, hasNewMessages, onScrollStateChange]);
+
+  // 🆕 Nova mensagem recebida
+  const handleNewMessage = useCallback((message) => {
+    console.log("🔥 Processando nova mensagem:", message);
+    
+    setPosts(prev => {
+      // Evitar duplicatas
+      if (prev.some(p => p.id === message.id)) {
+        console.log("⚠️ Mensagem duplicada ignorada:", message.id);
+        return prev;
+      }
+      console.log("✅ Mensagem adicionada ao estado");
+      return [...prev, message];
+    });
+
+    if (userScrolled) {
+      setHasNewMessages(true);
+    } else {
+      setTimeout(() => scrollToBottom(true), 100);
+    }
+  }, [userScrolled, scrollToBottom]);
+
+  // 🗑️ Mensagem deletada
+  const handleMessageDeleted = useCallback((messageId) => {
+    setPosts(prev => prev.filter(p => p.id !== messageId));
+  }, []);
+
+  // ⌨️ Usuário digitando
+  const handleUserTyping = useCallback((userId, userName) => {
+    setTypingUsers(prev => {
+      if (!prev.find(u => u.id === userId)) {
+        return [...prev, { id: userId, name: userName }];
+      }
+      return prev;
+    });
+
+    // Remove após 3 segundos de inatividade
+    if (typingTimers.current[userId]) {
+      clearTimeout(typingTimers.current[userId]);
+    }
+
+    typingTimers.current[userId] = setTimeout(() => {
+      handleUserStoppedTyping(userId);
+    }, 3000);
+  }, []);
+
+  // ⌨️ Usuário parou de digitar
+  const handleUserStoppedTyping = useCallback((userId) => {
+    setTypingUsers(prev => prev.filter(u => u.id !== userId));
+    if (typingTimers.current[userId]) {
+      clearTimeout(typingTimers.current[userId]);
+      delete typingTimers.current[userId];
+    }
+  }, []);
+
+  // ✅ fetchPosts – Carregar mensagens iniciais e manter sincronização
+  const fetchPosts = useCallback(async (isManualRefresh = false) => {
     try {
       setError(null);
+
       const response = await api.get('/chat/posts');
-      
-      if (response.data && response.data.success && Array.isArray(response.data.data)) {
-        setPosts(response.data.data);
-        
-        // Scroll automático após carregar
-        setTimeout(scrollToBottom, 100);
+      const newPosts = response.data?.data || [];
+
+      if (Array.isArray(newPosts)) {
+        // 🔧 Mescla sem sobrescrever mensagens novas do WebSocket
+        setPosts(newPosts);
+console.log("📬 Mensagens atualizadas:", newPosts.length);
+
+
+        if (isManualRefresh) {
+          setTimeout(() => scrollToBottom(true), 100);
+        }
+
+        previousPostsCount.current = newPosts.length;
       } else {
-        console.warn('Resposta inesperada da API:', response.data);
         setPosts([]);
       }
     } catch (err) {
-      console.error('Erro ao carregar mensagens:', err);
-      setError(err.response?.data?.message || 'Erro ao carregar mensagens. Tente novamente.');
+      console.error('❌ Erro ao carregar mensagens:', err);
+      setError(err.response?.data?.message || 'Erro ao carregar mensagens');
     } finally {
       setLoading(false);
-      setIsFirstLoad(false);
     }
-  };
+  }, [scrollToBottom]);
 
-  // Carregar posts ao montar
+  // 🔥 BROADCAST SYNC - Escuta notificações de outras janelas
+  const handleBroadcastMessage = useCallback((message) => {
+    console.log('📡 [ChatFeed] Mensagem recebida via Broadcast:', message);
+    
+    switch (message.type) {
+      case BroadcastMessageTypes.CHAT_MESSAGE_SENT:
+        console.log('💬 [ChatFeed] Nova mensagem detectada - Recarregando...');
+        // Recarrega mensagens para pegar a nova mensagem
+        scrollToBottom(true);
+        break;
+        
+      case BroadcastMessageTypes.PROMPT_SHARED:
+        console.log('✨ [ChatFeed] Prompt compartilhado - Recarregando chat...');
+        // Recarrega para pegar a mensagem automática do compartilhamento
+        fetchPosts(true);
+        break;
+        
+      default:
+        break;
+    }
+  }, [fetchPosts]);
+
+  // Conecta ao BroadcastChannel
+  useBroadcastSync(handleBroadcastMessage);
+
+  // 🔐 AUTENTICAÇÃO NO WEBSOCKET
   useEffect(() => {
-    fetchPosts();
-  }, [refreshTrigger]);
+    if (socket.connected) {
+      // Pega dados do usuário do localStorage
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          console.log("🔐 Autenticando no WebSocket:", user.name);
+          
+          socket.emit('authenticate', {
+            userId: user.id,
+            userName: user.name
+          });
 
-  // Polling a cada 5 segundos
+          // Confirma autenticação
+          socket.once('authenticated', (data) => {
+            console.log("✅ Autenticado no WebSocket:", data);
+          });
+        } catch (e) {
+          console.error("❌ Erro ao autenticar:", e);
+        }
+      }
+    }
+  }, [socket.connected]);
+
+  // 📡 MONITORAMENTO DE CONEXÃO WEBSOCKET
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchPosts();
-    }, 5000);
+    const handleConnect = () => {
+      console.log("✅ WebSocket conectado");
+      setIsSocketConnected(true);
+      
+      // Para polling quando WebSocket conectar
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+        console.log("⏸️ Polling desativado (WebSocket ativo)");
+      }
 
-    return () => clearInterval(interval);
+      // Autentica ao conectar
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          socket.emit('authenticate', {
+            userId: user.id,
+            userName: user.name
+          });
+        } catch (e) {
+          console.error("❌ Erro ao autenticar:", e);
+        }
+      }
+    };
+
+    const handleDisconnect = () => {
+      console.log("❌ WebSocket desconectado");
+      setIsSocketConnected(false);
+    };
+
+    const handleConnectError = (error) => {
+      console.error("❌ Erro de conexão WebSocket:", error);
+      setIsSocketConnected(false);
+    };
+
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("connect_error", handleConnectError);
+
+    // Verifica se já está conectado
+    if (socket.connected) {
+      setIsSocketConnected(true);
+    }
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("connect_error", handleConnectError);
+    };
   }, []);
+
+  // ⚠️ FALLBACK: Polling quando WebSocket desconectar OU como backup
+  useEffect(() => {
+    // 🔥 Polling ativo mesmo com WebSocket conectado (backup para prompts compartilhados)
+    const shouldPoll = !isSocketConnected; // Sempre ativo para garantir sincronia
+    
+    if (shouldPoll && !loading) {
+      console.log("🔄 Polling ativo a cada 3 segundos (backup para prompts compartilhados)");
+      
+      pollingIntervalRef.current = setInterval(() => {
+        console.log("🔄 Polling: Verificando novas mensagens...");
+        fetchPosts(false);
+      }, 3000); // 3 segundos para melhor responsividade
+
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    }
+  }, [loading, fetchPosts]);
+
+  // 🧠 EVENTOS DO WEBSOCKET
+  useEffect(() => {
+    socket.on("new_message", (data) => {
+      console.log("📩 Nova mensagem recebida via WebSocket:", data);
+      if (data && data.message) {
+        handleNewMessage(data.message);
+      }
+    });
+
+    // 🔥 NOVO: Escuta quando QUALQUER usuário compartilha prompt
+    socket.on("prompt_shared", (data) => {
+      console.log("✨ Prompt compartilhado por outro usuário via WebSocket:", data);
+      // Recarrega para pegar a nova mensagem
+      fetchPosts(true);
+    });
+
+    socket.on("message_deleted", (data) => {
+      console.log("🗑️ Mensagem deletada:", data);
+      handleMessageDeleted(data.messageId);
+    });
+
+    socket.on("user_typing", (data) => {
+      handleUserTyping(data.userId, data.userName);
+    });
+
+    socket.on("user_stopped_typing", (data) => {
+      handleUserStoppedTyping(data.userId);
+    });
+
+    return () => {
+      socket.off("new_message");
+      socket.off("prompt_shared"); // 🔥 Cleanup
+      socket.off("message_deleted");
+      socket.off("user_typing");
+      socket.off("user_stopped_typing");
+    };
+  }, [handleNewMessage, handleMessageDeleted, handleUserTyping, handleUserStoppedTyping, fetchPosts]);
 
   // Scroll inicial
   useEffect(() => {
-    if (posts.length > 0 && isFirstLoad) {
-      setTimeout(scrollToBottom, 200);
+    if (posts.length > 0 && !userScrolled) {
+      setTimeout(() => scrollToBottom(true), 200);
     }
-  }, [posts, isFirstLoad]);
+  }, [posts.length, userScrolled, scrollToBottom]);
 
-  const handlePostUpdate = () => {
-    fetchPosts();
-  };
+  const handlePostUpdate = useCallback(() => {
+    fetchPosts(false);
+  }, [fetchPosts]);
+
+  // 🚀 Carrega mensagens iniciais ao montar o componente
+  useEffect(() => {
+    console.log("[INIT] Carregando mensagens recentes...");
+    fetchPosts(false);
+  }, [fetchPosts]);
+
+  // 🔄 Atualiza quando refreshTrigger mudar
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      console.log("[REFRESH] Trigger acionado, recarregando...");
+      fetchPosts(true);
+    }
+  }, [refreshTrigger, fetchPosts]);
+
+  // 🎨 Memoizar posts processados
+  const processedPosts = useMemo(() => {
+    return posts
+      .filter((p) => p && p.id && p.author) // evita nulos
+      .map((post) => ({
+        ...post,
+        userColor: getUserColor(post.author?.id || 0),
+      }));
+  }, [posts]);
 
   if (loading && posts.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-[#E5DDD5]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-2" />
-          <p className="text-gray-500">Carregando mensagens...</p>
+          <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-2" />
+          <p className="text-gray-600">Carregando conversas...</p>
         </div>
       </div>
     );
@@ -77,14 +363,14 @@ const ChatFeed = ({ refreshTrigger }) => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-[#E5DDD5]">
         <div className="text-center max-w-md px-4">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
           <p className="text-red-600 font-medium mb-2">Erro ao carregar chat</p>
           <p className="text-gray-600 text-sm mb-4">{error}</p>
           <button
-            onClick={fetchPosts}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            onClick={() => fetchPosts(true)}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
           >
             Tentar Novamente
           </button>
@@ -95,16 +381,16 @@ const ChatFeed = ({ refreshTrigger }) => {
 
   if (posts.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-[#E5DDD5]">
         <div className="text-center max-w-md px-4">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-md">
             <span className="text-3xl">💬</span>
           </div>
-          <p className="text-gray-500 text-lg font-medium mb-2">
+          <p className="text-gray-700 text-lg font-medium mb-2">
             Nenhuma mensagem ainda
           </p>
-          <p className="text-gray-400 text-sm">
-            Seja o primeiro a compartilhar um prompt com a comunidade!
+          <p className="text-gray-600 text-sm">
+            Seja o primeiro a iniciar uma conversa!
           </p>
         </div>
       </div>
@@ -112,42 +398,74 @@ const ChatFeed = ({ refreshTrigger }) => {
   }
 
   return (
-    <div 
-      ref={messagesContainerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
-    >
-      {/* Data de hoje */}
-      <div className="flex justify-center mb-4">
-        <span className="px-3 py-1 bg-white rounded-full text-xs text-gray-500 shadow-sm">
-          {new Date().toLocaleDateString('pt-BR', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </span>
+    <div className="flex flex-col h-full">
+      {/* ✅ INDICADOR DE CONEXÃO */}
+      {!isSocketConnected && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2 text-sm text-yellow-800">
+          <WifiOff className="w-4 h-4" />
+          <span>Conexão em tempo real indisponível - Usando modo fallback</span>
+        </div>
+      )}
+     
+      {/* 📜 Área de mensagens */}
+      <div 
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#E5DDD5]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+        }}
+      >
+        {/* Data de hoje */}
+        <div className="flex justify-center mb-4 sticky top-0 z-10">
+          <span className="px-3 py-1 bg-white/80 backdrop-blur-sm rounded-lg text-xs text-gray-700 shadow-sm font-medium">
+            {new Date().toLocaleDateString('pt-BR', { 
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric'
+            })}
+          </span>
+        </div>
+
+        {/* Mensagens */}
+        {processedPosts.map((post) => {
+          if (!post || !post.id || !post.author) {
+            return null;
+          }
+
+          return (
+            <ChatMessage
+              key={post.id}
+              post={post}
+              userColor={post.userColor}
+              onUpdate={handlePostUpdate}
+            />
+          );
+        })}
+
+        {/* Indicador de digitação */}
+        {typingUsers.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <span>
+              {typingUsers.length === 1
+                ? `${typingUsers[0].name} está digitando...`
+                : `${typingUsers.length} pessoas estão digitando...`}
+            </span>
+          </div>
+        )}
+
+        {/* Elemento invisível para scroll */}
+        <div ref={messagesEndRef} />
       </div>
-
-      {/* Mensagens (mais antigas primeiro) */}
-      {posts.map((post) => {
-        if (!post || !post.id || !post.author) {
-          console.warn('Post com estrutura inválida:', post);
-          return null;
-        }
-
-        return (
-          <ChatMessage
-            key={post.id}
-            post={post}
-            onUpdate={handlePostUpdate}
-          />
-        );
-      })}
-
-      {/* Elemento invisível para scroll */}
-      <div ref={messagesEndRef} />
     </div>
   );
-};
+});
+
+ChatFeed.displayName = 'ChatFeed';
 
 export default ChatFeed;
