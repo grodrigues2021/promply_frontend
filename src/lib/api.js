@@ -11,10 +11,11 @@ const VITE_ENV = import.meta.env.VITE_ENV;
 let ENV = VITE_ENV || MODE;
 
 const API_URLS = {
-  development: import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api",
-  staging: import.meta.env.VITE_API_URL_STAGING || "https://promply-backend-staging.onrender.com/api",
-  production: import.meta.env.VITE_API_URL_PROD || "https://promply-backend-prod.onrender.com/api"
+  development: import.meta.env.VITE_API_URL || "http://127.0.0.1:5000",
+  staging: import.meta.env.VITE_API_URL_STAGING || "https://promply-backend-staging.onrender.com",
+  production: import.meta.env.VITE_API_URL_PROD || "https://promply-backend-prod.onrender.com"
 };
+
 
 const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
 
@@ -22,9 +23,11 @@ console.log("🌐 Axios Configuração:");
 console.log(`   - Ambiente: ${ENV}`);
 console.log(`   - Base URL: ${API_BASE_URL}`);
 
-// =====================================
+
+
+// ======================================
 // ⚙️ Configuração dinâmica por ambiente
-// =====================================
+// ======================================
 const axiosConfig = {
   baseURL: API_BASE_URL,
   timeout: 30000,
