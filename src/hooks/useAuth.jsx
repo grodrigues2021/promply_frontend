@@ -175,6 +175,15 @@ export function AuthProvider({ children }) {
     checkAuth,
   };
 
+   // 🚀 Redireciona automaticamente após autenticação
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && window.location.pathname === "/") {
+      console.log("🎯 [useAuth] Usuário autenticado — redirecionando para /workspace");
+      window.location.href = "/workspace"; // ou "/app", conforme seu fluxo
+    }
+  }, [isAuthenticated, isLoading]);
+
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
