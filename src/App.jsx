@@ -18,10 +18,14 @@ function App() {
     console.log('🔐 [APP] Estado:', { isAuthenticated, isLoading, user });
   }, [isAuthenticated, user, isLoading]);
 
-  // Verifica se é página de redefinição de senha
+  // ✅ CORRIGIDO: Verifica se é página de redefinição de senha
+  // Apenas redireciona para reset-password se o pathname for /reset-password
+  // OU se houver um parâmetro 'reset_token' (não 'token' que é usado pelo Google OAuth)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (window.location.pathname === '/reset-password' || params.get('token')) {
+    const resetToken = params.get('reset_token');
+    
+    if (window.location.pathname === '/reset-password' || resetToken) {
       setCurrentPage('reset-password');
     }
   }, []);
