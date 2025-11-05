@@ -463,55 +463,54 @@ const savePrompt = async () => {
     let body;
     let headers = {};
 
-    if (promptForm.videoFile || promptForm.imageFile) {
-      body = new FormData();
-      body.append("title", promptForm.title);
-      body.append("content", promptForm.content);
-      body.append("description", promptForm.description);
-      body.append(
-        "tags",
-        Array.isArray(promptForm.tags)
-          ? promptForm.tags.join(",")
-          : promptForm.tags
-      );
-      const categoryValue = (!promptForm.category_id || promptForm.category_id === "none") 
-        ? "" 
-        : String(promptForm.category_id);
-      
-      body.append("category_id", categoryValue);
-      console.log('📁 Category_id enviado (FormData):', categoryValue);
+    if (promptForm.videoFile) {
+  body = new FormData();
+  body.append("title", promptForm.title);
+  body.append("content", promptForm.content);
+  body.append("description", promptForm.description);
+  body.append(
+    "tags",
+    Array.isArray(promptForm.tags)
+      ? promptForm.tags.join(",")
+      : promptForm.tags
+  );
 
-      body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+  const categoryValue = (!promptForm.category_id || promptForm.category_id === "none") 
+    ? "" 
+    : String(promptForm.category_id);
 
-      if (promptForm.video_url && !promptForm.video) {
-        body.append("video_url", promptForm.video_url);
-      }
+  body.append("category_id", categoryValue);
+  body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
 
-      if (promptForm.imageFile) body.append("file", promptForm.imageFile);
-      if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+  // ✅ Adiciona a URL da imagem (vinda do upload)
+  if (promptForm.image_url) {
+    body.append("image_url", promptForm.image_url);
+  }
 
-    } else {
-      headers["Content-Type"] = "application/json";
-      body = JSON.stringify({
-        title: promptForm.title,
-        content: promptForm.content,
-        description: promptForm.description,
-        tags:
-          typeof promptForm.tags === "string"
-            ? promptForm.tags
-                .split(",")
-                .map((t) => t.trim())
-                .filter(Boolean)
-            : promptForm.tags,
-        category_id:
-          (!promptForm.category_id || promptForm.category_id === "none")
-            ? null
-            : Number(promptForm.category_id),
-        is_favorite: promptForm.is_favorite,
-        image_url: promptForm.image_url || "",
-        video_url: promptForm.video_url || "",
-      });
-    }
+  // ✅ Só envia o vídeo real se existir
+  if (promptForm.videoFile) {
+    body.append("video", promptForm.videoFile);
+  }
+} else {
+  headers["Content-Type"] = "application/json";
+  body = JSON.stringify({
+    title: promptForm.title,
+    content: promptForm.content,
+    description: promptForm.description,
+    tags:
+      typeof promptForm.tags === "string"
+        ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+        : promptForm.tags,
+    category_id:
+      (!promptForm.category_id || promptForm.category_id === "none")
+        ? null
+        : Number(promptForm.category_id),
+    is_favorite: promptForm.is_favorite,
+    image_url: promptForm.image_url || "",
+    video_url: promptForm.video_url || "",
+  });
+}
+
 console.log('🚀 Enviando requisição:', { url, method });
     const response = editingPrompt 
       ? await api.put(`/prompts/${editingPrompt.id}`, body, { headers })
