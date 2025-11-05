@@ -100,3 +100,5 @@ console.log("   • Ambiente:", ENV);
 console.log("   • Base URL Ativa:", CLEAN_API_BASE_URL);
 console.log("   • Headers padrão:", { "Content-Type": "application/json" });
 console.log("==============================================");
+
+export default api;
