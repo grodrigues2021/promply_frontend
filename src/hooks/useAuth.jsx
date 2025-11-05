@@ -14,6 +14,8 @@ export function AuthProvider({ children }) {
     console.group("🔍 [useAuth] Verificando autenticação");
     const token = localStorage.getItem("token");
 
+    console.log("🧾 [checkAuth] Token encontrado no localStorage:", token ? token.slice(0, 25) + "..." : "nenhum");
+
     if (!token) {
       console.log("ℹ️ Nenhum token encontrado — usuário não autenticado");
       setUser(null);
@@ -23,8 +25,8 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    console.log("🪪 Token encontrado:", token.slice(0, 20) + "...");
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    console.log("📦 [checkAuth] Header Authorization configurado:", api.defaults.headers.common["Authorization"]);
 
     try {
       const resp = await api.get("/auth/me");
@@ -50,24 +52,35 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => {
   // ✅ Captura token JWT vindo da URL após login com Google
-  const params = new URLSearchParams(window.location.search);
-  const tokenFromUrl = params.get("token");
-
-  if (tokenFromUrl) {
-    console.log("✅ Token JWT recebido via URL:", tokenFromUrl.slice(0, 20) + "...");
-    localStorage.setItem("token", tokenFromUrl);
-    api.defaults.headers.common["Authorization"] = `Bearer ${tokenFromUrl}`;
-
-    // Limpa a URL (remove o token dos parâmetros)
-    const cleanUrl = window.location.origin + window.location.pathname;
-    window.history.replaceState({}, document.title, cleanUrl);
-  }
-}, []);
-
-
   useEffect(() => {
+    console.group("🔁 [useAuth] Captura de token via URL (Google OAuth)");
+
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get("token");
+
+    if (tokenFromUrl) {
+      console.log("✅ [Google] Token JWT capturado da URL:", tokenFromUrl.slice(0, 25) + "...");
+      console.log("💾 Salvando token no localStorage...");
+      localStorage.setItem("token", tokenFromUrl);
+
+      api.defaults.headers.common["Authorization"] = `Bearer ${tokenFromUrl}`;
+      console.log("📦 Header Authorization configurado:", api.defaults.headers.common["Authorization"]);
+
+      // 🔗 Limpa a URL (remove token dos parâmetros)
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+      console.log("🧹 URL limpa:", cleanUrl);
+    } else {
+      console.log("🚫 [Google] Nenhum token encontrado na URL — usuário deve logar manualmente");
+    }
+
+    console.groupEnd();
+  }, []);
+
+  // ⚙️ Executa verificação inicial
+  useEffect(() => {
+    console.log("🚀 [useAuth] Iniciando verificação automática de autenticação...");
     checkAuth();
   }, [checkAuth]);
 
@@ -84,7 +97,7 @@ export function AuthProvider({ children }) {
       const { access_token, success, data, error } = resp.data;
 
       console.log("🧩 Campos retornados:");
-      console.log("   • access_token:", access_token ? access_token.slice(0, 20) + "..." : null);
+      console.log("   • access_token:", access_token ? access_token.slice(0, 25) + "..." : null);
       console.log("   • success:", success);
       console.log("   • data:", data);
       console.log("   • error:", error);
@@ -92,7 +105,7 @@ export function AuthProvider({ children }) {
       if (access_token) {
         localStorage.setItem("token", access_token);
         api.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
-        console.log("💾 Token salvo no localStorage:", localStorage.getItem("token").slice(0, 20) + "...");
+        console.log("💾 Token salvo no localStorage:", localStorage.getItem("token").slice(0, 25) + "...");
       } else {
         console.warn("⚠️ Nenhum access_token retornado pelo backend!");
       }
@@ -131,21 +144,23 @@ export function AuthProvider({ children }) {
   // 🚪 Logout
   const logout = useCallback(async () => {
     try {
-      console.log("🚪 useAuth: Iniciando logout...");
+      console.group("🚪 [useAuth] Iniciando logout...");
       setUser(null);
       setIsAuthenticated(false);
       localStorage.removeItem("token");
+      delete api.defaults.headers.common["Authorization"];
 
       try {
         await api.post("/auth/logout");
-        console.log("✅ useAuth: API de logout chamada com sucesso");
+        console.log("✅ API de logout chamada com sucesso");
       } catch (apiError) {
-        console.warn("⚠️ useAuth: Erro ao chamar API de logout:", apiError.message);
+        console.warn("⚠️ Erro ao chamar API de logout:", apiError.message);
       }
 
+      console.groupEnd();
       window.location.href = "/";
     } catch (err) {
-      console.error("❌ useAuth: Erro geral no logout:", err);
+      console.error("❌ Erro geral no logout:", err);
       window.location.href = "/";
     }
   }, []);
