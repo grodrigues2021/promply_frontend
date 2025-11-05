@@ -37,6 +37,7 @@ import ChatModal from './ChatModal'
 import SharePromptModal from './SharePromptModal'
 import PromptCard from './PromptCard'
 import PromptGrid from './PromptGrid'
+import api from '../lib/api'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -295,8 +296,8 @@ const editCategory = useCallback((category) => {
 
 const loadPrompts = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/prompts`, { credentials: 'include' })
-      const data = await response.json()
+      const response = await api.get('/prompts')
+      const data = response.data
       if (data.success) {
         setPrompts(Array.isArray(data.data) ? data.data : [])
       } else {
@@ -310,8 +311,8 @@ const loadPrompts = async () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/categories`, { credentials: 'include' })
-      const data = await response.json()
+      const response = await api.get('/categories')
+      const data = response.data
       if (data.success) {
         setMyCategories(data.categories || [])
         setTemplateCategories(data.templates || [])
@@ -324,8 +325,8 @@ const loadPrompts = async () => {
 
   const loadStats = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/stats`, { credentials: 'include' })
-      const data = await response.json()
+      const response = await api.get('/stats')
+      const data = response.data
       if (data.success) setStats(data.data || {})
     } catch {
       setStats({})
@@ -334,10 +335,8 @@ const loadPrompts = async () => {
 
 const testConnection = useCallback(async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/stats`, { 
-      credentials: 'include' 
-    })
-    const data = await response.json()
+    const response = await api.get('/stats')
+    const data = response.data
     
     if (data.success) {
       setDbConnected(true)
@@ -497,14 +496,11 @@ const savePrompt = async () => {
       });
     }
 console.log('🚀 Enviando requisição:', { url, method });
-    const response = await fetch(url, {
-      method,
-      headers,
-      credentials: "include",
-      body,
-    });
+    const response = editingPrompt 
+      ? await api.put(`/prompts/${editingPrompt.id}`, body, { headers })
+      : await api.post('/prompts', body, { headers });
 
-    const data = await response.json();
+    const data = response.data;
 console.log('📥 Resposta do servidor:', data);
     if (data.success) {
       if (editingPrompt) {
@@ -532,18 +528,10 @@ console.log('📥 Resposta do servidor:', data);
 
   const saveCategory = async () => {
     try {
-      const url = editingCategory
-        ? `${API_BASE_URL}/categories/${editingCategory.id}`
-        : `${API_BASE_URL}/categories`
-      const method = editingCategory ? 'PUT' : 'POST'
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(categoryForm)
-      })
-      const data = await response.json()
+      const response = editingCategory
+        ? await api.put(`/categories/${editingCategory.id}`, categoryForm)
+        : await api.post('/categories', categoryForm)
+      const data = response.data
       if (data.success) {
         loadCategories()
         loadStats()
@@ -558,11 +546,8 @@ console.log('📥 Resposta do servidor:', data);
   const deletePrompt = async (id) => {
     if (!confirm('Tem certeza que deseja deletar este prompt?')) return
     try {
-      const response = await fetch(`${API_BASE_URL}/prompts/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
-      const data = await response.json()
+      const response = await api.delete(`/prompts/${id}`)
+      const data = response.data
       if (data.success) {
         loadPrompts()
         loadStats()
@@ -575,11 +560,8 @@ console.log('📥 Resposta do servidor:', data);
   const deleteCategory = async (id) => {
     if (!confirm('Tem certeza que deseja deletar esta categoria?')) return
     try {
-      const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
-      const data = await response.json()
+      const response = await api.delete(`/categories/${id}`)
+      const data = response.data
       if (data.success) {
         loadCategories()
         loadStats()
@@ -598,12 +580,8 @@ console.log('📥 Resposta do servidor:', data);
     )
 
     try {
-      const response = await fetch(`${API_BASE_URL}/prompts/${prompt.id}/favorite`, {
-        method: 'POST',
-        credentials: 'include',
-      })
-
-      const data = await response.json()
+      const response = await api.post(`/prompts/${prompt.id}/favorite`)
+      const data = response.data
       if (data.success) {
         loadStats()
       }
@@ -629,10 +607,7 @@ console.log('📥 Resposta do servidor:', data);
   const copyToClipboard = async (prompt) => {
     try {
       await navigator.clipboard.writeText(prompt.content)
-      await fetch(`${API_BASE_URL}/prompts/${prompt.id}/copy`, {
-        method: 'POST',
-        credentials: 'include'
-      })
+      await api.post(`/prompts/${prompt.id}/copy`)
       loadPrompts()
       toast.success('Prompt copiado!')
     } catch {
