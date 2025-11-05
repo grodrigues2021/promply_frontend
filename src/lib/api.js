@@ -1,104 +1,120 @@
-import axios from "axios";
+// api.js
+// Configuração centralizada do Axios
+import axios from 'axios';
 
-// 🌍 URLs por ambiente (ajuste conforme necessário)
+// =====================================
+// 🌍 Detecta Ambiente e URL
+// =====================================
+const MODE = import.meta.env.MODE || "development";
+const VITE_ENV = import.meta.env.VITE_ENV;
+
+let ENV = VITE_ENV || MODE;
+
 const API_URLS = {
-  development: "http://localhost:5000/api",
-  staging: "https://promply-backend-staging.onrender.com/api",
-  production: "https://promply-backend-production.onrender.com/api",
+  development: import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api",
+  staging: import.meta.env.VITE_API_URL_STAGING || "https://promply-backend-staging.onrender.com/api",
+  production: import.meta.env.VITE_API_URL_PROD || "https://promply-backend-prod.onrender.com/api"
 };
 
-// Detecta o ambiente atual
-const ENV = import.meta.env.MODE || "development";
 
-// Seleciona a URL base de acordo com o ambiente atual
 const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
 
-// 🔧 LIMPEZA AUTOMÁTICA DE BARRAS FINAIS
-// Garante que não haja '/' duplicadas no final da URL base
-const CLEAN_API_BASE_URL = API_BASE_URL.replace(/\/+$/, "");
+console.log("🌐 Axios Configuração:");
+console.log(`   - Ambiente: ${ENV}`);
+console.log(`   - Base URL: ${API_BASE_URL}`);
 
-// 🧠 LOGS DE VERIFICAÇÃO — ajudam a identificar problemas futuros
-console.log("==============================================");
-console.log("🧩 [API CONFIGURAÇÃO INICIAL]");
-console.log("🌐 Ambiente detectado:", ENV);
-console.log("📦 API_BASE_URL (original):", API_BASE_URL);
-console.log("🧹 API_BASE_URL (limpa):", CLEAN_API_BASE_URL);
-console.log("==============================================");
 
-// Criação da instância do Axios com baseURL limpa
-const api = axios.create({
-  baseURL: CLEAN_API_BASE_URL,
+
+// ======================================
+// ⚙️ Configuração dinâmica por ambiente
+// ======================================
+const axiosConfig = {
+  baseURL: API_BASE_URL,
+  timeout: 30000,
   headers: {
-    "Content-Type": "application/json",
-  },
-  withCredentials: true,
-});
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+};
 
-// Interceptor para adicionar o token JWT automaticamente em cada requisição
+// Em produção → cookies HttpOnly (para JWT nos cookies)
+if (ENV === 'production') {
+  axiosConfig.withCredentials = true;
+} else {
+  axiosConfig.withCredentials = false;
+}
+
+// =====================================
+// 📡 Cria instância do Axios
+// =====================================
+export const api = axios.create(axiosConfig);
+
+// =====================================
+// 🔐 Interceptores de Requisição
+// =====================================
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
-
-    // 🔍 Log opcional — apenas em ambiente de desenvolvimento
-    if (ENV === "development") {
-      console.log("🔑 [JWT Interceptor]");
-      console.log("   • Token presente:", !!token);
-      console.log("   • Rota:", config.url);
-      console.log("   • Método:", config.method?.toUpperCase());
+    if (ENV === 'development') {
+      console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`);
     }
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Somente em staging ou dev: injeta o Bearer token no header
+    if (ENV === 'staging' || ENV === 'development') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+
     return config;
   },
   (error) => {
-    console.error("❌ [Axios Interceptor Error]:", error);
+    console.error('❌ [API Request Error]', error);
     return Promise.reject(error);
   }
 );
 
-// Interceptor para logar respostas e status HTTP (apenas para debug)
+// =====================================
+// 📥 Interceptores de Resposta
+// =====================================
 api.interceptors.response.use(
   (response) => {
-    if (ENV === "development") {
-      console.log("✅ [API RESPONSE]");
-      console.log("   • URL:", response.config.url);
-      console.log("   • Status:", response.status);
+    if (ENV === 'development') {
+      console.log(`✅ [API Response] ${response.status} ${response.config.url}`);
     }
     return response;
   },
   (error) => {
-    console.error("🚨 [API ERROR]");
-    console.error("   • URL:", error.config?.url);
-    console.error("   • Status:", error.response?.status);
-    console.error("   • Mensagem:", error.message);
+    const status = error.response?.status;
+    const url = error.config?.url;
+    console.error(`❌ [API Error] ${status} ${url}`, error.response?.data);
+
+    switch (status) {
+      case 401:
+        console.warn('⚠️ Sessão expirada - limpando token e redirecionando');
+        localStorage.removeItem('token');
+        if (ENV !== 'production') window.location.href = '/login';
+        break;
+      case 403:
+        console.warn('⚠️ Acesso negado');
+        break;
+      case 404:
+        console.warn('⚠️ Rota não encontrada');
+        break;
+      case 500:
+        console.error('❌ Erro interno no servidor');
+        break;
+      default:
+        console.error('❌ Erro desconhecido:', error);
+    }
+
     return Promise.reject(error);
   }
 );
 
-// Exporta a instância do Axios para uso em toda a aplicação
-export { api };
-
-// Exporta também a baseURL limpa (usada por outros serviços, ex: Socket.IO)
-export const apiBaseUrl = CLEAN_API_BASE_URL;
-
-// Função utilitária opcional para debug manual no console
-export function logApiConfig() {
-  console.log("🔎 [API CONFIG CHECK]");
-  console.log("   • Ambiente:", ENV);
-  console.log("   • URL Original:", API_BASE_URL);
-  console.log("   • URL Limpa:", CLEAN_API_BASE_URL);
-  console.log("   • LocalStorage Token:", localStorage.getItem("token") ? "✅ Presente" : "❌ Ausente");
-  console.log("──────────────────────────────────────────────");
-}
-
-// Log final para confirmação visual no console (Render / navegador)
-console.log("==============================================");
-console.log("✅ Axios Configuração Finalizada");
-console.log("   • Ambiente:", ENV);
-console.log("   • Base URL Ativa:", CLEAN_API_BASE_URL);
-console.log("   • Headers padrão:", { "Content-Type": "application/json" });
-console.log("==============================================");
-
+// =====================================
+// 📤 Exports
+// =====================================
+export const apiBaseUrl = API_BASE_URL;
+export const currentEnv = ENV;
 export default api;
