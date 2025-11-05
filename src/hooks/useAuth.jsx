@@ -190,11 +190,11 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+/ ✅ Hook customizado
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth deve ser usado dentro de um AuthProvider");
   }
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-  }  // <-- FECHA o AuthProvider
-
+  return context;
+}
