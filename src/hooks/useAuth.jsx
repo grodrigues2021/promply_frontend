@@ -175,22 +175,21 @@ export function AuthProvider({ children }) {
     checkAuth,
   };
 
-   // 🚀 Redireciona automaticamente após autenticação
+  // 🚀 Redireciona automaticamente após autenticação
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-  const currentPath = window.location.pathname;
-  if (["/", "/login", "/register", "/reset-password"].includes(currentPath)) {
-    console.log("🎯 [useAuth] Usuário autenticado — redirecionando para /workspace");
-    window.history.replaceState({}, "", "/workspace");
-  }
-}
-
-
+      const currentPath = window.location.pathname;
+      if (["/", "/login", "/register", "/reset-password"].includes(currentPath)) {
+        console.log("🎯 [useAuth] Usuário autenticado — redirecionando para /workspace");
+        window.history.replaceState({}, "", "/workspace");
+      }
+    }
+  }, [isAuthenticated, isLoading]); // ✅ FECHA o useEffect corretamente
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
+} // ✅ FECHA o AuthProvider corretamente
 
-/ ✅ Hook customizado
+// ✅ Hook customizado
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
