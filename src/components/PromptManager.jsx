@@ -106,15 +106,32 @@ const handleImageUpload = useCallback((e) => {
   setUploadingImage(true);
   const reader = new FileReader();
 
-  reader.onloadend = () => {
-    setPromptForm(prev => ({
-      ...prev,
-      imageFile: file,
-      image_url: reader.result
-    }));
+  reader.onloadend = async () => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    const uploadedUrl = res.data?.url || "";
+    if (uploadedUrl) {
+      setPromptForm(prev => ({
+        ...prev,
+        imageFile: file,
+        image_url: uploadedUrl,
+      }));
+      toast.success("✅ Upload concluído!");
+    } else {
+      toast.error("Erro: servidor não retornou URL");
+    }
+  } catch (err) {
+    console.error("❌ Erro no upload:", err);
+    toast.error("Falha ao enviar imagem");
+  } finally {
     setUploadingImage(false);
-    toast.success('Imagem carregada!');
-  };
+  }
+};
 
   reader.onerror = () => {
     toast.error('Erro ao carregar imagem');
