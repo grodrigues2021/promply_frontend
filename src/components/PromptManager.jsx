@@ -91,46 +91,59 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
     is_template: false
   })
 
-const handleImageUpload = async (file) => {
+const handleImageUpload = async (e) => {
   try {
+    const file = e.target.files?.[0];
     if (!file) {
       console.warn("⚠️ Nenhum arquivo selecionado!");
       toast.warning("Selecione um arquivo antes de enviar.");
       return;
     }
 
-    console.log(
-      `📤 Iniciando upload: ${file.name} (${file.type}), tamanho: ${(file.size / 1024).toFixed(1)}KB`
-    );
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione uma imagem válida (JPG, PNG, SVG).");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande! Máx. 5MB.");
+      return;
+    }
+
+    console.log(`📤 Iniciando upload: ${file.name} (${file.type}), ${(
+      file.size / 1024
+    ).toFixed(1)}KB`);
+
+    setUploadingImage(true);
     toast.loading("Enviando imagem...");
 
     const formData = new FormData();
-    formData.append("file", file); // ✅ nome esperado no Flask
+    formData.append("file", file);
 
-    // ❌ NÃO adicionar Content-Type manualmente — Axios cria o boundary
-    const response = await api.post("/upload", formData);
+    // ❌ Não defina Content-Type manualmente — Axios define o boundary correto
+    const res = await api.post("/upload", formData);
+    console.log("📩 Resposta do backend:", res.data);
 
-    console.log("📩 Resposta do backend:", response.data);
-
-    if (response.data.success && response.data.url) {
-      const uploadedUrl = response.data.url;
-      console.log("🖼️ Upload finalizado com sucesso:", uploadedUrl);
-
+    const uploadedUrl = res.data?.url || "";
+    if (uploadedUrl) {
       setPromptForm((prev) => ({
         ...prev,
+        imageFile: file,
         image_url: uploadedUrl,
-        imageFile: null,
       }));
-
       toast.dismiss();
-      toast.success("✅ Imagem enviada!");
+      toast.success("✅ Upload concluído!");
     } else {
-      throw new Error(response.data.error || "Falha no upload");
+      toast.error("Erro: servidor não retornou URL da imagem.");
     }
-  } catch (error) {
+  } catch (err) {
+    console.error("❌ Erro no upload:", err);
     toast.dismiss();
-    console.error("❌ Erro no upload:", error);
-    toast.error("Erro ao enviar imagem");
+    toast.error("Falha ao enviar imagem.");
+  } finally {
+    setUploadingImage(false);
+    // permite reenviar o mesmo arquivo depois
+    if (e.target) e.target.value = "";
   }
 };
 
@@ -1148,11 +1161,13 @@ if (showTemplates) {
               )}
             </label>
             <input
-            type="file"
-            id="prompt-image-upload"
-            accept="image/*"
-            onChange={(e) => handleImageUpload(e.target.files[0])}
-          />
+              id="prompt-image-upload"
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}   // ✅ agora o handler recebe o evento
+              disabled={uploadingImage}
+              className="hidden"
+            />
 
 
           </div>
