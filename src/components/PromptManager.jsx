@@ -91,63 +91,48 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
     is_template: false
   })
 
-const handleImageUpload = async (e) => {
+const handleImageUpload = async (file) => {
   try {
-    const file = e.target.files?.[0];
     if (!file) {
-      toast.warning("Nenhum arquivo selecionado.");
+      console.warn("⚠️ Nenhum arquivo selecionado!");
+      toast.warning("Selecione um arquivo antes de enviar.");
       return;
     }
 
-    // 🔍 Validações básicas
-    if (!["image/jpeg", "image/png", "image/svg+xml"].includes(file.type)) {
-      toast.error("Formato inválido. Use JPG, PNG ou SVG.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("A imagem excede 5MB.");
-      return;
-    }
-
-    console.log("📤 Iniciando upload:", file.name, file.type, `${(file.size / 1024).toFixed(1)}KB`);
-    setUploadingImage(true);
+    console.log(
+      `📤 Iniciando upload: ${file.name} (${file.type}), tamanho: ${(file.size / 1024).toFixed(1)}KB`
+    );
     toast.loading("Enviando imagem...");
 
     const formData = new FormData();
-    formData.append("file", file); // ✅ campo esperado pelo Flask
+    formData.append("file", file); // ✅ nome esperado no Flask
 
-    const response = await api.post("/upload", formData, {
-      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
-    });
+    // ❌ NÃO adicionar Content-Type manualmente — Axios cria o boundary
+    const response = await api.post("/upload", formData);
 
-    if (!response.data?.success) {
-      throw new Error(response.data?.error || "Falha no upload");
+    console.log("📩 Resposta do backend:", response.data);
+
+    if (response.data.success && response.data.url) {
+      const uploadedUrl = response.data.url;
+      console.log("🖼️ Upload finalizado com sucesso:", uploadedUrl);
+
+      setPromptForm((prev) => ({
+        ...prev,
+        image_url: uploadedUrl,
+        imageFile: null,
+      }));
+
+      toast.dismiss();
+      toast.success("✅ Imagem enviada!");
+    } else {
+      throw new Error(response.data.error || "Falha no upload");
     }
-
-    const uploadedUrl = response.data.url;
-    console.log("🖼️ Upload concluído:", uploadedUrl);
-
-    setPromptForm((prev) => ({
-      ...prev,
-      image_url: uploadedUrl,
-      imageFile: null, // limpa arquivo local
-    }));
-
-    toast.dismiss();
-    toast.success("✅ Imagem enviada com sucesso!");
   } catch (error) {
-    console.error("❌ Erro no upload:", error);
     toast.dismiss();
-    toast.error("Falha ao enviar imagem. Verifique o console.");
-  } finally {
-    setUploadingImage(false);
-    // 🔄 limpa o input, evitando reutilizar mesmo arquivo
-    if (e.target) e.target.value = "";
+    console.error("❌ Erro no upload:", error);
+    toast.error("Erro ao enviar imagem");
   }
 };
-
-
-
 
 
 const removeImage = useCallback(() => {
