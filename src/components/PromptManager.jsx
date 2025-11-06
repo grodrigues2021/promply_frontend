@@ -127,7 +127,12 @@ const handleImageUpload = async (e) => {
 
 
     // ❌ Não defina Content-Type manualmente — Axios define o boundary correto
-    const res = await api.post("/upload", formData);
+    const token = localStorage.getItem("token");
+    const res = await api.post("/upload", formData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     console.log("📩 Resposta do backend:", res.data);
 
     const uploadedUrl = res.data?.url || "";
