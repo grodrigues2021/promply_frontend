@@ -58,47 +58,38 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   },
 });
 
-// --- 🔧 Video helpers (mais tolerantes, estilo PromptCard_old) ---
-const detectVideoType = (url) => {
+/* ==========================================
+   🔧 HELPER: EXTRAIR ID DO YOUTUBE
+   ========================================== */
+const extractYouTubeId = (url) => {
   if (!url) return null;
-  const normalized = url.toLowerCase().trim();
-
-  // 🎯 Aceita múltiplos formatos de YouTube
-  if (
-    normalized.includes("youtube.com/watch") ||
-    normalized.includes("youtube.com/embed/") ||
-    normalized.includes("youtu.be/")
-  ) {
-    return "youtube";
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) return match[1];
   }
-
-  // 🎥 Vídeos locais e blobs
-  if (
-    normalized.startsWith("data:video/") ||
-    normalized.startsWith("blob:") ||
-    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(normalized)
-  ) {
-    return "local";
-  }
-
   return null;
 };
 
-// --- 🧩 Extract YouTube ID (mais flexível, igual ao old) ---
-const extractYouTubeId = (url) => {
+/* ==========================================
+   🔧 HELPER: DETECTAR TIPO DE VÍDEO
+   ========================================== */
+const detectVideoType = (url) => {
   if (!url) return null;
-
-  try {
-    const idMatch =
-      url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) ||
-      url.match(/v=([a-zA-Z0-9_-]{11})/);
-    return idMatch ? idMatch[1] : null;
-  } catch (err) {
-    console.warn("[YouTube Extract Error]", err);
-    return null;
+  
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    return 'youtube';
   }
+  
+  if (url.startsWith('data:video/') || url.startsWith('blob:') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
+    return 'local';
+  }
+  
+  return null;
 };
-
 
 /* ==========================================
    🔧 HELPER: GERAR INICIAIS DO NOME
@@ -128,10 +119,7 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-
-
-
-    const mediaInfo = useMemo(() => {
+  const mediaInfo = useMemo(() => {
     const videoUrl = prompt.video_url || prompt.youtube_url;
     const hasImage = prompt.image_url;
     
@@ -148,21 +136,11 @@ const PromptCard = React.memo(({
       : null;
     
       // ✅ CORREÇÃO: Adicionar cache-buster (timestamp) à URL da imagem para forçar o recarregamento
- 
-    let imageUrlWithCacheBuster = null;
-    if (hasImage && prompt.image_url) {
-      if (prompt.image_url.startsWith("data:image")) {
-        // Base64 — não adiciona ?v=
-        imageUrlWithCacheBuster = prompt.image_url;
-      } else if (prompt.updated_at) {
-        // URL normal — adiciona cache-buster
-        const timestamp = new Date(prompt.updated_at).getTime();
-        imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
-      } else {
-        imageUrlWithCacheBuster = prompt.image_url;
-      }
-    }
-
+  let imageUrlWithCacheBuster = null;
+  if (hasImage && prompt.updated_at) {
+    const timestamp = new Date(prompt.updated_at).getTime();
+    imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
+  }
   const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
 
     return { 
@@ -402,13 +380,28 @@ const PromptCard = React.memo(({
       </div>
 
       {/* MÍDIA */}
-      {(mediaInfo.hasMedia || videoId) && (
-  <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
-
+      {mediaInfo.hasMedia && (
+        <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
           
-         
-          {/* VÍDEO LOCAL OU YOUTUBE (com thumbnail) */}
-          {(mediaInfo.hasLocalVideo || mediaInfo.hasYouTubeVideo) && (
+          {/* Badge de tipo de vídeo */}
+          {mediaInfo.hasYouTubeVideo && (
+            <div className="absolute top-2 right-2 z-20">
+              <Badge className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700">
+                YouTube
+              </Badge>
+            </div>
+          )}
+          
+          {mediaInfo.hasLocalVideo && (
+            <div className="absolute top-2 right-2 z-20">
+              <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
+                Vídeo
+              </Badge>
+            </div>
+          )}
+
+          {/* VÍDEO LOCAL */}
+          {mediaInfo.hasLocalVideo && (
             <button
               type="button"
               onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
@@ -426,16 +419,6 @@ const PromptCard = React.memo(({
                   <Play className="h-16 w-16 text-purple-400" />
                 </div>
               )}
-              {/* Badge YouTube */}
-              {mediaInfo.hasYouTubeVideo && (
-                <div className="absolute top-2 right-2 z-20">
-                  <Badge
-                    className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700"
-                  >
-                    YouTube
-                  </Badge>
-                </div>
-              )}
 
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                 <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
@@ -451,10 +434,33 @@ const PromptCard = React.memo(({
             </button>
           )}
 
-        
+          {/* YOUTUBE */}
+          {mediaInfo.hasYouTubeVideo && (
+            <button
+              type="button"
+              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+              className="relative w-full h-full group/media overflow-hidden"
+            >
+              {mediaInfo.thumbnailUrl ? (
+                <img
+                  src={mediaInfo.thumbnailUrl}
+                  alt={prompt.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full">
+                  <Play className="h-12 w-12 text-slate-400" />
+                </div>
+              )}
 
-
-
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                  <Play className="h-6 w-6 text-slate-800 fill-current" />
+                </div>
+              </div>
+            </button>
+          )}
 
           {/* IMAGEM */}
           {!mediaInfo.hasVideo && mediaInfo.hasImage && (
@@ -493,18 +499,6 @@ const PromptCard = React.memo(({
         </div>
       )}
     </div>
-  );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.prompt.id === nextProps.prompt.id &&
-    prevProps.prompt.title === nextProps.prompt.title &&
-    prevProps.authorName === nextProps.authorName &&
-    prevProps.prompt.is_favorite === nextProps.prompt.is_favorite &&
-    prevProps.prompt.category?.id === nextProps.prompt.category?.id &&
-    prevProps.prompt.image_url === nextProps.prompt.image_url &&
-    prevProps.prompt.video_url === nextProps.prompt.video_url &&
-    prevProps.prompt.youtube_url === nextProps.prompt.youtube_url &&
-    prevProps.prompt.tags === nextProps.prompt.tags
   );
 });
 
