@@ -91,42 +91,61 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
     is_template: false
   })
 
-const handleImageUpload = async (file) => {
+const handleImageUpload = async (e) => {
   try {
+    const file = e.target.files?.[0];
     if (!file) {
-      console.error("⚠️ Nenhum arquivo selecionado!");
+      toast.warning("Nenhum arquivo selecionado.");
       return;
     }
 
-    console.log("📤 Enviando imagem:", file.name);
-    toast.loading("📤 Enviando imagem...");
+    // 🔍 Validações básicas
+    if (!["image/jpeg", "image/png", "image/svg+xml"].includes(file.type)) {
+      toast.error("Formato inválido. Use JPG, PNG ou SVG.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("A imagem excede 5MB.");
+      return;
+    }
+
+    console.log("📤 Iniciando upload:", file.name, file.type, `${(file.size / 1024).toFixed(1)}KB`);
+    setUploadingImage(true);
+    toast.loading("Enviando imagem...");
 
     const formData = new FormData();
-    formData.append("file", file); // ✅ nome esperado pelo Flask
+    formData.append("file", file); // ✅ campo esperado pelo Flask
 
-    const response = await api.post("/upload", formData); // sem header manual
+    const response = await api.post("/upload", formData, {
+      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` },
+    });
 
-    if (response.data?.success && response.data.url) {
-      const uploadedUrl = response.data.url;
-      console.log("🖼️ URL final:", uploadedUrl);
-
-      setPromptForm((prev) => ({
-        ...prev,
-        image_url: uploadedUrl,
-        imageFile: null,
-      }));
-
-      toast.dismiss();
-      toast.success("✅ Imagem enviada com sucesso!");
-    } else {
+    if (!response.data?.success) {
       throw new Error(response.data?.error || "Falha no upload");
     }
-  } catch (error) {
+
+    const uploadedUrl = response.data.url;
+    console.log("🖼️ Upload concluído:", uploadedUrl);
+
+    setPromptForm((prev) => ({
+      ...prev,
+      image_url: uploadedUrl,
+      imageFile: null, // limpa arquivo local
+    }));
+
     toast.dismiss();
+    toast.success("✅ Imagem enviada com sucesso!");
+  } catch (error) {
     console.error("❌ Erro no upload:", error);
-    toast.error("Erro ao enviar imagem");
+    toast.dismiss();
+    toast.error("Falha ao enviar imagem. Verifique o console.");
+  } finally {
+    setUploadingImage(false);
+    // 🔄 limpa o input, evitando reutilizar mesmo arquivo
+    if (e.target) e.target.value = "";
   }
 };
+
 
 
 
@@ -451,22 +470,40 @@ useEffect(() => {
 
 const savePrompt = async () => {
   try {
-    const url = editingPrompt
-      ? `${API_BASE_URL}/prompts/${editingPrompt.id}`
-      : `${API_BASE_URL}/prompts`;
-    const method = editingPrompt ? "PUT" : "POST";
+    // 🧠 Proteção: não salvar enquanto imagem está subindo
+    if (uploadingImage) {
+      toast.warning("Aguarde o envio da imagem antes de salvar.");
+      return;
+    }
+
+    // 🧠 Proteção: não permitir salvar com imagem local ainda não enviada
+    if (promptForm.imageFile && !promptForm.image_url) {
+      toast.warning("Envie a imagem antes de salvar o prompt.");
+      return;
+    }
+
+    const isEditing = !!editingPrompt;
+    const endpoint = isEditing
+      ? `/prompts/${editingPrompt.id}`
+      : `/prompts`;
+    const method = isEditing ? "PUT" : "POST";
 
     console.log("💾 Salvando prompt:", {
-      editando: !!editingPrompt,
+      editando: isEditing,
       category_id: promptForm.category_id,
       method,
+      image_url: promptForm.image_url,
     });
 
     let body;
     let headers = {};
 
-    // ✅ Usa FormData se houver imagem ou vídeo
-    if (promptForm.videoFile || promptForm.imageFile) {
+    // ✅ Usa JSON normal, exceto se realmente houver um arquivo físico não enviado
+    const shouldUseFormData =
+      (promptForm.videoFile && !promptForm.video_url) ||
+      (promptForm.imageFile && !promptForm.image_url);
+
+    if (shouldUseFormData) {
       body = new FormData();
       body.append("title", promptForm.title);
       body.append("content", promptForm.content);
@@ -485,13 +522,19 @@ const savePrompt = async () => {
       body.append("category_id", categoryValue);
       body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
 
-      // ✅ Envia URLs existentes
-      if (promptForm.image_url) body.append("image_url", promptForm.image_url);
-      if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+      // ✅ URLs existentes (image_url, youtube_url)
+      if (promptForm.image_url)
+        body.append("image_url", promptForm.image_url);
+      if (promptForm.youtube_url)
+        body.append("youtube_url", promptForm.youtube_url);
 
-      // ✅ Envia arquivos de mídia
-      if (promptForm.videoFile) body.append("video", promptForm.videoFile);
-      if (promptForm.imageFile) body.append("file", promptForm.imageFile);
+      // ✅ Adiciona arquivos de mídia se existirem fisicamente
+      if (promptForm.videoFile)
+        body.append("video", promptForm.videoFile);
+      if (promptForm.imageFile)
+        body.append("file", promptForm.imageFile);
+
+      // 🚫 NÃO define Content-Type — Axios cuida do boundary automaticamente
     } else {
       headers["Content-Type"] = "application/json";
       body = JSON.stringify({
@@ -500,7 +543,10 @@ const savePrompt = async () => {
         description: promptForm.description,
         tags:
           typeof promptForm.tags === "string"
-            ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+            ? promptForm.tags
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean)
             : promptForm.tags,
         category_id:
           !promptForm.category_id || promptForm.category_id === "none"
@@ -513,12 +559,15 @@ const savePrompt = async () => {
       });
     }
 
-    console.log("🚀 Enviando requisição:", { url, method });
+    console.log("🚀 Enviando requisição:", {
+      endpoint,
+      method,
+      tipo: shouldUseFormData ? "FormData" : "JSON",
+    });
 
-    // ✅ Executa chamada ao backend
-    const response = editingPrompt
-      ? await api.put(`/prompts/${editingPrompt.id}`, body, { headers })
-      : await api.post("/prompts", body, { headers });
+    const response = isEditing
+      ? await api.put(endpoint, body, { headers })
+      : await api.post(endpoint, body, { headers });
 
     const data = response.data;
     console.log("📥 Resposta do servidor:", data);
@@ -527,7 +576,7 @@ const savePrompt = async () => {
       const updatedPrompt = data.data || data.prompt || data.updated || null;
 
       if (updatedPrompt) {
-        // ✅ Atualiza localmente antes do reload
+        // ✅ Atualiza a lista local
         setPrompts((prev) => {
           const exists = prev.some((p) => p.id === updatedPrompt.id);
           return exists
@@ -538,25 +587,26 @@ const savePrompt = async () => {
         console.warn("⚠️ Nenhum objeto retornado, recarregando lista...");
       }
 
-      // ⏳ Aguarda breve delay antes de recarregar (garante que o B2 finalize)
+      // ⏳ Delay curto para o B2 processar a URL pública
       setTimeout(() => {
         loadPrompts();
-      }, 1000);
+      }, 800);
 
       await loadStats();
       resetPromptForm();
       setIsPromptDialogOpen(false);
       toast.success(
-        editingPrompt ? "🖊️ Prompt atualizado!" : "✅ Prompt criado com sucesso!"
+        isEditing ? "🖊️ Prompt atualizado!" : "✅ Prompt criado com sucesso!"
       );
     } else {
       toast.error(data.error || "Erro ao salvar prompt");
     }
   } catch (err) {
-    console.error("❌ ERRO:", err);
-    toast.error("Erro ao salvar prompt");
+    console.error("❌ ERRO AO SALVAR PROMPT:", err);
+    toast.error("Erro ao salvar prompt. Verifique o console.");
   }
 };
+
 
 
 
@@ -1113,13 +1163,14 @@ if (showTemplates) {
               )}
             </label>
             <input
-              id="prompt-image-upload"
-              type="file"
-              accept="image/jpeg,image/png,image/svg+xml"
-              onChange={handleImageUpload}
-              disabled={uploadingImage}
-              className="hidden"
-            />
+  id="prompt-image-upload"
+  type="file"
+  accept="image/jpeg,image/png,image/svg+xml"
+  onChange={handleImageUpload}
+  disabled={uploadingImage}
+  className="hidden"
+/>
+
           </div>
           <p className="text-xs text-gray-500">Formatos suportados: JPG, PNG, SVG (máx. 5MB)</p>
         </div>
