@@ -94,6 +94,8 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
 const handleImageUpload = async (e) => {
   try {
     const file = e.target.files?.[0];
+    console.log("📁 Arquivo selecionado:", file);
+    console.log("📋 Tipo:", file?.type, "Tamanho:", file?.size);
     if (!file) {
       console.warn("⚠️ Nenhum arquivo selecionado!");
       toast.warning("Selecione um arquivo antes de enviar.");
@@ -119,6 +121,10 @@ const handleImageUpload = async (e) => {
 
     const formData = new FormData();
     formData.append("file", file);
+
+    console.log("🧾 FormData antes do envio:", [...formData.entries()]);
+    console.log("🔐 Header Authorization:", api.defaults.headers?.Authorization);
+
 
     // ❌ Não defina Content-Type manualmente — Axios define o boundary correto
     const res = await api.post("/upload", formData);
