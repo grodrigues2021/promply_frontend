@@ -43,26 +43,39 @@ function App() {
 
   return (
     <Router>
-      <Routes>
-        {/* Rota padrão: autenticação e gerenciador */}
-        <Route
-          path="/workspace"
-          element={
-            !isAuthenticated ? (
-              <AuthPage />
-            ) : currentPage === 'reset-password' ? (
-              <ResetPasswordPage />
-            ) : (
-              <PromptManager user={user} />
-            )
-          }
-        />
+  <Routes>
+    {/* Página inicial: autenticação */}
+    <Route
+      path="/"
+      element={
+        !isAuthenticated ? (
+          <AuthPage />
+        ) : (
+          <PromptManager user={user} />
+        )
+      }
+    />
 
-        {/* 🔹 Nova rota: janela destacada do chat */}
+    {/* Rota de workspace (após login do Google) */}
+    <Route
+      path="/workspace"
+      element={
+        !isAuthenticated ? (
+          <AuthPage />
+        ) : (
+          <PromptManager user={user} />
+        )
+      }
+    />
 
-<Route path="/chat-workspace" element={<ChatWorkspace />} />
-      </Routes>
-    </Router>
+    {/* Página de redefinição de senha */}
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+    {/* Janela destacada do chat */}
+    <Route path="/chat-workspace" element={<ChatWorkspace />} />
+  </Routes>
+</Router>
+
   );
 }
 
