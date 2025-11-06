@@ -287,28 +287,28 @@ const resetCategoryForm = useCallback(() => {
 
 const editPrompt = useCallback((prompt) => {
   console.log('✏️ Editando prompt:', prompt);
-  console.log('📁 Categoria atual:', prompt.category);
-  
-  const categoryId = prompt.category?.id 
-    ? String(prompt.category.id) 
+  const categoryId = prompt.category?.id
+    ? String(prompt.category.id)
     : (prompt.category_id ? String(prompt.category_id) : 'none');
-  
-  console.log('🔢 Category ID para form:', categoryId);
-  
+
   setPromptForm({
-    title: prompt.title,
-    content: prompt.content,
+    title: prompt.title || '',
+    content: prompt.content || '',
     description: prompt.description || '',
     tags: normalizeTags(prompt.tags),
     category_id: categoryId,
-    is_favorite: prompt.is_favorite,
+    is_favorite: prompt.is_favorite || false,
     image_url: prompt.image_url || '',
     video_url: prompt.video_url || '',
-    youtube_url: prompt.youtube_url || ''
-  })
-  setEditingPrompt(prompt)
-  setIsPromptDialogOpen(true)
-}, [normalizeTags])
+    youtube_url: prompt.youtube_url || '',
+    imageFile: null, // ✅ garante estado limpo
+    videoFile: null  // ✅ idem
+  });
+
+  setEditingPrompt(prompt);
+  setIsPromptDialogOpen(true);
+}, [normalizeTags]);
+
 
 const editCategory = useCallback((category) => {
   setCategoryForm({
@@ -326,7 +326,12 @@ const loadPrompts = async () => {
       const response = await api.get('/prompts')
       const data = response.data
       if (data.success) {
-        setPrompts(Array.isArray(data.data) ? data.data : [])
+        setPrompts(prev => {
+  const newList = Array.isArray(data.data) ? [...data.data] : [];
+  return JSON.stringify(prev) !== JSON.stringify(newList) ? newList : prev;
+});
+
+
       } else {
         setPrompts([])
       }
@@ -473,7 +478,8 @@ const savePrompt = async () => {
     let body;
     let headers = {};
 
-    if (promptForm.videoFile) {
+    // ✅ Usa FormData se houver imagem ou vídeo
+    if (promptForm.videoFile || promptForm.imageFile) {
       body = new FormData();
       body.append("title", promptForm.title);
       body.append("content", promptForm.content);
@@ -492,10 +498,13 @@ const savePrompt = async () => {
       body.append("category_id", categoryValue);
       body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
 
-      // ✅ Adiciona URLs, se existirem
+      // ✅ Envia URLs existentes
       if (promptForm.image_url) body.append("image_url", promptForm.image_url);
       if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+
+      // ✅ Envia arquivos de mídia
       if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+      if (promptForm.imageFile) body.append("file", promptForm.imageFile);
     } else {
       headers["Content-Type"] = "application/json";
       body = JSON.stringify({
@@ -519,6 +528,7 @@ const savePrompt = async () => {
 
     console.log("🚀 Enviando requisição:", { url, method });
 
+    // ✅ Executa chamada ao backend
     const response = editingPrompt
       ? await api.put(`/prompts/${editingPrompt.id}`, body, { headers })
       : await api.post("/prompts", body, { headers });
@@ -527,26 +537,24 @@ const savePrompt = async () => {
     console.log("📥 Resposta do servidor:", data);
 
     if (data.success) {
-      const updatedPrompt =
-        data.data || data.prompt || data.updated || null;
+      const updatedPrompt = data.data || data.prompt || data.updated || null;
 
       if (updatedPrompt) {
+        // 🔄 Atualiza prompt na lista local
         setPrompts((prev) =>
-          editingPrompt
-            ? prev.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p))
-            : [updatedPrompt, ...prev]
+          prev.map((p) => (p.id == updatedPrompt.id ? updatedPrompt : p))
         );
+        await loadPrompts();
       } else {
-        console.warn("⚠️ Nenhum objeto retornado do backend, recarregando lista...");
+        console.warn("⚠️ Nenhum objeto retornado, recarregando lista...");
         await loadPrompts();
       }
 
       await loadStats();
       resetPromptForm();
       setIsPromptDialogOpen(false);
-
       toast.success(
-        editingPrompt ? "🖊️ Prompt atualizado com sucesso!" : "✅ Prompt criado com sucesso!"
+        editingPrompt ? "🖊️ Prompt atualizado!" : "✅ Prompt criado com sucesso!"
       );
     } else {
       toast.error(data.error || "Erro ao salvar prompt");
