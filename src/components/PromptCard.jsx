@@ -1,294 +1,535 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { MoreVertical, Heart, MessageSquare, Bookmark, Share2, X } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+// src/components/PromptCard.jsx - CORRIGIDO COM BADGE DE CATEGORIA
+import React, { useMemo } from "react";
+import { cva } from "class-variance-authority";
+import { cn } from "../lib/utils";
+import {
+  Star,
+  Copy,
+  Edit,
+  Trash2,
+  Play,
+  Image as ImageIcon,
+  Share2,
+  PlusCircle,
+  Tag as TagIcon,
+} from "lucide-react";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
 
-const PostCard = ({ post, onLike, onSave, onDelete, onShare }) => {
-  const [isLiked, setIsLiked] = useState(post?.liked || false);
-  const [isSaved, setIsSaved] = useState(post?.saved || false);
-  const [likesCount, setLikesCount] = useState(post?.likes || 0);
-  const [showModal, setShowModal] = useState(false);
+const cardVariants = cva(
+  "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
+  {
+    variants: {
+      layout: {
+        vertical: "flex flex-col",
+        horizontal: "flex flex-col sm:flex-row items-stretch flex-wrap sm:flex-nowrap",
+      },
+      hover: {
+        none: "",
+        lift: "hover:shadow-xl hover:-translate-y-1",
+        glow: "hover:shadow-2xl hover:shadow-indigo-200/50",
+      },
+    },
+    defaultVariants: {
+      layout: "horizontal",
+      hover: "lift",
+    },
+  }
+);
 
-  // Detecta se é YouTube, imagem ou texto
-  const mediaType = useMemo(() => {
-    if (!post?.mediaUrl) return "text";
-    const url = post.mediaUrl.toLowerCase();
-    if (url.includes("youtube.com") || url.includes("youtu.be")) return "youtube";
-    if (url.match(/\.(jpeg|jpg|gif|png|webp)$/)) return "image";
-    return "text";
-  }, [post?.mediaUrl]);
+const mediaVariants = cva(
+  "relative flex-shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden",
+  {
+    variants: {
+      layout: {
+        vertical: "w-full h-40",
+        horizontal: "flex-shrink-0 w-full sm:w-52 h-[200px] sm:h-[230px] rounded-t-xl sm:rounded-r-xl",
+      },
+    },
+  }
+);
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikesCount(prev => (isLiked ? prev - 1 : prev + 1));
-    if (onLike) onLike(post.id);
-  };
+const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
+  variants: {
+    layout: {
+      vertical: "flex-1",
+      horizontal: "flex-1 h-auto sm:h-[230px] min-w-0 overflow-visible sm:overflow-hidden",
+    },
+  },
+});
 
-  const handleSave = () => {
-    setIsSaved(!isSaved);
-    if (onSave) onSave(post.id);
-  };
+/* ==========================================
+   🔧 HELPER: EXTRAIR ID DO YOUTUBE
+   ========================================== */
+const extractYouTubeId = (url) => {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) return match[1];
+  }
+  return null;
+};
 
-  const handleShare = () => {
-    if (onShare) onShare(post.id);
-    if (navigator.share) {
-      navigator.share({
-        title: post.title || "Compartilhar post",
-        text: post.content || "",
-        url: window.location.href
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link copiado!");
+/* ==========================================
+   🔧 HELPER: DETECTAR TIPO DE VÍDEO
+   ========================================== */
+const detectVideoType = (url) => {
+  if (!url) return null;
+  
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    return 'youtube';
+  }
+  
+  if (url.startsWith('data:video/') || url.startsWith('blob:') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
+    return 'local';
+  }
+  
+  return null;
+};
+
+/* ==========================================
+   🔧 HELPER: GERAR INICIAIS DO NOME
+   ========================================== */
+const getInitials = (name) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
+
+/* ==========================================
+   📦 COMPONENTE PROMPT CARD (CORRIGIDO)
+   ========================================== */
+
+const PromptCard = React.memo(({
+  prompt,
+  authorName,
+  onEdit,
+  onDelete,
+  onCopy,
+  onToggleFavorite,
+  onOpenImage,
+  onOpenVideo,
+  className,
+  onSave,
+  onShare,
+  isInChat
+}) => {
+  const mediaInfo = useMemo(() => {
+    const videoUrl = prompt.video_url || prompt.youtube_url;
+    const hasImage = prompt.image_url;
+    
+    const videoType = detectVideoType(videoUrl);
+    
+    const hasYouTubeVideo = videoType === 'youtube';
+    const hasLocalVideo = videoType === 'local';
+    const hasVideo = hasYouTubeVideo || hasLocalVideo;
+    const hasMedia = hasVideo || hasImage;
+    
+    const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
+    const youtubeThumbnail = videoId 
+      ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+      : null;
+    
+      // ✅ CORREÇÃO: Adicionar cache-buster (timestamp) à URL da imagem para forçar o recarregamento
+ 
+    let imageUrlWithCacheBuster = null;
+    if (hasImage && prompt.image_url) {
+      if (prompt.image_url.startsWith("data:image")) {
+        // Base64 — não adiciona ?v=
+        imageUrlWithCacheBuster = prompt.image_url;
+      } else if (prompt.updated_at) {
+        // URL normal — adiciona cache-buster
+        const timestamp = new Date(prompt.updated_at).getTime();
+        imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
+      } else {
+        imageUrlWithCacheBuster = prompt.image_url;
+      }
     }
-  };
 
-  const timeAgo = useMemo(() => {
-    if (!post?.created_at) return "";
-    try {
-      return formatDistanceToNow(new Date(post.created_at), {
-        addSuffix: true,
-        locale: ptBR,
-      });
-    } catch {
-      return "";
+  const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
+
+    return { 
+      hasVideo,
+      hasYouTubeVideo,
+      hasLocalVideo,
+      hasImage, 
+      hasMedia, 
+      videoUrl,
+      videoId, 
+      thumbnailUrl 
+    };
+  }, [prompt.video_url, prompt.youtube_url, prompt.image_url, prompt.updated_at]);
+
+  const tagsArray = useMemo(() => {
+    if (Array.isArray(prompt.tags)) return prompt.tags;
+    if (typeof prompt.tags === 'string') {
+      return prompt.tags.split(',').map(t => t.trim()).filter(Boolean);
     }
-  }, [post?.created_at]);
-  // Função para extrair ID do vídeo do YouTube
-  const extractYouTubeId = (url) => {
-    const regex =
-      /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
-  };
+    return [];
+  }, [prompt.tags]);
 
-  // Render da mídia (imagem, youtube, ou texto)
-  const renderMedia = () => {
-    if (mediaType === "youtube") {
-      const videoId = extractYouTubeId(post.mediaUrl);
-      const thumbnail = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-      return (
-        <div
-          className="relative w-full overflow-hidden rounded-xl cursor-pointer group"
-          onClick={() => setShowModal(true)}
-        >
-          <img
-            src={thumbnail}
-            alt="YouTube thumbnail"
-            className="w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="bg-black/60 p-3 rounded-full">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="white"
-                viewBox="0 0 24 24"
-                width="40"
-                height="40"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
+  const displayAuthorName = authorName || 
+                           prompt.author_name || 
+                           prompt.user_name || 
+                           "Usuário Desconhecido";
+  
+  const authorInitials = getInitials(displayAuthorName);
+
+  return (
+    <div
+      className={cn(
+        cardVariants({ layout: "horizontal", hover: "lift" }),
+        isInChat ? "border-0 shadow-none" : "",
+        className
+      )}
+    >
+      {/* CONTEÚDO */}
+      <div className={contentVariants({ layout: "horizontal" })}>
+        <div className="min-w-0">
+          {/* ✨ CABEÇALHO */}
+          {isInChat ? (
+            /* 📱 VERSÃO CHAT - Com avatar e autor */
+            <div className="mb-3">
+              <div className="flex items-center gap-3 mb-1">
+                {/* Avatar do autor */}
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
+                  {authorInitials}
+                </div>
+
+                {/* Título */}
+                <h3 className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0">
+                  {prompt.title}
+                </h3>
+
+                {/* Botão Favorito */}
+                {onToggleFavorite && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onToggleFavorite(prompt)}
+                    className={cn(
+                      "flex-shrink-0 h-8 w-8 min-w-[32px] transition-all",
+                      prompt.is_favorite
+                        ? "text-amber-500 hover:text-amber-600"
+                        : "text-gray-400 hover:text-amber-500"
+                    )}
+                  >
+                    <Star
+                      className={cn("h-5 w-5 transition-all", prompt.is_favorite && "fill-current")}
+                    />
+                  </Button>
+                )}
+              </div>
             </div>
+          ) : (
+            /* 🏠 VERSÃO NORMAL - Sem avatar */
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                  {prompt.title}
+                </h3>
+                
+                {/* ✅ BADGE DE CATEGORIA - ADICIONADO */}
+                {prompt.category && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <TagIcon className="w-3.5 h-3.5 text-gray-400" />
+                    <Badge
+                      variant="secondary"
+                      className="text-xs font-medium"
+                      style={{
+                        backgroundColor: prompt.category.color ? `${prompt.category.color}15` : '#e0e7ff',
+                        color: prompt.category.color || '#4f46e5',
+                        borderColor: prompt.category.color ? `${prompt.category.color}30` : '#c7d2fe',
+                      }}
+                    >
+                      {prompt.category.name}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              {onToggleFavorite && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onToggleFavorite(prompt)}
+                  className={cn(
+                    "flex-shrink-0 h-8 w-8 min-w-[32px] transition-all",
+                    prompt.is_favorite
+                      ? "text-amber-500 hover:text-amber-600"
+                      : "text-gray-400 hover:text-amber-500"
+                  )}
+                >
+                  <Star
+                    className={cn("h-5 w-5 transition-all", prompt.is_favorite && "fill-current")}
+                  />
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Descrição */}
+          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+            {prompt.description || prompt.content}
+          </p>
+
+          {/* Tags */}
+          {tagsArray.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {tagsArray.slice(0, 3).map((tag, idx) => (
+                <Badge key={idx} variant="secondary" className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
+              {tagsArray.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{tagsArray.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* BOTÕES DE AÇÃO */}
+        <div className="flex gap-2 mt-auto">
+          {/* Botão padrão (oculto no chat) */}
+          {onCopy && !isInChat && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Copiar conteúdo"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy(prompt);
+              }}
+            >
+              <Copy className="w-4 h-4" />
+            </Button>
+          )}
+
+          {onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Editar Prompt"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(prompt);
+              }}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          )}
+       
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Excluir Prompt"
+              className="text-red-600 hover:text-red-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(prompt.id);
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+
+          {onShare && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Compartilhar no Chat"
+              className="text-purple-600 hover:text-purple-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                onShare(prompt);
+              }}
+            >
+              <Share2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Botões do modo Chat */}
+        {isInChat && (
+          <div className="flex gap-2 justify-start mt-auto pt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy?.(prompt);
+              }}
+              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              <Copy className="w-4 h-4 mr-1" />
+              Copiar
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSave?.(prompt);
+              }}
+              className="border-green-600 text-green-600 hover:bg-green-50"
+            >
+              <PlusCircle className="w-4 h-4 mr-1" />
+              Salvar
+            </Button>
           </div>
-        </div>
-      );
-    }
+        )}
+      </div>
 
-    if (mediaType === "image") {
-      return (
-        <div
-          className="relative w-full overflow-hidden rounded-xl cursor-pointer group"
-          onClick={() => setShowModal(true)}
-        >
-          <img
-            src={post.mediaUrl}
-            alt="Post content"
-            className="w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        </div>
-      );
-    }
-
-    // Default: texto puro
-    return (
-      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-        {post.content}
-      </p>
-    );
-  };
-
-  // Modal leve interno
-  const renderModal = () => {
-    if (!showModal) return null;
-
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
-        onClick={() => setShowModal(false)}
-      >
-        <div
-          className="bg-white rounded-xl shadow-xl max-w-3xl w-full relative"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className="absolute top-3 right-3 text-gray-700 hover:text-black"
-            onClick={() => setShowModal(false)}
-          >
-            <X size={22} />
-          </button>
-
-          {mediaType === "youtube" ? (
-            <div className="aspect-video w-full">
+      {/* MÍDIA */}
+      {mediaInfo.hasMedia && (
+        <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
+          
+          {mediaInfo.hasYouTubeVideo ? (
+            <div className="relative w-full h-56 group/media overflow-hidden rounded-xl">
               <iframe
-                className="w-full h-full rounded-b-xl"
-                src={`https://www.youtube.com/embed/${extractYouTubeId(
-                  post.mediaUrl
-                )}?autoplay=1`}
-                title="YouTube video player"
-                allow="autoplay; encrypted-media"
+                src={`https://www.youtube.com/embed/${mediaInfo.videoId}`}
+                title={prompt.title}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               />
             </div>
-          ) : (
+          ) : mediaInfo.imageUrl ? (
             <img
-              src={post.mediaUrl}
-              alt="Imagem ampliada"
-              className="rounded-b-xl w-full object-contain"
+              src={mediaInfo.imageUrl}
+              alt={prompt.title}
+              className="w-full h-56 object-cover rounded-xl"
+              loading="lazy"
             />
-          )}
-        </div>
-      </div>
-    );
-  };
-  // Cabeçalho do post (usuário e menu)
-  const renderHeader = () => (
-    <div className="flex items-center justify-between mb-3">
-      <div className="flex items-center gap-3">
-        <img
-          src={post.user?.avatar || "/placeholder-avatar.png"}
-          alt={post.user?.name}
-          className="w-10 h-10 rounded-full object-cover"
-        />
-        <div>
-          <h3 className="font-semibold leading-tight">
-            {post.user?.name || "Usuário"}
-          </h3>
-          <span className="text-xs text-muted-foreground">{timeAgo}</span>
-        </div>
-      </div>
+          ) : null}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <MoreVertical size={18} />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => onShare?.(post.id)}>
-            Compartilhar
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onSave?.(post.id)}>
-            {isSaved ? "Remover dos salvos" : "Salvar post"}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-red-600"
-            onClick={() => onDelete?.(post.id)}
-          >
-            Excluir
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  );
 
-  // Ações principais (curtir, comentar, salvar, compartilhar)
-  const renderActions = () => (
-    <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-      <div className="flex items-center gap-5">
-        <button
-          onClick={handleLike}
-          className="flex items-center gap-2 text-muted-foreground hover:text-red-500 transition-colors"
-        >
-          <Heart
-            size={18}
-            fill={isLiked ? "red" : "none"}
-            stroke={isLiked ? "red" : "currentColor"}
-          />
-          <span className="text-sm">{likesCount}</span>
-        </button>
+          {/* VÍDEO LOCAL */}
+          {mediaInfo.hasLocalVideo && (
+            <button
+              type="button"
+              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+              className="relative w-full h-full group/media overflow-hidden"
+            >
+              {mediaInfo.thumbnailUrl ? (
+                <img
+                  src={mediaInfo.thumbnailUrl}
+                  alt={prompt.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+                  <Play className="h-16 w-16 text-purple-400" />
+                </div>
+              )}
 
-        <button
-          className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
-        >
-          <MessageSquare size={18} />
-          <span className="text-sm">Comentar</span>
-        </button>
-      </div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                  <Play className="h-8 w-8 text-purple-600 fill-current" />
+                </div>
+              </div>
 
-      <div className="flex items-center gap-4">
-        <button
-          onClick={handleSave}
-          className="text-muted-foreground hover:text-primary transition-colors"
-        >
-          <Bookmark
-            size={18}
-            fill={isSaved ? "currentColor" : "none"}
-            stroke={isSaved ? "currentColor" : "currentColor"}
-          />
-        </button>
-
-        <button
-          onClick={handleShare}
-          className="text-muted-foreground hover:text-primary transition-colors"
-        >
-          <Share2 size={18} />
-        </button>
-      </div>
-    </div>
-  );
-  // Render final do componente
-  return (
-    <>
-      <Card className="w-full rounded-2xl shadow-sm hover:shadow-md transition-shadow bg-card">
-        <CardContent className="p-4 sm:p-5">
-          {renderHeader()}
-
-          {/* Título */}
-          {post.title && (
-            <h2 className="text-base sm:text-lg font-semibold mb-2">
-              {post.title}
-            </h2>
-          )}
-
-          {/* Conteúdo ou mídia */}
-          {renderMedia()}
-
-          {/* Tags */}
-          {post.tags && post.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {post.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="text-xs bg-muted px-2 py-1 rounded-full text-muted-foreground"
-                >
-                  #{tag}
+              <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+                <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                  Clique para assistir
                 </span>
-              ))}
-            </div>
+              </div>
+            </button>
           )}
 
-          {/* Ações */}
-          {renderActions()}
-        </CardContent>
-      </Card>
+          {/* YOUTUBE */}
+          {mediaInfo.hasYouTubeVideo && (
+            <button
+              type="button"
+              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+              className="relative w-full h-full group/media overflow-hidden"
+            >
+              {mediaInfo.thumbnailUrl ? (
+                <img
+                  src={mediaInfo.thumbnailUrl}
+                  alt={prompt.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full">
+                  <Play className="h-12 w-12 text-slate-400" />
+                </div>
+              )}
 
-      {/* Modal leve de visualização (imagem / YouTube) */}
-      {renderModal()}
-    </>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                  <Play className="h-6 w-6 text-slate-800 fill-current" />
+                </div>
+              </div>
+            </button>
+          )}
+
+          {/* IMAGEM */}
+          {!mediaInfo.hasVideo && mediaInfo.hasImage && (
+            <button
+              type="button"
+              onClick={() => onOpenImage?.(prompt.image_url, prompt.title)}
+              className="relative w-full h-full group/media overflow-hidden"
+            >
+              <img
+                src={mediaInfo.thumbnailUrl}
+                alt={prompt.title}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                loading="lazy"
+              />
+
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                  <ImageIcon className="h-6 w-6 text-slate-800" />
+                </div>
+              </div>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Placeholder se não tem mídia */}
+      {!mediaInfo.hasMedia && (
+        <div className={cn(
+          mediaVariants({ layout: "horizontal" }),
+          "flex items-center justify-center"
+        )}>
+          <div className="text-center text-slate-400">
+            <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-40" />
+            <p className="text-xs">Sem mídia</p>
+          </div>
+        </div>
+      )}
+    </div>
   );
-};
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.prompt.id === nextProps.prompt.id &&
+    prevProps.prompt.title === nextProps.prompt.title &&
+    prevProps.authorName === nextProps.authorName &&
+    prevProps.prompt.is_favorite === nextProps.prompt.is_favorite &&
+    prevProps.prompt.category?.id === nextProps.prompt.category?.id &&
+    prevProps.prompt.image_url === nextProps.prompt.image_url &&
+    prevProps.prompt.video_url === nextProps.prompt.video_url &&
+    prevProps.prompt.youtube_url === nextProps.prompt.youtube_url &&
+    prevProps.prompt.tags === nextProps.prompt.tags
+  );
+});
 
-export default PostCard;
+PromptCard.displayName = 'PromptCard';
+
+export default PromptCard;
+
+export { cardVariants, mediaVariants, contentVariants };
