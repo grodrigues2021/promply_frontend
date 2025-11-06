@@ -128,25 +128,7 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-    const [showVideo, setShowVideo] = React.useState(false);
-    // --- 🎬 Controle de modal de vídeo (robusto e tolerante) ---
-const [videoId, setVideoId] = React.useState(null);
 
-React.useEffect(() => {
-  const url = prompt?.video_url || prompt?.youtube_url;
-  if (!url) return;
-
-  const type = detectVideoType(url);
-  const id = extractYouTubeId(url);
-
-  console.log("[YOUTUBE DEBUG]", { url, type, id }); // 🪵 log para teste
-
-  if (type === "youtube" && id) {
-    setVideoId(id);
-  } else {
-    setVideoId(null);
-  }
-}, [prompt?.video_url, prompt?.youtube_url]);
 
 
     const mediaInfo = useMemo(() => {
@@ -420,12 +402,13 @@ React.useEffect(() => {
       </div>
 
       {/* MÍDIA */}
-      {mediaInfo.hasMedia && (
-        <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
+      {(mediaInfo.hasMedia || videoId) && (
+  <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
+
           
          
-          {/* VÍDEO LOCAL */}
-          {mediaInfo.hasLocalVideo && (
+          {/* VÍDEO LOCAL OU YOUTUBE (com thumbnail) */}
+          {(mediaInfo.hasLocalVideo || mediaInfo.hasYouTubeVideo) && (
             <button
               type="button"
               onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
@@ -441,6 +424,16 @@ React.useEffect(() => {
               ) : (
                 <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
                   <Play className="h-16 w-16 text-purple-400" />
+                </div>
+              )}
+              {/* Badge YouTube */}
+              {mediaInfo.hasYouTubeVideo && (
+                <div className="absolute top-2 right-2 z-20">
+                  <Badge
+                    className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700"
+                  >
+                    YouTube
+                  </Badge>
                 </div>
               )}
 
@@ -459,59 +452,7 @@ React.useEffect(() => {
           )}
 
         
-         {/* 🎥 YouTube Thumbnail + Modal */}
-{videoId && (
-  <div className="relative w-full rounded-xl overflow-hidden group mt-3">
-    <img
-      src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-      alt="YouTube Thumbnail"
-      className="w-full h-56 object-cover rounded-xl cursor-pointer transition-transform duration-300 group-hover:scale-105"
-      onClick={() => setShowVideo(true)}
-    />
-    <div
-      className="absolute inset-0 flex items-center justify-center cursor-pointer"
-      onClick={() => setShowVideo(true)}
-    >
-      <div className="bg-black bg-opacity-50 rounded-full p-4">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="white"
-          viewBox="0 0 24 24"
-          className="w-10 h-10"
-        >
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </div>
-    </div>
 
-    {/* Modal */}
-    {showVideo && (
-      <div
-        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-        onClick={() => setShowVideo(false)}
-      >
-        <div
-          className="relative w-[90%] max-w-3xl aspect-video bg-black"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-            title="YouTube video player"
-            className="w-full h-full rounded-lg"
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-          />
-          <button
-            className="absolute -top-10 right-0 text-white text-3xl"
-            onClick={() => setShowVideo(false)}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-    )}
-  </div>
-)}
 
 
 
