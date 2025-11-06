@@ -393,27 +393,7 @@ const PromptCard = React.memo(({
       {mediaInfo.hasMedia && (
         <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
           
-          {mediaInfo.hasYouTubeVideo ? (
-            <div className="relative w-full h-56 group/media overflow-hidden rounded-xl">
-              <iframe
-                src={`https://www.youtube.com/embed/${mediaInfo.videoId}`}
-                title={prompt.title}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          ) : mediaInfo.imageUrl ? (
-            <img
-              src={mediaInfo.imageUrl}
-              alt={prompt.title}
-              className="w-full h-56 object-cover rounded-xl"
-              loading="lazy"
-            />
-          ) : null}
-
-
+         
           {/* VÍDEO LOCAL */}
           {mediaInfo.hasLocalVideo && (
             <button
