@@ -94,38 +94,41 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
 const handleImageUpload = async (file) => {
   try {
     if (!file) return;
+
+    console.log("📤 Enviando imagem:", file.name);
     toast.loading("📤 Enviando imagem...");
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", file); // ✅ Nome correto exigido pelo Flask
 
-    const response = await api.post("/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    // ❌ NÃO defina Content-Type manualmente — Axios faz isso automaticamente!
+    const response = await api.post("/upload", formData);
 
-    if (response.data && response.data.url) {
+    console.log("📩 Resposta do upload:", response.data);
+
+    if (response.data && response.data.success && response.data.url) {
       const uploadedUrl = response.data.url;
-      console.log("✅ Upload concluído:", uploadedUrl);
 
-      // ⚡️ Atualiza o formulário com a URL e limpa o arquivo local
+      // ✅ Atualiza o estado: limpa o arquivo e define a URL
       setPromptForm((prev) => ({
         ...prev,
-        image_url: uploadedUrl,   // ✅ mantém apenas a URL
-        imageFile: null,          // 🚫 limpa o arquivo local
-        youtube_url: "",          // opcional: evita conflito com vídeos
+        image_url: uploadedUrl,
+        imageFile: null,
       }));
 
       toast.dismiss();
       toast.success("✅ Imagem enviada com sucesso!");
+      console.log("🖼️ URL final da imagem:", uploadedUrl);
     } else {
-      throw new Error("Resposta inválida do servidor.");
+      throw new Error(response.data?.error || "Falha no upload");
     }
   } catch (error) {
-    console.error("❌ Erro no upload:", error);
     toast.dismiss();
-    toast.error("Falha ao enviar imagem.");
+    console.error("❌ Erro no upload:", error);
+    toast.error("Erro ao enviar imagem");
   }
 };
+
 
 
 const removeImage = useCallback(() => {
