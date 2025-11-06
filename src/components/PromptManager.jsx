@@ -104,47 +104,48 @@ const handleImageUpload = useCallback((e) => {
   }
 
   setUploadingImage(true);
-const reader = new FileReader();
+  const reader = new FileReader();
 
-reader.onloadend = async () => {
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await api.post("/upload", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+  reader.onloadend = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await api.post("/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-    const uploadedUrl = res.data?.url || "";
-    if (uploadedUrl) {
-      setPromptForm(prev => ({
-        ...prev,
-        imageFile: file,
-        image_url: uploadedUrl,
-      }));
-      toast.success("✅ Upload concluído!");
+      const uploadedUrl = res.data?.url || "";
+      if (uploadedUrl) {
+        setPromptForm(prev => ({
+          ...prev,
+          imageFile: file,
+          image_url: uploadedUrl,
+        }));
+        toast.success("✅ Upload concluído!");
 
-      // ✅ Se estiver editando, salva o prompt atualizado automaticamente
-      if (editingPrompt) {
-        await savePrompt();
-        toast.success("🖼️ Imagem atualizada com sucesso!");
+        if (editingPrompt) {
+          await savePrompt();
+          toast.success("🖼️ Imagem atualizada com sucesso!");
+        }
+      } else {
+        toast.error("Erro: servidor não retornou URL");
       }
-    } else {
-      toast.error("Erro: servidor não retornou URL");
+    } catch (err) {
+      console.error("❌ Erro no upload:", err);
+      toast.error("Falha ao enviar imagem");
+    } finally {
+      setUploadingImage(false);
     }
-  } catch (err) {
-    console.error("❌ Erro no upload:", err);
-    toast.error("Falha ao enviar imagem");
-  } finally {
+  };
+
+  reader.onerror = () => {
+    toast.error("Erro ao carregar imagem");
     setUploadingImage(false);
-  }
-};
+  };
 
-reader.onerror = () => {
-  toast.error("Erro ao carregar imagem");
-  setUploadingImage(false);
-};
+  reader.readAsDataURL(file);
+}, [editingPrompt, savePrompt]);
 
-reader.readAsDataURL(file);
 
 
 const removeImage = useCallback(() => {
