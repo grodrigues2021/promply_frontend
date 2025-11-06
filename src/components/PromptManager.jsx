@@ -540,15 +540,21 @@ const savePrompt = async () => {
       const updatedPrompt = data.data || data.prompt || data.updated || null;
 
       if (updatedPrompt) {
-        // 🔄 Atualiza prompt na lista local
-        setPrompts((prev) =>
-          prev.map((p) => (p.id == updatedPrompt.id ? updatedPrompt : p))
-        );
-        await loadPrompts();
+        // ✅ Atualiza localmente antes do reload
+        setPrompts((prev) => {
+          const exists = prev.some((p) => p.id === updatedPrompt.id);
+          return exists
+            ? prev.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p))
+            : [updatedPrompt, ...prev];
+        });
       } else {
         console.warn("⚠️ Nenhum objeto retornado, recarregando lista...");
-        await loadPrompts();
       }
+
+      // ⏳ Aguarda breve delay antes de recarregar (garante que o B2 finalize)
+      setTimeout(() => {
+        loadPrompts();
+      }, 1000);
 
       await loadStats();
       resetPromptForm();
@@ -564,6 +570,7 @@ const savePrompt = async () => {
     toast.error("Erro ao salvar prompt");
   }
 };
+
 
 
   const saveCategory = async () => {
