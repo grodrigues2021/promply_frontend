@@ -493,22 +493,24 @@ const savePrompt = async () => {
   }
 } else {
   headers["Content-Type"] = "application/json";
-  body = JSON.stringify({
-    title: promptForm.title,
-    content: promptForm.content,
-    description: promptForm.description,
-    tags:
-      typeof promptForm.tags === "string"
-        ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-        : promptForm.tags,
-    category_id:
-      (!promptForm.category_id || promptForm.category_id === "none")
-        ? null
-        : Number(promptForm.category_id),
-    is_favorite: promptForm.is_favorite,
-    image_url: promptForm.image_url || "",
-    video_url: promptForm.video_url || "",
-  });
+body = JSON.stringify({
+  title: promptForm.title,
+  content: promptForm.content,
+  description: promptForm.description,
+  tags:
+    typeof promptForm.tags === "string"
+      ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+      : promptForm.tags,
+  category_id:
+    (!promptForm.category_id || promptForm.category_id === "none")
+      ? null
+      : Number(promptForm.category_id),
+  is_favorite: promptForm.is_favorite,
+  // ✅ Garante que a imagem e o vídeo sejam enviados mesmo sem FormData
+  image_url: promptForm.image_url || "",
+  video_url: promptForm.video_url || "",
+});
+
 }
 
 console.log('🚀 Enviando requisição:', { url, method });
