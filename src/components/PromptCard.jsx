@@ -393,22 +393,26 @@ const PromptCard = React.memo(({
       {mediaInfo.hasMedia && (
         <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
           
-          {/* Badge de tipo de vídeo */}
-          {mediaInfo.hasYouTubeVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700">
-                YouTube
-              </Badge>
+          {mediaInfo.hasYouTubeVideo ? (
+            <div className="relative w-full h-56 group/media overflow-hidden rounded-xl">
+              <iframe
+                src={`https://www.youtube.com/embed/${mediaInfo.videoId}`}
+                title={prompt.title}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
-          )}
-          
-          {mediaInfo.hasLocalVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
-                Vídeo
-              </Badge>
-            </div>
-          )}
+          ) : mediaInfo.imageUrl ? (
+            <img
+              src={mediaInfo.imageUrl}
+              alt={prompt.title}
+              className="w-full h-56 object-cover rounded-xl"
+              loading="lazy"
+            />
+          ) : null}
+
 
           {/* VÍDEO LOCAL */}
           {mediaInfo.hasLocalVideo && (
