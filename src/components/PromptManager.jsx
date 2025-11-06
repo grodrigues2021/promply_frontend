@@ -93,23 +93,23 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
 
 const handleImageUpload = async (file) => {
   try {
-    if (!file) return;
+    if (!file) {
+      console.error("⚠️ Nenhum arquivo selecionado!");
+      return;
+    }
 
     console.log("📤 Enviando imagem:", file.name);
     toast.loading("📤 Enviando imagem...");
 
     const formData = new FormData();
-    formData.append("file", file); // ✅ Nome correto exigido pelo Flask
+    formData.append("file", file); // ✅ nome esperado pelo Flask
 
-    // ❌ NÃO defina Content-Type manualmente — Axios faz isso automaticamente!
-    const response = await api.post("/upload", formData);
+    const response = await api.post("/upload", formData); // sem header manual
 
-    console.log("📩 Resposta do upload:", response.data);
-
-    if (response.data && response.data.success && response.data.url) {
+    if (response.data?.success && response.data.url) {
       const uploadedUrl = response.data.url;
+      console.log("🖼️ URL final:", uploadedUrl);
 
-      // ✅ Atualiza o estado: limpa o arquivo e define a URL
       setPromptForm((prev) => ({
         ...prev,
         image_url: uploadedUrl,
@@ -118,7 +118,6 @@ const handleImageUpload = async (file) => {
 
       toast.dismiss();
       toast.success("✅ Imagem enviada com sucesso!");
-      console.log("🖼️ URL final da imagem:", uploadedUrl);
     } else {
       throw new Error(response.data?.error || "Falha no upload");
     }
@@ -128,6 +127,7 @@ const handleImageUpload = async (file) => {
     toast.error("Erro ao enviar imagem");
   }
 };
+
 
 
 
