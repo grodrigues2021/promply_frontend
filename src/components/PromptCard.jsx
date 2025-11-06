@@ -135,7 +135,13 @@ const PromptCard = React.memo(({
       ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
       : null;
     
-    const thumbnailUrl = youtubeThumbnail || (hasImage ? prompt.image_url : null);
+      // ✅ CORREÇÃO: Adicionar cache-buster (timestamp) à URL da imagem para forçar o recarregamento
+  let imageUrlWithCacheBuster = null;
+  if (hasImage && prompt.updated_at) {
+    const timestamp = new Date(prompt.updated_at).getTime();
+    imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
+  }
+  const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
 
     return { 
       hasVideo,
@@ -147,7 +153,7 @@ const PromptCard = React.memo(({
       videoId, 
       thumbnailUrl 
     };
-  }, [prompt.video_url, prompt.youtube_url, prompt.image_url]);
+  }, [prompt.video_url, prompt.youtube_url, prompt.image_url, prompt.updated_at]);
 
   const tagsArray = useMemo(() => {
     if (Array.isArray(prompt.tags)) return prompt.tags;
