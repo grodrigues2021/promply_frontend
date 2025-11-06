@@ -104,9 +104,9 @@ const handleImageUpload = useCallback((e) => {
   }
 
   setUploadingImage(true);
-  const reader = new FileReader();
+const reader = new FileReader();
 
-  reader.onloadend = async () => {
+reader.onloadend = async () => {
   try {
     const formData = new FormData();
     formData.append("file", file);
@@ -122,6 +122,12 @@ const handleImageUpload = useCallback((e) => {
         image_url: uploadedUrl,
       }));
       toast.success("✅ Upload concluído!");
+
+      // ✅ Se estiver editando, salva o prompt atualizado automaticamente
+      if (editingPrompt) {
+        await savePrompt();
+        toast.success("🖼️ Imagem atualizada com sucesso!");
+      }
     } else {
       toast.error("Erro: servidor não retornou URL");
     }
@@ -133,13 +139,13 @@ const handleImageUpload = useCallback((e) => {
   }
 };
 
-  reader.onerror = () => {
-    toast.error('Erro ao carregar imagem');
-    setUploadingImage(false);
-  };
+reader.onerror = () => {
+  toast.error("Erro ao carregar imagem");
+  setUploadingImage(false);
+};
 
-  reader.readAsDataURL(file);
-}, []);
+reader.readAsDataURL(file);
+
 
 const removeImage = useCallback(() => {
   setPromptForm(prev => ({ ...prev, image_url: '' }))
