@@ -390,115 +390,67 @@ const PromptCard = React.memo(({
       </div>
 
       {/* MÍDIA */}
-      {mediaInfo.hasMedia && (
-        <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
-          
-          {mediaInfo.hasYouTubeVideo ? (
-            <div className="relative w-full h-56 group/media overflow-hidden rounded-xl">
-              <iframe
-                src={`https://www.youtube.com/embed/${mediaInfo.videoId}`}
-                title={prompt.title}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          ) : mediaInfo.imageUrl ? (
-            <img
-              src={mediaInfo.imageUrl}
-              alt={prompt.title}
-              className="w-full h-56 object-cover rounded-xl"
-              loading="lazy"
-            />
-          ) : null}
+{(prompt.video_url || prompt.youtube_url || prompt.image_url) ? (
+  <div className="relative flex-shrink-0 w-full sm:w-52 h-[200px] sm:h-[230px] bg-slate-100 overflow-hidden rounded-t-xl sm:rounded-r-xl">
+    
+    {/* Badge YouTube */}
+    {(prompt.video_url || prompt.youtube_url) && (
+      <div className="absolute top-2 right-2 z-20">
+        <Badge className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700">
+          YouTube
+        </Badge>
+      </div>
+    )}
 
+    <button
+      type="button"
+      onClick={() =>
+        prompt.video_url || prompt.youtube_url
+          ? onOpenVideo?.(prompt.video_url || prompt.youtube_url)
+          : onOpenImage?.(prompt.image_url, prompt.title)
+      }
+      className="relative w-full h-full group/media overflow-hidden"
+    >
+      {(() => {
+        const url = prompt.youtube_url || prompt.video_url
+        const imageUrl = prompt.image_url
+        const videoId = url
+          ? (url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/)?.[1] ?? null)
+          : null
+        const thumbnail = videoId
+          ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+          : imageUrl
+        return thumbnail ? (
+          <img
+            src={thumbnail}
+            alt={prompt.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+          />
+        ) : (
+          <div className="flex items-center justify-center w-full h-full">
+            <ImageIcon className="h-12 w-12 text-slate-400" />
+          </div>
+        )
+      })()}
 
-          {/* VÍDEO LOCAL */}
-          {mediaInfo.hasLocalVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-                  <Play className="h-16 w-16 text-purple-400" />
-                </div>
-              )}
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-8 w-8 text-purple-600 fill-current" />
-                </div>
-              </div>
-
-              <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                  Clique para assistir
-                </span>
-              </div>
-            </button>
-          )}
-
-          {/* YOUTUBE */}
-          {mediaInfo.hasYouTubeVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full">
-                  <Play className="h-12 w-12 text-slate-400" />
-                </div>
-              )}
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-6 w-6 text-slate-800 fill-current" />
-                </div>
-              </div>
-            </button>
-          )}
-
-          {/* IMAGEM */}
-          {!mediaInfo.hasVideo && mediaInfo.hasImage && (
-            <button
-              type="button"
-              onClick={() => onOpenImage?.(prompt.image_url, prompt.title)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              <img
-                src={mediaInfo.thumbnailUrl}
-                alt={prompt.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                loading="lazy"
-              />
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <ImageIcon className="h-6 w-6 text-slate-800" />
-                </div>
-              </div>
-            </button>
+      {/* Overlay no hover */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+        <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+          {(prompt.video_url || prompt.youtube_url) ? (
+            <Play className="h-6 w-6 text-slate-800 fill-current" />
+          ) : (
+            <ImageIcon className="h-6 w-6 text-slate-800" />
           )}
         </div>
-      )}
+      </div>
+    </button>
+  </div>
+) : (
+  <div className="flex items-center justify-center bg-slate-100 w-full sm:w-52 h-[200px] sm:h-[230px] rounded-t-xl sm:rounded-r-xl text-slate-400">
+    <ImageIcon className="h-12 w-12 opacity-40" />
+    <p className="text-xs">Sem mídia</p>
+  </div>
+)}
 
       {/* Placeholder se não tem mídia */}
       {!mediaInfo.hasMedia && (
