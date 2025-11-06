@@ -136,11 +136,21 @@ const PromptCard = React.memo(({
       : null;
     
       // ✅ CORREÇÃO: Adicionar cache-buster (timestamp) à URL da imagem para forçar o recarregamento
-  let imageUrlWithCacheBuster = null;
-  if (hasImage && prompt.updated_at) {
-    const timestamp = new Date(prompt.updated_at).getTime();
-    imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
-  }
+ 
+    let imageUrlWithCacheBuster = null;
+    if (hasImage && prompt.image_url) {
+      if (prompt.image_url.startsWith("data:image")) {
+        // Base64 — não adiciona ?v=
+        imageUrlWithCacheBuster = prompt.image_url;
+      } else if (prompt.updated_at) {
+        // URL normal — adiciona cache-buster
+        const timestamp = new Date(prompt.updated_at).getTime();
+        imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
+      } else {
+        imageUrlWithCacheBuster = prompt.image_url;
+      }
+    }
+
   const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
 
     return { 
