@@ -107,46 +107,39 @@ const handleImageUpload = useCallback((e) => {
   const reader = new FileReader();
 
   reader.onloadend = async () => {
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await api.post("/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+    const res = await api.post("/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
-      const uploadedUrl = res.data?.url || "";
-      if (uploadedUrl) {
-        setPromptForm(prev => ({
-          ...prev,
-          imageFile: file,
-          image_url: uploadedUrl,
-        }));
-        toast.success("✅ Upload concluído!");
-
-        if (editingPrompt) {
-          await savePrompt();
-          toast.success("🖼️ Imagem atualizada com sucesso!");
-        }
-      } else {
-        toast.error("Erro: servidor não retornou URL");
-      }
-    } catch (err) {
-      console.error("❌ Erro no upload:", err);
-      toast.error("Falha ao enviar imagem");
-    } finally {
-      setUploadingImage(false);
+    const uploadedUrl = res.data?.url || "";
+    if (uploadedUrl) {
+      setPromptForm(prev => ({
+        ...prev,
+        imageFile: file,
+        image_url: uploadedUrl,
+      }));
+      toast.success("✅ Upload concluído!");
+    } else {
+      toast.error("Erro: servidor não retornou URL");
     }
-  };
+  } catch (err) {
+    console.error("❌ Erro no upload:", err);
+    toast.error("Falha ao enviar imagem");
+  } finally {
+    setUploadingImage(false);
+  }
+};
 
   reader.onerror = () => {
-    toast.error("Erro ao carregar imagem");
+    toast.error('Erro ao carregar imagem');
     setUploadingImage(false);
   };
 
   reader.readAsDataURL(file);
-}, [editingPrompt, savePrompt]);
-
-
+}, []);
 
 const removeImage = useCallback(() => {
   setPromptForm(prev => ({ ...prev, image_url: '' }))
