@@ -464,93 +464,89 @@ const savePrompt = async () => {
       : `${API_BASE_URL}/prompts`;
     const method = editingPrompt ? "PUT" : "POST";
 
-    console.log('💾 Salvando prompt:', {
+    console.log("💾 Salvando prompt:", {
       editando: !!editingPrompt,
       category_id: promptForm.category_id,
-      method
+      method,
     });
 
     let body;
     let headers = {};
 
     if (promptForm.videoFile) {
-  body = new FormData();
-  body.append("title", promptForm.title);
-  body.append("content", promptForm.content);
-  body.append("description", promptForm.description);
-  body.append(
-    "tags",
-    Array.isArray(promptForm.tags)
-      ? promptForm.tags.join(",")
-      : promptForm.tags
-  );
+      body = new FormData();
+      body.append("title", promptForm.title);
+      body.append("content", promptForm.content);
+      body.append("description", promptForm.description);
+      body.append(
+        "tags",
+        Array.isArray(promptForm.tags)
+          ? promptForm.tags.join(",")
+          : promptForm.tags
+      );
 
-  const categoryValue = (!promptForm.category_id || promptForm.category_id === "none") 
-    ? "" 
-    : String(promptForm.category_id);
+      const categoryValue =
+        !promptForm.category_id || promptForm.category_id === "none"
+          ? ""
+          : String(promptForm.category_id);
+      body.append("category_id", categoryValue);
+      body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
 
-  body.append("category_id", categoryValue);
-  body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+      // ✅ Adiciona URLs, se existirem
+      if (promptForm.image_url) body.append("image_url", promptForm.image_url);
+      if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+      if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify({
+        title: promptForm.title,
+        content: promptForm.content,
+        description: promptForm.description,
+        tags:
+          typeof promptForm.tags === "string"
+            ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+            : promptForm.tags,
+        category_id:
+          !promptForm.category_id || promptForm.category_id === "none"
+            ? null
+            : Number(promptForm.category_id),
+        is_favorite: promptForm.is_favorite,
+        image_url: promptForm.image_url || "",
+        video_url: promptForm.video_url || "",
+        youtube_url: promptForm.youtube_url || "",
+      });
+    }
 
-  // ✅ Adiciona a URL da imagem (vinda do upload)
-  if (promptForm.image_url) {
-    body.append("image_url", promptForm.image_url);
-  }
-  if (promptForm.youtube_url) {
-  body.append("youtube_url", promptForm.youtube_url);
-}
+    console.log("🚀 Enviando requisição:", { url, method });
 
-
-
-  // ✅ Só envia o vídeo real se existir
-  if (promptForm.videoFile) {
-    body.append("video", promptForm.videoFile);
-  }
-} else {
-  headers["Content-Type"] = "application/json";
-body = JSON.stringify({
-  title: promptForm.title,
-  content: promptForm.content,
-  description: promptForm.description,
-  tags:
-    typeof promptForm.tags === "string"
-      ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-      : promptForm.tags,
-  category_id:
-    (!promptForm.category_id || promptForm.category_id === "none")
-      ? null
-      : Number(promptForm.category_id),
-  is_favorite: promptForm.is_favorite,
-  // ✅ Garante que a imagem e o vídeo sejam enviados mesmo sem FormData
-  image_url: promptForm.image_url || "",
-  video_url: promptForm.video_url || "",
-  youtube_url: promptForm.youtube_url || "",
-
-});
-
-}
-
-console.log('🚀 Enviando requisição:', { url, method });
-    const response = editingPrompt 
+    const response = editingPrompt
       ? await api.put(`/prompts/${editingPrompt.id}`, body, { headers })
-      : await api.post('/prompts', body, { headers });
+      : await api.post("/prompts", body, { headers });
 
     const data = response.data;
-console.log('📥 Resposta do servidor:', data);
+    console.log("📥 Resposta do servidor:", data);
+
     if (data.success) {
-      if (editingPrompt) {
+      const updatedPrompt =
+        data.data || data.prompt || data.updated || null;
+
+      if (updatedPrompt) {
         setPrompts((prev) =>
-          prev.map((p) => (p.id === editingPrompt.id ? data.data : p))
+          editingPrompt
+            ? prev.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p))
+            : [updatedPrompt, ...prev]
         );
       } else {
-        setPrompts((prev) => [data.data, ...prev]);
+        console.warn("⚠️ Nenhum objeto retornado do backend, recarregando lista...");
+        await loadPrompts();
       }
 
       await loadStats();
       resetPromptForm();
       setIsPromptDialogOpen(false);
+
       toast.success(
-        editingPrompt ? "Prompt atualizado!" : "Prompt criado com sucesso!"
+        editingPrompt ? "🖊️ Prompt atualizado com sucesso!" : "✅ Prompt criado com sucesso!"
       );
     } else {
       toast.error(data.error || "Erro ao salvar prompt");
@@ -560,6 +556,7 @@ console.log('📥 Resposta do servidor:', data);
     toast.error("Erro ao salvar prompt");
   }
 };
+
 
   const saveCategory = async () => {
     try {
