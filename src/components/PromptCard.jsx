@@ -58,38 +58,47 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   },
 });
 
-/* ==========================================
-   🔧 HELPER: EXTRAIR ID DO YOUTUBE
-   ========================================== */
-const extractYouTubeId = (url) => {
+// --- 🔧 Video helpers (mais tolerantes, estilo PromptCard_old) ---
+const detectVideoType = (url) => {
   if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) return match[1];
+  const normalized = url.toLowerCase().trim();
+
+  // 🎯 Aceita múltiplos formatos de YouTube
+  if (
+    normalized.includes("youtube.com/watch") ||
+    normalized.includes("youtube.com/embed/") ||
+    normalized.includes("youtu.be/")
+  ) {
+    return "youtube";
   }
+
+  // 🎥 Vídeos locais e blobs
+  if (
+    normalized.startsWith("data:video/") ||
+    normalized.startsWith("blob:") ||
+    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(normalized)
+  ) {
+    return "local";
+  }
+
   return null;
 };
 
-/* ==========================================
-   🔧 HELPER: DETECTAR TIPO DE VÍDEO
-   ========================================== */
-const detectVideoType = (url) => {
+// --- 🧩 Extract YouTube ID (mais flexível, igual ao old) ---
+const extractYouTubeId = (url) => {
   if (!url) return null;
-  
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return 'youtube';
+
+  try {
+    const idMatch =
+      url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) ||
+      url.match(/v=([a-zA-Z0-9_-]{11})/);
+    return idMatch ? idMatch[1] : null;
+  } catch (err) {
+    console.warn("[YouTube Extract Error]", err);
+    return null;
   }
-  
-  if (url.startsWith('data:video/') || url.startsWith('blob:') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
-    return 'local';
-  }
-  
-  return null;
 };
+
 
 /* ==========================================
    🔧 HELPER: GERAR INICIAIS DO NOME
@@ -120,6 +129,25 @@ const PromptCard = React.memo(({
   isInChat
 }) => {
     const [showVideo, setShowVideo] = React.useState(false);
+    // --- 🎬 Controle de modal de vídeo (robusto e tolerante) ---
+const [videoId, setVideoId] = React.useState(null);
+
+React.useEffect(() => {
+  const url = prompt?.video_url || prompt?.youtube_url;
+  if (!url) return;
+
+  const type = detectVideoType(url);
+  const id = extractYouTubeId(url);
+
+  console.log("[YOUTUBE DEBUG]", { url, type, id }); // 🪵 log para teste
+
+  if (type === "youtube" && id) {
+    setVideoId(id);
+  } else {
+    setVideoId(null);
+  }
+}, [prompt?.video_url, prompt?.youtube_url]);
+
 
     const mediaInfo = useMemo(() => {
     const videoUrl = prompt.video_url || prompt.youtube_url;
@@ -431,57 +459,51 @@ const PromptCard = React.memo(({
           )}
 
         
-          {/* 🎬 YouTube video preview (compatível com o comportamento antigo) */}
-{mediaInfo.hasYouTubeVideo && (
-  <div className="relative w-full cursor-pointer group mt-2">
-    {/* Thumbnail */}
+         {/* 🎥 YouTube Thumbnail + Modal */}
+{videoId && (
+  <div className="relative w-full rounded-xl overflow-hidden group mt-3">
     <img
-      src={`https://img.youtube.com/vi/${mediaInfo.videoId}/maxresdefault.jpg`}
-      alt="YouTube video thumbnail"
-      className="rounded-xl w-full object-cover transition-all duration-300 group-hover:brightness-75"
+      src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+      alt="YouTube Thumbnail"
+      className="w-full h-56 object-cover rounded-xl cursor-pointer transition-transform duration-300 group-hover:scale-105"
       onClick={() => setShowVideo(true)}
-      loading="lazy"
     />
-
-    {/* Play button overlay */}
     <div
+      className="absolute inset-0 flex items-center justify-center cursor-pointer"
       onClick={() => setShowVideo(true)}
-      className="absolute inset-0 flex items-center justify-center"
     >
-      <div className="bg-black/60 p-4 rounded-full transition-transform duration-200 group-hover:scale-110">
+      <div className="bg-black bg-opacity-50 rounded-full p-4">
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-10 w-10 text-white"
-          fill="currentColor"
+          fill="white"
           viewBox="0 0 24 24"
+          className="w-10 h-10"
         >
           <path d="M8 5v14l11-7z" />
         </svg>
       </div>
     </div>
 
-    {/* Modal para vídeo */}
+    {/* Modal */}
     {showVideo && (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
         onClick={() => setShowVideo(false)}
       >
         <div
-          className="relative w-[90%] md:w-[70%] lg:w-[60%] aspect-video"
+          className="relative w-[90%] max-w-3xl aspect-video bg-black"
           onClick={(e) => e.stopPropagation()}
         >
           <iframe
-            src={`https://www.youtube.com/embed/${mediaInfo.videoId}?autoplay=1`}
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
             title="YouTube video player"
-            className="w-full h-full rounded-xl shadow-lg"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            className="w-full h-full rounded-lg"
+            allow="autoplay; encrypted-media"
             allowFullScreen
-          ></iframe>
-
+          />
           <button
+            className="absolute -top-10 right-0 text-white text-3xl"
             onClick={() => setShowVideo(false)}
-            className="absolute -top-6 -right-6 bg-black/60 hover:bg-black text-white p-2 rounded-full"
           >
             ✕
           </button>
@@ -490,6 +512,7 @@ const PromptCard = React.memo(({
     )}
   </div>
 )}
+
 
 
           {/* IMAGEM */}
