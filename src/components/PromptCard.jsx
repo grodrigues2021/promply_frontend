@@ -119,7 +119,9 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-  const mediaInfo = useMemo(() => {
+    const [showVideo, setShowVideo] = React.useState(false);
+
+    const mediaInfo = useMemo(() => {
     const videoUrl = prompt.video_url || prompt.youtube_url;
     const hasImage = prompt.image_url;
     
@@ -428,33 +430,67 @@ const PromptCard = React.memo(({
             </button>
           )}
 
-          {/* YOUTUBE */}
-          {mediaInfo.hasYouTubeVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full">
-                  <Play className="h-12 w-12 text-slate-400" />
-                </div>
-              )}
+        
+          {/* 🎬 YouTube video preview (compatível com o comportamento antigo) */}
+{mediaInfo.hasYouTubeVideo && (
+  <div className="relative w-full cursor-pointer group mt-2">
+    {/* Thumbnail */}
+    <img
+      src={`https://img.youtube.com/vi/${mediaInfo.videoId}/maxresdefault.jpg`}
+      alt="YouTube video thumbnail"
+      className="rounded-xl w-full object-cover transition-all duration-300 group-hover:brightness-75"
+      onClick={() => setShowVideo(true)}
+      loading="lazy"
+    />
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-6 w-6 text-slate-800 fill-current" />
-                </div>
-              </div>
-            </button>
-          )}
+    {/* Play button overlay */}
+    <div
+      onClick={() => setShowVideo(true)}
+      className="absolute inset-0 flex items-center justify-center"
+    >
+      <div className="bg-black/60 p-4 rounded-full transition-transform duration-200 group-hover:scale-110">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-10 w-10 text-white"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+    </div>
+
+    {/* Modal para vídeo */}
+    {showVideo && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+        onClick={() => setShowVideo(false)}
+      >
+        <div
+          className="relative w-[90%] md:w-[70%] lg:w-[60%] aspect-video"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <iframe
+            src={`https://www.youtube.com/embed/${mediaInfo.videoId}?autoplay=1`}
+            title="YouTube video player"
+            className="w-full h-full rounded-xl shadow-lg"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          ></iframe>
+
+          <button
+            onClick={() => setShowVideo(false)}
+            className="absolute -top-6 -right-6 bg-black/60 hover:bg-black text-white p-2 rounded-full"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
 
           {/* IMAGEM */}
           {!mediaInfo.hasVideo && mediaInfo.hasImage && (
