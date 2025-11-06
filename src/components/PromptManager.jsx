@@ -118,14 +118,15 @@ const handleImageUpload = useCallback((e) => {
 
     const uploadedUrl = res.data?.url || "";
     if (uploadedUrl) {
-      setPromptForm(prev => ({
-        ...prev,
-        imageFile: file,
-        image_url: uploadedUrl,
-        youtube_url: ''
-      }));
-      toast.success("✅ Upload concluído!");
-    } else {
+  setPromptForm(prev => ({
+    ...prev,
+    imageFile: null,         // ✅ LIMPA arquivo local
+    image_url: uploadedUrl,  // ✅ Mantém apenas URL
+    youtube_url: ''
+  }));
+  toast.success("✅ Upload concluído!");
+}
+ else {
       toast.error("Erro: servidor não retornou URL");
     }
   } catch (err) {
