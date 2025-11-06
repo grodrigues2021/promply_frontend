@@ -1163,13 +1163,12 @@ if (showTemplates) {
               )}
             </label>
             <input
-  id="prompt-image-upload"
-  type="file"
-  accept="image/jpeg,image/png,image/svg+xml"
-  onChange={handleImageUpload}
-  disabled={uploadingImage}
-  className="hidden"
-/>
+            type="file"
+            id="prompt-image-upload"
+            accept="image/*"
+            onChange={(e) => handleImageUpload(e.target.files[0])}
+          />
+
 
           </div>
           <p className="text-xs text-gray-500">Formatos suportados: JPG, PNG, SVG (máx. 5MB)</p>
