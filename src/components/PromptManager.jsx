@@ -91,59 +91,42 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
     is_template: false
   })
 
-const handleImageUpload = useCallback((e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    toast.error('Selecione uma imagem válida');
-    return;
-  }
-
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('Imagem muito grande! Máx. 5MB');
-    return;
-  }
-
-  setUploadingImage(true);
-  const reader = new FileReader();
-
-  reader.onloadend = async () => {
+const handleImageUpload = async (file) => {
   try {
+    if (!file) return;
+    toast.loading("📤 Enviando imagem...");
+
     const formData = new FormData();
     formData.append("file", file);
-    const res = await api.post("/upload", formData, {
+
+    const response = await api.post("/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    const uploadedUrl = res.data?.url || "";
-    if (uploadedUrl) {
-  setPromptForm(prev => ({
-    ...prev,
-    imageFile: null,         // ✅ LIMPA arquivo local
-    image_url: uploadedUrl,  // ✅ Mantém apenas URL
-    youtube_url: ''
-  }));
-  toast.success("✅ Upload concluído!");
-}
- else {
-      toast.error("Erro: servidor não retornou URL");
+    if (response.data && response.data.url) {
+      const uploadedUrl = response.data.url;
+      console.log("✅ Upload concluído:", uploadedUrl);
+
+      // ⚡️ Atualiza o formulário com a URL e limpa o arquivo local
+      setPromptForm((prev) => ({
+        ...prev,
+        image_url: uploadedUrl,   // ✅ mantém apenas a URL
+        imageFile: null,          // 🚫 limpa o arquivo local
+        youtube_url: "",          // opcional: evita conflito com vídeos
+      }));
+
+      toast.dismiss();
+      toast.success("✅ Imagem enviada com sucesso!");
+    } else {
+      throw new Error("Resposta inválida do servidor.");
     }
-  } catch (err) {
-    console.error("❌ Erro no upload:", err);
-    toast.error("Falha ao enviar imagem");
-  } finally {
-    setUploadingImage(false);
+  } catch (error) {
+    console.error("❌ Erro no upload:", error);
+    toast.dismiss();
+    toast.error("Falha ao enviar imagem.");
   }
 };
 
-  reader.onerror = () => {
-    toast.error('Erro ao carregar imagem');
-    setUploadingImage(false);
-  };
-
-  reader.readAsDataURL(file);
-}, []);
 
 const removeImage = useCallback(() => {
   setPromptForm(prev => ({ ...prev, image_url: '' }))
