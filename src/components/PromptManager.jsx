@@ -70,17 +70,19 @@ export default function PromptManager({ setIsAuthenticated, setUser, defaultView
   const [refreshKey, setRefreshKey] = useState(0)
   const [isChatDetached, setIsChatDetached] = useState(false)
   const [promptForm, setPromptForm] = useState({
-    title: '',
-    content: '',
-    description: '',
-    tags: '',
-    category_id: 'none',
-    is_favorite: false,
-    image_url: '',
-    video_url: '',
-    videoFile: null,  
-    imageFile: null   
-  })
+  title: '',
+  content: '',
+  description: '',
+  tags: '',
+  category_id: 'none',
+  is_favorite: false,
+  image_url: '',
+  video_url: '',
+  youtube_url: '',
+  videoFile: null,
+  imageFile: null
+})
+
 
   const [categoryForm, setCategoryForm] = useState({
     name: '',
@@ -120,6 +122,7 @@ const handleImageUpload = useCallback((e) => {
         ...prev,
         imageFile: file,
         image_url: uploadedUrl,
+        youtube_url: ''
       }));
       toast.success("✅ Upload concluído!");
     } else {
@@ -186,20 +189,22 @@ const handleVideoUpload = useCallback((e) => {
 
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPromptForm(prev => ({
-          ...prev,
-          videoFile: file,
-          video_url: reader.result,
-          image_url: prev.image_url || thumbnailBase64,
-          imageFile: prev.imageFile || thumbnailFile
-        }));
-        setUploadingImage(false);
-        toast.success('Vídeo e thumbnail capturados!');
-        
-        URL.revokeObjectURL(videoURL);
-        video.remove();
-        canvas.remove();
-      };
+  setPromptForm(prev => ({
+    ...prev,
+    videoFile: file,
+    video_url: reader.result,
+    image_url: prev.image_url || thumbnailBase64,
+    imageFile: prev.imageFile || thumbnailFile,
+    youtube_url: '' // 🔄 limpa link de YouTube se havia
+  }));
+  setUploadingImage(false);
+  toast.success('Vídeo e thumbnail capturados!');
+  
+  URL.revokeObjectURL(videoURL);
+  video.remove();
+  canvas.remove();
+};
+
 
       reader.onerror = () => {
         toast.error('Erro ao carregar vídeo');
@@ -261,10 +266,14 @@ const resetPromptForm = useCallback(() => {
     category_id: 'none',
     is_favorite: false,
     image_url: '',
-    video_url: ''
-  })
-  setEditingPrompt(null)
-}, [])
+    video_url: '',
+    youtube_url: '',
+    videoFile: null,
+    imageFile: null
+  });
+  setEditingPrompt(null);
+}, []);
+
 
 const resetCategoryForm = useCallback(() => {
   setCategoryForm({
@@ -294,7 +303,8 @@ const editPrompt = useCallback((prompt) => {
     category_id: categoryId,
     is_favorite: prompt.is_favorite,
     image_url: prompt.image_url || '',
-    video_url: prompt.video_url || ''
+    video_url: prompt.video_url || '',
+    youtube_url: prompt.youtube_url || ''
   })
   setEditingPrompt(prompt)
   setIsPromptDialogOpen(true)
@@ -486,6 +496,11 @@ const savePrompt = async () => {
   if (promptForm.image_url) {
     body.append("image_url", promptForm.image_url);
   }
+  if (promptForm.youtube_url) {
+  body.append("youtube_url", promptForm.youtube_url);
+}
+
+
 
   // ✅ Só envia o vídeo real se existir
   if (promptForm.videoFile) {
@@ -509,6 +524,8 @@ body = JSON.stringify({
   // ✅ Garante que a imagem e o vídeo sejam enviados mesmo sem FormData
   image_url: promptForm.image_url || "",
   video_url: promptForm.video_url || "",
+  youtube_url: promptForm.youtube_url || "",
+
 });
 
 }
@@ -1121,7 +1138,8 @@ if (showTemplates) {
       />
       <button
         type="button"
-        onClick={() => setPromptForm({ ...promptForm, video_url: "" })}
+        onClick={() => setPromptForm({ ...promptForm, video_url: "", videoFile: null })}
+
         className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
       >
         <X className="w-4 h-4" />
@@ -1181,13 +1199,21 @@ if (showTemplates) {
   <div>
     <Label>ou cole o link do YouTube</Label>
     <Input
-      type="url"
-      placeholder="https://www.youtube.com/watch?v=..."
-      value={promptForm.video_url?.startsWith("data:video") ? "" : promptForm.video_url || ""}
-      onChange={(e) =>
-        setPromptForm({ ...promptForm, video_url: e.target.value })
-      }
-    />
+  type="url"
+  placeholder="https://www.youtube.com/watch?v=..."
+  value={promptForm.youtube_url || ""}
+  onChange={(e) => {
+    const url = e.target.value;
+    setPromptForm(prev => ({
+      ...prev,
+      youtube_url: url,
+      image_url: url ? '' : prev.image_url,
+      video_url: url ? '' : prev.video_url,
+      videoFile: url ? null : prev.videoFile
+    }));
+  }}
+/>
+
   </div>
 </div>
 
