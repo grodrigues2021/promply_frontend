@@ -58,38 +58,47 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   },
 });
 
-/* ==========================================
-   🔧 HELPER: EXTRAIR ID DO YOUTUBE
-   ========================================== */
-const extractYouTubeId = (url) => {
+// --- 🔧 Video helpers (mais tolerantes, estilo PromptCard_old) ---
+const detectVideoType = (url) => {
   if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) return match[1];
+  const normalized = url.toLowerCase().trim();
+
+  // 🎯 Aceita múltiplos formatos de YouTube
+  if (
+    normalized.includes("youtube.com/watch") ||
+    normalized.includes("youtube.com/embed/") ||
+    normalized.includes("youtu.be/")
+  ) {
+    return "youtube";
   }
+
+  // 🎥 Vídeos locais e blobs
+  if (
+    normalized.startsWith("data:video/") ||
+    normalized.startsWith("blob:") ||
+    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(normalized)
+  ) {
+    return "local";
+  }
+
   return null;
 };
 
-/* ==========================================
-   🔧 HELPER: DETECTAR TIPO DE VÍDEO
-   ========================================== */
-const detectVideoType = (url) => {
+// --- 🧩 Extract YouTube ID (mais flexível, igual ao old) ---
+const extractYouTubeId = (url) => {
   if (!url) return null;
-  
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return 'youtube';
+
+  try {
+    const idMatch =
+      url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) ||
+      url.match(/v=([a-zA-Z0-9_-]{11})/);
+    return idMatch ? idMatch[1] : null;
+  } catch (err) {
+    console.warn("[YouTube Extract Error]", err);
+    return null;
   }
-  
-  if (url.startsWith('data:video/') || url.startsWith('blob:') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
-    return 'local';
-  }
-  
-  return null;
 };
+
 
 /* ==========================================
    🔧 HELPER: GERAR INICIAIS DO NOME
@@ -119,7 +128,28 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-  const mediaInfo = useMemo(() => {
+    const [showVideo, setShowVideo] = React.useState(false);
+    // --- 🎬 Controle de modal de vídeo (robusto e tolerante) ---
+const [videoId, setVideoId] = React.useState(null);
+
+React.useEffect(() => {
+  const url = prompt?.video_url || prompt?.youtube_url;
+  if (!url) return;
+
+  const type = detectVideoType(url);
+  const id = extractYouTubeId(url);
+
+  console.log("[YOUTUBE DEBUG]", { url, type, id }); // 🪵 log para teste
+
+  if (type === "youtube" && id) {
+    setVideoId(id);
+  } else {
+    setVideoId(null);
+  }
+}, [prompt?.video_url, prompt?.youtube_url]);
+
+
+    const mediaInfo = useMemo(() => {
     const videoUrl = prompt.video_url || prompt.youtube_url;
     const hasImage = prompt.image_url;
     
@@ -136,11 +166,21 @@ const PromptCard = React.memo(({
       : null;
     
       // ✅ CORREÇÃO: Adicionar cache-buster (timestamp) à URL da imagem para forçar o recarregamento
-  let imageUrlWithCacheBuster = null;
-  if (hasImage && prompt.updated_at) {
-    const timestamp = new Date(prompt.updated_at).getTime();
-    imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
-  }
+ 
+    let imageUrlWithCacheBuster = null;
+    if (hasImage && prompt.image_url) {
+      if (prompt.image_url.startsWith("data:image")) {
+        // Base64 — não adiciona ?v=
+        imageUrlWithCacheBuster = prompt.image_url;
+      } else if (prompt.updated_at) {
+        // URL normal — adiciona cache-buster
+        const timestamp = new Date(prompt.updated_at).getTime();
+        imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
+      } else {
+        imageUrlWithCacheBuster = prompt.image_url;
+      }
+    }
+
   const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
 
     return { 
@@ -380,26 +420,12 @@ const PromptCard = React.memo(({
       </div>
 
       {/* MÍDIA */}
-      {mediaInfo.hasMedia && (
-        <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
-          
-          {/* Badge de tipo de vídeo */}
-          {mediaInfo.hasYouTubeVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700">
-                YouTube
-              </Badge>
-            </div>
-          )}
-          
-          {mediaInfo.hasLocalVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
-                Vídeo
-              </Badge>
-            </div>
-          )}
+      {(mediaInfo.hasMedia || videoId) && (
+        
+  <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
 
+          
+         
           {/* VÍDEO LOCAL */}
           {mediaInfo.hasLocalVideo && (
             <button
@@ -434,33 +460,62 @@ const PromptCard = React.memo(({
             </button>
           )}
 
-          {/* YOUTUBE */}
-          {mediaInfo.hasYouTubeVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full">
-                  <Play className="h-12 w-12 text-slate-400" />
-                </div>
-              )}
+        
+         {/* 🎥 YouTube Thumbnail + Modal */}
+{videoId && (
+  <div className="relative w-full rounded-xl overflow-hidden group mt-3">
+    <img
+      src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+      alt="YouTube Thumbnail"
+      className="w-full h-56 object-cover rounded-xl cursor-pointer transition-transform duration-300 group-hover:scale-105"
+      onClick={() => setShowVideo(true)}
+    />
+    <div
+      className="absolute inset-0 flex items-center justify-center cursor-pointer"
+      onClick={() => setShowVideo(true)}
+    >
+      <div className="bg-black bg-opacity-50 rounded-full p-4">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="white"
+          viewBox="0 0 24 24"
+          className="w-10 h-10"
+        >
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+    </div>
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-6 w-6 text-slate-800 fill-current" />
-                </div>
-              </div>
-            </button>
-          )}
+    {/* Modal */}
+    {showVideo && (
+      <div
+        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
+        onClick={() => setShowVideo(false)}
+      >
+        <div
+          className="relative w-[90%] max-w-3xl aspect-video bg-black"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <iframe
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+            title="YouTube video player"
+            className="w-full h-full rounded-lg"
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+          />
+          <button
+            className="absolute -top-10 right-0 text-white text-3xl"
+            onClick={() => setShowVideo(false)}
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+    )}
+  </div>
+)}
+
+
 
           {/* IMAGEM */}
           {!mediaInfo.hasVideo && mediaInfo.hasImage && (
@@ -499,6 +554,18 @@ const PromptCard = React.memo(({
         </div>
       )}
     </div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.prompt.id === nextProps.prompt.id &&
+    prevProps.prompt.title === nextProps.prompt.title &&
+    prevProps.authorName === nextProps.authorName &&
+    prevProps.prompt.is_favorite === nextProps.prompt.is_favorite &&
+    prevProps.prompt.category?.id === nextProps.prompt.category?.id &&
+    prevProps.prompt.image_url === nextProps.prompt.image_url &&
+    prevProps.prompt.video_url === nextProps.prompt.video_url &&
+    prevProps.prompt.youtube_url === nextProps.prompt.youtube_url &&
+    prevProps.prompt.tags === nextProps.prompt.tags
   );
 });
 
