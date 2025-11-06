@@ -46,7 +46,7 @@ function App() {
       <Routes>
         {/* Rota padrão: autenticação e gerenciador */}
         <Route
-          path="/"
+          path="/workspace"
           element={
             !isAuthenticated ? (
               <AuthPage />
