@@ -730,7 +730,6 @@ if (showTemplates) {
 
   return (
     <>
-
   <div
     className={`min-h-screen ${
       isPopupMode ? "bg-white" : "bg-gray-50 dark:bg-slate-900"
@@ -1257,42 +1256,39 @@ if (showTemplates) {
     🎞️ Formatos suportados: MP4, WebM, OGG, MOV (máx. 50MB)
   </p>
 
- <Input
-  type="url"
-  placeholder="https://www.youtube.com/watch?v=..."
-  value={promptForm.youtube_url || ""}
-  onChange={(e) => {
-    const url = e.target.value.trim();
+    <Input
+      type="url"
+      placeholder="https://www.youtube.com/watch?v=..."
+      value={promptForm.youtube_url || ""}
+      onChange={(e) => {
+        const url = e.target.value.trim();
 
-    // 🧠 Detecta automaticamente se é link válido do YouTube
-    const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
+        // 🧠 Detecta automaticamente se é link válido do YouTube
+        const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
 
-    if (isYouTube) {
-      console.log("[YOUTUBE DETECTADO]", url);
-      toast.info("🎬 Link do YouTube detectado!");
+        if (isYouTube) {
+          console.log("[YOUTUBE DETECTADO]", url);
+          toast.info("🎬 Link do YouTube detectado!");
 
-      setPromptForm((prev) => ({
-        ...prev,
-        youtube_url: url,
-        // 🔄 limpa tudo que possa conflitar com vídeo local
-        video_url: "",
-        image_url: "",
-        videoFile: null,
-        imageFile: null,
-      }));
-    } else {
-      setPromptForm((prev) => ({
-        ...prev,
-        youtube_url: url,
-        // mantém o estado anterior se não for um link do YouTube
-      }));
-    }
-  }}
-/>
+          setPromptForm((prev) => ({
+            ...prev,
+            youtube_url: url,
+            // 🔄 limpa tudo que possa conflitar com vídeo local
+            video_url: "",
+            image_url: "",
+            videoFile: null,
+            imageFile: null,
+          }));
+        } else {
+          setPromptForm((prev) => ({
+            ...prev,
+            youtube_url: url,
+            // mantém o estado anterior se não for um link do YouTube
+          }));
+        }
+      }}
+    />
 
-
-  </div>
-</div>
 
      <div>
         <Label>Categoria</Label>
@@ -1348,8 +1344,10 @@ if (showTemplates) {
           {editingPrompt ? 'Salvar' : 'Criar'}
         </Button>
       </div>
+    </div>
+  </DialogContent>
+</Dialog>
 
- 
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white dark:bg-slate-900 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
   <DialogHeader className="p-6 pb-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
@@ -1428,14 +1426,14 @@ if (showTemplates) {
     </div>
   </DialogContent>
 </Dialog>
-  </Dialog> {/* ✅ FECHAR O DIALOG DO PROMPT QUE ESTÁ ABERTO */}
+
       <ChatModal 
   isOpen={showChatModal} 
   onClose={() => setShowChatModal(false)}
   onPromptSaved={handlePromptSaved}
 />
 
-         {showShareModal && promptToShare && (
+      {showShareModal && promptToShare && (
         <SharePromptModal
           prompt={promptToShare}
           onClose={() => {
@@ -1451,5 +1449,6 @@ if (showTemplates) {
         />
       )}
     </>
-  );
+  )
+
 }
