@@ -730,6 +730,7 @@ if (showTemplates) {
 
   return (
     <>
+
   <div
     className={`min-h-screen ${
       isPopupMode ? "bg-white" : "bg-gray-50 dark:bg-slate-900"
@@ -1427,7 +1428,7 @@ if (showTemplates) {
     </div>
   </DialogContent>
 </Dialog>
-
+  </Dialog> {/* ✅ FECHAR O DIALOG DO PROMPT QUE ESTÁ ABERTO */}
       <ChatModal 
   isOpen={showChatModal} 
   onClose={() => setShowChatModal(false)}
