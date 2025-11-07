@@ -1344,8 +1344,7 @@ if (showTemplates) {
           {editingPrompt ? 'Salvar' : 'Criar'}
         </Button>
       </div>
-    </div>
-  </DialogContent>
+    </DialogContent>
 </Dialog>
 
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
@@ -1448,7 +1447,7 @@ if (showTemplates) {
           }}
         />
       )}
-    </>
+    </div>
   )
 
 }
