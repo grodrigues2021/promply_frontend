@@ -1347,6 +1347,7 @@ if (showTemplates) {
           {editingPrompt ? 'Salvar' : 'Criar'}
         </Button>
       </div>
+
  
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white dark:bg-slate-900 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
@@ -1433,7 +1434,7 @@ if (showTemplates) {
   onPromptSaved={handlePromptSaved}
 />
 
-      {showShareModal && promptToShare && (
+         {showShareModal && promptToShare && (
         <SharePromptModal
           prompt={promptToShare}
           onClose={() => {
@@ -1449,5 +1450,5 @@ if (showTemplates) {
         />
       )}
     </>
-  )
+  );
 }
