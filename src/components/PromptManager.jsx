@@ -1256,23 +1256,39 @@ if (showTemplates) {
     🎞️ Formatos suportados: MP4, WebM, OGG, MOV (máx. 50MB)
   </p>
 
-  <div>
-    <Label>ou cole o link do YouTube</Label>
-    <Input
+ <Input
   type="url"
   placeholder="https://www.youtube.com/watch?v=..."
   value={promptForm.youtube_url || ""}
   onChange={(e) => {
-    const url = e.target.value;
-    setPromptForm(prev => ({
-      ...prev,
-      youtube_url: url,
-      image_url: url ? '' : prev.image_url,
-      video_url: url ? '' : prev.video_url,
-      videoFile: url ? null : prev.videoFile
-    }));
+    const url = e.target.value.trim();
+
+    // 🧠 Detecta automaticamente se é link válido do YouTube
+    const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
+
+    if (isYouTube) {
+      console.log("[YOUTUBE DETECTADO]", url);
+      toast.info("🎬 Link do YouTube detectado!");
+
+      setPromptForm((prev) => ({
+        ...prev,
+        youtube_url: url,
+        // 🔄 limpa tudo que possa conflitar com vídeo local
+        video_url: "",
+        image_url: "",
+        videoFile: null,
+        imageFile: null,
+      }));
+    } else {
+      setPromptForm((prev) => ({
+        ...prev,
+        youtube_url: url,
+        // mantém o estado anterior se não for um link do YouTube
+      }));
+    }
   }}
 />
+
 
   </div>
 </div>
