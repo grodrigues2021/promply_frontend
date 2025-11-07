@@ -1347,10 +1347,7 @@ if (showTemplates) {
           {editingPrompt ? 'Salvar' : 'Criar'}
         </Button>
       </div>
-    </div>
-  </DialogContent>
-</Dialog>
-
+ 
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white dark:bg-slate-900 shadow-[0_4px_20px_rgba(0,0,0,0.08)]">
   <DialogHeader className="p-6 pb-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
