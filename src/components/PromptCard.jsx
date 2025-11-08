@@ -98,55 +98,71 @@ const extractYouTubeId = (url) => {
   }
 };
 
-// --- 🎬 MODAL SIMPLES E NATIVO (botão dentro) ---
+
 // --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
+  // 📥 Função para baixar imagem (com suporte a B2)
   const downloadImage = async () => {
     try {
-      const response = await fetch(src);
+      window.toast?.info("⏳ Preparando download...");
+      const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
+      const filename = `${title || "imagem"}.${extension}`;
+
+      // 🔹 Faz o fetch da imagem e cria o blob local
+      const response = await fetch(src, { mode: "cors" });
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
+
       const link = document.createElement("a");
       link.href = blobUrl;
-      link.download = `${title || "imagem"}.jpg`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error(err);
+
+      window.toast?.success("✅ Download concluído!");
+    } catch (error) {
+      console.error("Erro ao baixar imagem:", error);
+      window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
       window.open(src, "_blank");
     }
   };
 
+  // 📥 Função para baixar vídeo MP4
   const downloadVideo = async () => {
     try {
+      window.toast?.info("⏳ Preparando download...");
       const response = await fetch(src);
       const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = blobUrl;
+      link.href = url;
       link.download = `${title || "video"}.mp4`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.error(err);
+      window.URL.revokeObjectURL(url);
+      window.toast?.success("✅ Download concluído!");
+    } catch (error) {
+      console.error("Erro ao baixar vídeo:", error);
+      window.toast?.error("❌ Erro ao baixar. Tentando abrir em nova aba...");
       window.open(src, "_blank");
     }
   };
 
+  // 🔗 Abre o YouTube nativamente
   const openYouTube = () => {
-    window.open(`https://www.youtube.com/watch?v=${videoId}`, "_blank");
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    window.open(youtubeUrl, "_blank");
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
       <div className="relative w-full max-w-4xl bg-black rounded-xl overflow-hidden">
-        {/* Topo */}
+        {/* 🔹 Cabeçalho */}
         <div className="flex justify-between items-center px-4 py-3 bg-black/70">
           <h3 className="text-white font-semibold truncate flex-1 mr-4">
             {title || "Mídia"}
@@ -154,20 +170,32 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 
           <div className="flex gap-2">
             {type === "image" && (
-              <Button onClick={downloadImage} className="bg-blue-600 text-white hover:bg-blue-700">
-                <Download className="w-4 h-4" /> Baixar
+              <Button
+                onClick={downloadImage}
+                className="bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Baixar
               </Button>
             )}
 
             {type === "video" && (
-              <Button onClick={downloadVideo} className="bg-purple-600 text-white hover:bg-purple-700">
-                <Download className="w-4 h-4" /> Baixar
+              <Button
+                onClick={downloadVideo}
+                className="bg-purple-600 text-white hover:bg-purple-700"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Baixar
               </Button>
             )}
 
             {type === "youtube" && (
-              <Button onClick={openYouTube} className="bg-red-600 text-white hover:bg-red-700">
-                <Youtube className="w-4 h-4" /> Assistir no YouTube
+              <Button
+                onClick={openYouTube}
+                className="bg-red-600 text-white hover:bg-red-700"
+              >
+                <Youtube className="w-4 h-4 mr-1" />
+                Abrir no YouTube
               </Button>
             )}
 
@@ -180,7 +208,7 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
           </div>
         </div>
 
-        {/* Corpo */}
+        {/* 🔹 Corpo (player ou imagem) */}
         <div className="bg-black flex items-center justify-center">
           {type === "image" && (
             <img
@@ -203,30 +231,23 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
           )}
 
           {type === "youtube" && videoId && (
-            <video
-              controls
-              playsInline
-              preload="metadata"
-              className="w-full h-auto max-h-[80vh] bg-black"
-              poster={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-            >
-              <source
-                src={`https://www.youtube.com/embed/${videoId}`}
-                type="video/mp4"
-              />
-              Seu navegador não suporta vídeo.
-            </video>
+            <img
+              src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+              alt={title}
+              className="w-full h-auto max-h-[80vh] object-contain"
+              onClick={openYouTube}
+              style={{ cursor: "pointer" }}
+            />
           )}
         </div>
       </div>
 
-      <div
-        className="absolute inset-0 cursor-pointer"
-        onClick={onClose}
-      />
+      {/* 🔹 Clicar fora fecha o modal */}
+      <div className="absolute inset-0 cursor-pointer" onClick={onClose} />
     </div>
   );
 };
+
 
 
 /* ========================================== */
