@@ -355,6 +355,23 @@ const PromptCard = React.memo(({
       videoId: null,
     });
   };
+// 🖼️ Pré-carrega a imagem antes de abrir o modal
+const handlePreviewClick = (url) => {
+  if (!url) return;
+  const img = new Image();
+  img.src = url;
+  window.toast?.info("🕓 Carregando pré-visualização...");
+
+  img.onload = () => {
+    window.toast?.dismiss();
+    openModal("image", url);
+  };
+
+  img.onerror = () => {
+    window.toast?.error("❌ Falha ao carregar imagem.");
+    openModal("image", url); // ainda assim abre o modal, caso queira mostrar o erro
+  };
+};
 
   return (
     <>
@@ -707,6 +724,8 @@ const PromptCard = React.memo(({
           onClose={closeModal}
         />
       )}
+
+      
     </>
   );
 }, (prevProps, nextProps) => {
