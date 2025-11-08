@@ -108,6 +108,7 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 // 📥 Função para baixar imagem — usa o Friendly URL automaticamente
 // 📥 Função para baixar imagem — usa o Friendly URL automaticamente
 // 🔥 Função para baixar imagem — usa fetch + blob para forçar download
+// 🔥 Função para baixar imagem — usa fetch + blob para forçar download
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Baixando imagem...");
@@ -115,15 +116,21 @@ const downloadImage = async () => {
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
 
-    // 🔄 Converte S3 URL em Friendly URL, se necessário
+    // 🔄 Converte S3 URL em Friendly URL (suporta ambos os formatos do B2)
     let friendlySrc = src;
     if (src.includes("s3.us-east-005.backblazeb2.com")) {
+      // Formato 1: https://promptly-staging.s3.us-east-005.backblazeb2.com/uploads/...
+      // Formato 2: https://s3.us-east-005.backblazeb2.com/promply-staging/uploads/...
       friendlySrc = src
-        .replace("https://promptly-staging.s3.us-east-005.backblazeb2.com", "https://f005.backblazeb2.com/file/promptly-staging");
+        .replace("https://promptly-staging.s3.us-east-005.backblazeb2.com", "https://f005.backblazeb2.com/file/promptly-staging")
+        .replace("https://s3.us-east-005.backblazeb2.com/promply-staging", "https://f005.backblazeb2.com/file/promply-staging");
     }
 
-    // 📥 Baixa a imagem como blob
-    const response = await fetch(friendlySrc);
+    console.log("🔄 URL Original:", src);
+    console.log("✅ URL Friendly:", friendlySrc);
+
+    // 📥 Baixa a imagem como blob com modo no-cors se necessário
+    const response = await fetch(friendlySrc, { mode: 'cors' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     
     const blob = await response.blob();
@@ -143,6 +150,7 @@ const downloadImage = async () => {
     window.toast?.success("✅ Download concluído!");
   } catch (error) {
     console.error("❌ Erro ao baixar imagem:", error);
+    console.error("URL que falhou:", src);
     window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
     window.open(src, "_blank");
   }
