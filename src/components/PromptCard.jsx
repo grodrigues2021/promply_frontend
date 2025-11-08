@@ -511,9 +511,15 @@ const PromptCard = React.memo(({
                 variant="outline"
                 size="sm"
                 title="Copiar conteúdo"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  onCopy(prompt);
+                  try {
+                    await navigator.clipboard.writeText(prompt.content);
+                    toast.success("✅ Conteúdo copiado!");
+                  } catch (error) {
+                    console.error("Erro ao copiar:", error);
+                    toast.error("❌ Erro ao copiar conteúdo");
+                  }
                 }}
               >
                 <Copy className="w-4 h-4" />
@@ -571,9 +577,15 @@ const PromptCard = React.memo(({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  onCopy?.(prompt);
+                  try {
+                    await navigator.clipboard.writeText(prompt.content);
+                    toast.success("✅ Conteúdo copiado!");
+                  } catch (error) {
+                    console.error("Erro ao copiar:", error);
+                    toast.error("❌ Erro ao copiar conteúdo");
+                  }
                 }}
                 className="border-blue-600 text-blue-600 hover:bg-blue-50"
               >
