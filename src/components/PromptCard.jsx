@@ -104,15 +104,35 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
   // 📥 Função para baixar imagem
-  const downloadImage = () => {
+  // 📥 Função para baixar imagem (MESMA LÓGICA DO VÍDEO)
+const downloadImage = async () => {
+  try {
+    window.toast?.info('⏳ Preparando download...');
+    
+    // Detecta extensão
+    const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || 'jpg';
+    const filename = `${title || 'imagem'}.${extension}`;
+    
+    // MESMA LÓGICA DO VÍDEO
+    const response = await fetch(src);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
     const link = document.createElement('a');
-    link.href = src;
-    link.download = `${title || 'imagem'}.jpg`;
+    link.href = blobUrl;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.toast?.success('✅ Download iniciado!');
-  };
+    window.URL.revokeObjectURL(blobUrl);
+    
+    window.toast?.success('✅ Download concluído!');
+  } catch (error) {
+    console.error('Erro ao baixar imagem:', error);
+    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
+    window.open(src, '_blank');
+  }
+};
 
   // 📥 Função para baixar vídeo
   const downloadVideo = async () => {
