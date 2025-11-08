@@ -1,5 +1,5 @@
-// src/components/PromptCard.jsx - CORRIGIDO COM BADGE DE CATEGORIA
-import React, { useMemo } from "react";
+// src/components/PromptCard.jsx - MODAL SIMPLES PARA TODAS AS MÍDIAS
+import React, { useMemo, useState } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import {
@@ -12,6 +12,7 @@ import {
   Share2,
   PlusCircle,
   Tag as TagIcon,
+  X,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -58,12 +59,11 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   },
 });
 
-// --- 🔧 Video helpers (mais tolerantes, estilo PromptCard_old) ---
+// --- 🔧 Video helpers ---
 const detectVideoType = (url) => {
   if (!url) return null;
   const normalized = url.toLowerCase().trim();
 
-  // 🎯 Aceita múltiplos formatos de YouTube
   if (
     normalized.includes("youtube.com/watch") ||
     normalized.includes("youtube.com/embed/") ||
@@ -72,7 +72,6 @@ const detectVideoType = (url) => {
     return "youtube";
   }
 
-  // 🎥 Vídeos locais e blobs
   if (
     normalized.startsWith("data:video/") ||
     normalized.startsWith("blob:") ||
@@ -84,10 +83,8 @@ const detectVideoType = (url) => {
   return null;
 };
 
-// --- 🧩 Extract YouTube ID (mais flexível, igual ao old) ---
 const extractYouTubeId = (url) => {
   if (!url) return null;
-
   try {
     const idMatch =
       url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/) ||
@@ -99,10 +96,63 @@ const extractYouTubeId = (url) => {
   }
 };
 
+// --- 🎬 MODAL SIMPLES E NATIVO ---
+const MediaModal = ({ type, src, videoId, title, onClose }) => {
+  if (!type) return null;
 
-/* ==========================================
-   🔧 HELPER: GERAR INICIAIS DO NOME
-   ========================================== */
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Botão fechar */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition"
+      >
+        <X className="w-6 h-6 text-gray-700" />
+      </button>
+
+      {/* Conteúdo */}
+      <div className="relative max-w-5xl w-full bg-white rounded-lg shadow-2xl overflow-hidden">
+        {type === "image" && (
+          <img
+            src={src}
+            alt={title}
+            className="w-full h-auto max-h-[85vh] object-contain"
+          />
+        )}
+
+        {type === "video" && (
+          <video
+            src={src}
+            controls
+            autoPlay
+            className="w-full h-auto max-h-[85vh]"
+          />
+        )}
+
+        {type === "youtube" && videoId && (
+          <div className="relative w-full aspect-video">
+            <iframe
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+              title={title}
+              className="w-full h-full"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Clique fora para fechar */}
+      <div
+        className="absolute inset-0 -z-10"
+        onClick={onClose}
+      />
+    </div>
+  );
+};
+
+/* ========================================== */
 const getInitials = (name) => {
   if (!name) return 'U';
   const parts = name.trim().split(' ');
@@ -111,9 +161,8 @@ const getInitials = (name) => {
 };
 
 /* ==========================================
-   📦 COMPONENTE PROMPT CARD (CORRIGIDO)
+   📦 COMPONENTE PROMPT CARD
    ========================================== */
-
 const PromptCard = React.memo(({
   prompt,
   authorName,
@@ -128,28 +177,15 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-    const [showVideo, setShowVideo] = React.useState(false);
-    // --- 🎬 Controle de modal de vídeo (robusto e tolerante) ---
-const [videoId, setVideoId] = React.useState(null);
+  // Estado do modal
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: null, // 'image', 'video', 'youtube'
+    src: null,
+    videoId: null,
+  });
 
-React.useEffect(() => {
-  const url = prompt?.video_url || prompt?.youtube_url;
-  if (!url) return;
-
-  const type = detectVideoType(url);
-  const id = extractYouTubeId(url);
-
-  console.log("[YOUTUBE DEBUG]", { url, type, id }); // 🪵 log para teste
-
-  if (type === "youtube" && id) {
-    setVideoId(id);
-  } else {
-    setVideoId(null);
-  }
-}, [prompt?.video_url, prompt?.youtube_url]);
-
-
-    const mediaInfo = useMemo(() => {
+  const mediaInfo = useMemo(() => {
     const videoUrl = prompt.video_url || prompt.youtube_url;
     const hasImage = prompt.image_url;
     
@@ -165,15 +201,11 @@ React.useEffect(() => {
       ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
       : null;
     
-      // ✅ CORREÇÃO: Adicionar cache-buster (timestamp) à URL da imagem para forçar o recarregamento
- 
     let imageUrlWithCacheBuster = null;
     if (hasImage && prompt.image_url) {
       if (prompt.image_url.startsWith("data:image")) {
-        // Base64 — não adiciona ?v=
         imageUrlWithCacheBuster = prompt.image_url;
       } else if (prompt.updated_at) {
-        // URL normal — adiciona cache-buster
         const timestamp = new Date(prompt.updated_at).getTime();
         imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
       } else {
@@ -181,7 +213,7 @@ React.useEffect(() => {
       }
     }
 
-  const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
+    const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
 
     return { 
       hasVideo,
@@ -210,33 +242,93 @@ React.useEffect(() => {
   
   const authorInitials = getInitials(displayAuthorName);
 
+  // Função para abrir modal
+  const openModal = (type, src = null, videoId = null) => {
+    setModalState({
+      isOpen: true,
+      type,
+      src,
+      videoId,
+    });
+  };
+
+  const closeModal = () => {
+    setModalState({
+      isOpen: false,
+      type: null,
+      src: null,
+      videoId: null,
+    });
+  };
+
   return (
-    <div
-      className={cn(
-        cardVariants({ layout: "horizontal", hover: "lift" }),
-        isInChat ? "border-0 shadow-none" : "",
-        className
-      )}
-    >
-      {/* CONTEÚDO */}
-      <div className={contentVariants({ layout: "horizontal" })}>
-        <div className="min-w-0">
-          {/* ✨ CABEÇALHO */}
-          {isInChat ? (
-            /* 📱 VERSÃO CHAT - Com avatar e autor */
-            <div className="mb-3">
-              <div className="flex items-center gap-3 mb-1">
-                {/* Avatar do autor */}
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
-                  {authorInitials}
+    <>
+      <div
+        className={cn(
+          cardVariants({ layout: "horizontal", hover: "lift" }),
+          isInChat ? "border-0 shadow-none" : "",
+          className
+        )}
+      >
+        {/* CONTEÚDO */}
+        <div className={contentVariants({ layout: "horizontal" })}>
+          <div className="min-w-0">
+            {/* CABEÇALHO */}
+            {isInChat ? (
+              <div className="mb-3">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold text-sm">
+                    {authorInitials}
+                  </div>
+
+                  <h3 className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0">
+                    {prompt.title}
+                  </h3>
+
+                  {onToggleFavorite && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onToggleFavorite(prompt)}
+                      className={cn(
+                        "flex-shrink-0 h-8 w-8 min-w-[32px] transition-all",
+                        prompt.is_favorite
+                          ? "text-amber-500 hover:text-amber-600"
+                          : "text-gray-400 hover:text-amber-500"
+                      )}
+                    >
+                      <Star
+                        className={cn("h-5 w-5 transition-all", prompt.is_favorite && "fill-current")}
+                      />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
+                    {prompt.title}
+                  </h3>
+                  
+                  {prompt.category && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <TagIcon className="w-3.5 h-3.5 text-gray-400" />
+                      <Badge
+                        variant="secondary"
+                        className="text-xs font-medium"
+                        style={{
+                          backgroundColor: prompt.category.color ? `${prompt.category.color}15` : '#e0e7ff',
+                          color: prompt.category.color || '#4f46e5',
+                          borderColor: prompt.category.color ? `${prompt.category.color}30` : '#c7d2fe',
+                        }}
+                      >
+                        {prompt.category.name}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
-                {/* Título */}
-                <h3 className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0">
-                  {prompt.title}
-                </h3>
-
-                {/* Botão Favorito */}
                 {onToggleFavorite && (
                   <Button
                     variant="ghost"
@@ -255,305 +347,238 @@ React.useEffect(() => {
                   </Button>
                 )}
               </div>
-            </div>
-          ) : (
-            /* 🏠 VERSÃO NORMAL - Sem avatar */
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-                  {prompt.title}
-                </h3>
-                
-                {/* ✅ BADGE DE CATEGORIA - ADICIONADO */}
-                {prompt.category && (
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <TagIcon className="w-3.5 h-3.5 text-gray-400" />
-                    <Badge
-                      variant="secondary"
-                      className="text-xs font-medium"
-                      style={{
-                        backgroundColor: prompt.category.color ? `${prompt.category.color}15` : '#e0e7ff',
-                        color: prompt.category.color || '#4f46e5',
-                        borderColor: prompt.category.color ? `${prompt.category.color}30` : '#c7d2fe',
-                      }}
-                    >
-                      {prompt.category.name}
-                    </Badge>
-                  </div>
+            )}
+
+            {/* Descrição */}
+            <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+              {prompt.description || prompt.content}
+            </p>
+
+            {/* Tags */}
+            {tagsArray.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {tagsArray.slice(0, 3).map((tag, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+                {tagsArray.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{tagsArray.length - 3}
+                  </Badge>
                 )}
               </div>
-
-              {onToggleFavorite && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onToggleFavorite(prompt)}
-                  className={cn(
-                    "flex-shrink-0 h-8 w-8 min-w-[32px] transition-all",
-                    prompt.is_favorite
-                      ? "text-amber-500 hover:text-amber-600"
-                      : "text-gray-400 hover:text-amber-500"
-                  )}
-                >
-                  <Star
-                    className={cn("h-5 w-5 transition-all", prompt.is_favorite && "fill-current")}
-                  />
-                </Button>
-              )}
-            </div>
-          )}
-
-          {/* Descrição */}
-          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-            {prompt.description || prompt.content}
-          </p>
-
-          {/* Tags */}
-          {tagsArray.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {tagsArray.slice(0, 3).map((tag, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {tagsArray.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{tagsArray.length - 3}
-                </Badge>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* BOTÕES DE AÇÃO */}
-        <div className="flex gap-2 mt-auto">
-          {/* Botão padrão (oculto no chat) */}
-          {onCopy && !isInChat && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Copiar conteúdo"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCopy(prompt);
-              }}
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          )}
-
-          {onEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Editar Prompt"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(prompt);
-              }}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          )}
-       
-          {onDelete && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Excluir Prompt"
-              className="text-red-600 hover:text-red-700"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(prompt.id);
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-
-          {onShare && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Compartilhar no Chat"
-              className="text-purple-600 hover:text-purple-700"
-              onClick={(e) => {
-                e.stopPropagation();
-                onShare(prompt);
-              }}
-            >
-              <Share2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
-
-        {/* Botões do modo Chat */}
-        {isInChat && (
-          <div className="flex gap-2 justify-start mt-auto pt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCopy?.(prompt);
-              }}
-              className="border-blue-600 text-blue-600 hover:bg-blue-50"
-            >
-              <Copy className="w-4 h-4 mr-1" />
-              Copiar
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSave?.(prompt);
-              }}
-              className="border-green-600 text-green-600 hover:bg-green-50"
-            >
-              <PlusCircle className="w-4 h-4 mr-1" />
-              Salvar
-            </Button>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* MÍDIA */}
-      {(mediaInfo.hasMedia || videoId) && (
-        
-  <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
+          {/* BOTÕES DE AÇÃO */}
+          <div className="flex gap-2 mt-auto">
+            {onCopy && !isInChat && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Copiar conteúdo"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopy(prompt);
+                }}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+            )}
 
-          
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Editar Prompt"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(prompt);
+                }}
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            )}
          
-          {/* VÍDEO LOCAL */}
-          {mediaInfo.hasLocalVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Excluir Prompt"
+                className="text-red-600 hover:text-red-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(prompt.id);
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+
+            {onShare && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Compartilhar no Chat"
+                className="text-purple-600 hover:text-purple-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare(prompt);
+                }}
+              >
+                <Share2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+
+          {/* Botões do modo Chat */}
+          {isInChat && (
+            <div className="flex gap-2 justify-start mt-auto pt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopy?.(prompt);
+                }}
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                <Copy className="w-4 h-4 mr-1" />
+                Copiar
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSave?.(prompt);
+                }}
+                className="border-green-600 text-green-600 hover:bg-green-50"
+              >
+                <PlusCircle className="w-4 h-4 mr-1" />
+                Salvar
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* MÍDIA */}
+        {mediaInfo.hasMedia && (
+          <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
+            
+            {/* YOUTUBE - Apenas thumbnail clicável */}
+            {mediaInfo.hasYouTubeVideo && mediaInfo.videoId && (
+              <button
+                type="button"
+                onClick={() => openModal('youtube', null, mediaInfo.videoId)}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
                 <img
                   src={mediaInfo.thumbnailUrl}
                   alt={prompt.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                   loading="lazy"
                 />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-                  <Play className="h-16 w-16 text-purple-400" />
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                    <Play className="h-8 w-8 text-red-600 fill-current" />
+                  </div>
                 </div>
-              )}
 
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-8 w-8 text-purple-600 fill-current" />
+                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                    Clique para assistir
+                  </span>
                 </div>
-              </div>
+              </button>
+            )}
 
-              <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                  Clique para assistir
-                </span>
-              </div>
-            </button>
-          )}
+            {/* VÍDEO LOCAL - Apenas thumbnail clicável */}
+            {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
+              <button
+                type="button"
+                onClick={() => openModal('video', mediaInfo.videoUrl)}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
+                {mediaInfo.thumbnailUrl ? (
+                  <img
+                    src={mediaInfo.thumbnailUrl}
+                    alt={prompt.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+                    <Play className="h-16 w-16 text-purple-400" />
+                  </div>
+                )}
 
-        
-         {/* 🎥 YouTube Thumbnail + Modal */}
-{videoId && (
-  <div className="relative w-full rounded-xl overflow-hidden group mt-3">
-    <img
-      src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
-      alt="YouTube Thumbnail"
-      className="w-full h-56 object-cover rounded-xl cursor-pointer transition-transform duration-300 group-hover:scale-105"
-      onClick={() => setShowVideo(true)}
-    />
-    <div
-      className="absolute inset-0 flex items-center justify-center cursor-pointer"
-      onClick={() => setShowVideo(true)}
-    >
-      <div className="bg-black bg-opacity-50 rounded-full p-4">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="white"
-          viewBox="0 0 24 24"
-          className="w-10 h-10"
-        >
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </div>
-    </div>
-
-    {/* Modal */}
-    {showVideo && (
-      <div
-        className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-        onClick={() => setShowVideo(false)}
-      >
-        <div
-          className="relative w-[90%] max-w-3xl aspect-video bg-black"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <iframe
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-            title="YouTube video player"
-            className="w-full h-full rounded-lg"
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-          />
-          <button
-            className="absolute -top-10 right-0 text-white text-3xl"
-            onClick={() => setShowVideo(false)}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-    )}
-  </div>
-)}
-
-
-
-          {/* IMAGEM */}
-          {!mediaInfo.hasVideo && mediaInfo.hasImage && (
-            <button
-              type="button"
-              onClick={() => onOpenImage?.(prompt.image_url, prompt.title)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              <img
-                src={mediaInfo.thumbnailUrl}
-                alt={prompt.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                loading="lazy"
-              />
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <ImageIcon className="h-6 w-6 text-slate-800" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                    <Play className="h-8 w-8 text-purple-600 fill-current" />
+                  </div>
                 </div>
-              </div>
-            </button>
-          )}
-        </div>
-      )}
 
-      {/* Placeholder se não tem mídia */}
-      {!mediaInfo.hasMedia && (
-        <div className={cn(
-          mediaVariants({ layout: "horizontal" }),
-          "flex items-center justify-center"
-        )}>
-          <div className="text-center text-slate-400">
-            <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-40" />
-            <p className="text-xs">Sem mídia</p>
+                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                    Clique para assistir
+                  </span>
+                </div>
+              </button>
+            )}
+
+            {/* IMAGEM - Apenas thumbnail clicável */}
+            {!mediaInfo.hasVideo && mediaInfo.hasImage && (
+              <button
+                type="button"
+                onClick={() => openModal('image', prompt.image_url)}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
+                <img
+                  src={mediaInfo.thumbnailUrl}
+                  alt={prompt.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                  loading="lazy"
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                    <ImageIcon className="h-6 w-6 text-slate-800" />
+                  </div>
+                </div>
+              </button>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Placeholder se não tem mídia */}
+        {!mediaInfo.hasMedia && (
+          <div className={cn(
+            mediaVariants({ layout: "horizontal" }),
+            "flex items-center justify-center"
+          )}>
+            <div className="text-center text-slate-400">
+              <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-40" />
+              <p className="text-xs">Sem mídia</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL ÚNICO PARA TODAS AS MÍDIAS */}
+      {modalState.isOpen && (
+        <MediaModal
+          type={modalState.type}
+          src={modalState.src}
+          videoId={modalState.videoId}
+          title={prompt.title}
+          onClose={closeModal}
+        />
       )}
-    </div>
+    </>
   );
 }, (prevProps, nextProps) => {
   return (
