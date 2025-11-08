@@ -1054,9 +1054,15 @@ export default function PromptManager({
                 onCopy={copyToClipboard}
                 onToggleFavorite={toggleFavorite}
                 onShare={(prompt) => {
-                  setPromptToShare(prompt);
-                  setShowShareModal(true);
-                }}
+                console.log('🎯 onShare chamado com prompt:', prompt);
+                console.log('📦 Prompt ID:', prompt.id);
+                console.log('📝 Prompt Title:', prompt.title);
+  
+  setPromptToShare(prompt);
+  setShowShareModal(true);
+  
+  console.log('✅ Modal deveria abrir agora');
+}}
                 onOpenImage={openImageModal}
                 onOpenVideo={openVideoModal}
               />
