@@ -107,34 +107,40 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 // 📥 Função para baixar imagem — versão final garantida (sem CORS)
 // 📥 Função para baixar imagem — usa o Friendly URL automaticamente
 // 📥 Função para baixar imagem — usa o Friendly URL automaticamente
-const downloadImage = () => {
+// 🔥 Função para baixar imagem — usa fetch + blob para forçar download
+const downloadImage = async () => {
   try {
-    window.toast?.info("⏳ Preparando download...");
+    window.toast?.info("⏳ Baixando imagem...");
 
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
 
-    // 🔍 Converte S3 URL em Friendly URL, se necessário
+    // 🔄 Converte S3 URL em Friendly URL, se necessário
     let friendlySrc = src;
     if (src.includes("s3.us-east-005.backblazeb2.com")) {
       friendlySrc = src
         .replace("https://promptly-staging.s3.us-east-005.backblazeb2.com", "https://f005.backblazeb2.com/file/promptly-staging");
     }
 
-    // ✅ Gera URL de download
-    const separator = friendlySrc.includes("?") ? "&" : "?";
-    const downloadUrl = `${friendlySrc}${separator}download=${encodeURIComponent(filename)}`;
+    // 📥 Baixa a imagem como blob
+    const response = await fetch(friendlySrc);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
 
-    // 🔽 Cria link invisível e dispara o download
+    // 📽 Cria link invisível e dispara o download
     const link = document.createElement("a");
-    link.href = downloadUrl;
+    link.href = blobUrl;
     link.download = filename;
-    link.target = "_self";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    window.toast?.success("✅ Download iniciado!");
+    // 🧹 Limpa o blob URL após um pequeno delay
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+
+    window.toast?.success("✅ Download concluído!");
   } catch (error) {
     console.error("❌ Erro ao baixar imagem:", error);
     window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
