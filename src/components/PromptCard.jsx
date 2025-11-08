@@ -105,43 +105,35 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 
 // 📥 Função para baixar imagem - versão final funcional
 // 📥 Função para baixar imagem — versão final garantida (sem CORS)
+// 📥 Função para baixar imagem — usa o Friendly URL automaticamente
 const downloadImage = () => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
-    const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
-    // 🔹 Se for B2, força o download direto via URL pública (?download=)
-    if (isB2) {
-      console.log("🔵 B2 detectado — forçando download via ?download=");
-      const separator = src.includes("?") ? "&" : "?";
-      const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
-
-      // Cria link invisível e dispara o download
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = filename;
-      link.target = "_self"; // evita abrir nova aba
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      window.toast?.success("✅ Download iniciado!");
-      return;
+    // 🔍 Converte S3 URL em Friendly URL, se necessário
+    let friendlySrc = src;
+    if (src.includes("s3.us-east-005.backblazeb2.com")) {
+      friendlySrc = src
+        .replace("https://promptly-staging.s3.us-east-005.backblazeb2.com", "https://f005.backblazeb2.com/file/promptly-staging");
     }
 
-    // 🌍 Fallback para imagens locais / mesmas origens
+    // ✅ Gera URL de download
+    const separator = friendlySrc.includes("?") ? "&" : "?";
+    const downloadUrl = `${friendlySrc}${separator}download=${encodeURIComponent(filename)}`;
+
+    // 🔽 Cria link invisível e dispara o download
     const link = document.createElement("a");
-    link.href = src;
+    link.href = downloadUrl;
     link.download = filename;
     link.target = "_self";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    window.toast?.success("✅ Download concluído!");
+    window.toast?.success("✅ Download iniciado!");
   } catch (error) {
     console.error("❌ Erro ao baixar imagem:", error);
     window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
