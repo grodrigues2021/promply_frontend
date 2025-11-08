@@ -169,14 +169,23 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   };
 
   // 🔗 Copiar link do YouTube
-  const copyYouTubeLink = () => {
+  const copyYouTubeLink = async () => {
     try {
       const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      navigator.clipboard.writeText(youtubeUrl);
-      window.toast?.success("✅ Link do YouTube copiado!");
+      await navigator.clipboard.writeText(youtubeUrl);
+      
+      // Toast de sucesso no topo
+      if (window.toast) {
+        window.toast.success("✅ Link do YouTube copiado!", {
+          position: "top-center",
+          duration: 2000,
+        });
+      }
     } catch (error) {
       console.error("❌ Erro ao copiar link:", error);
-      window.toast?.error("Erro ao copiar link.");
+      if (window.toast) {
+        window.toast.error("❌ Erro ao copiar link do YouTube");
+      }
     }
   };
 
