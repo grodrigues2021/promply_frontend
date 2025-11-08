@@ -1,10 +1,10 @@
-// src/components/PromptCard.jsx - COM BADGE E THUMBNAIL CORRETO
+// src/components/PromptCard.jsx - VERSÃO COMPLETA COM COPIAR LINK YOUTUBE
 import React, { useMemo, useState } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import {
   Star,
-  Copy,        // ✅ Necessário para copiar link
+  Copy,
   Edit,
   Trash2,
   Play,
@@ -14,7 +14,7 @@ import {
   Tag as TagIcon,
   X,
   Youtube,
-  Download,    // ✅ Necessário para download
+  Download,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -98,66 +98,59 @@ const extractYouTubeId = (url) => {
   }
 };
 
-
 // --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
-// 📥 Função para baixar imagem - versão final funcional
-// 📥 Função para baixar imagem — versão final garantida (sem CORS)
-// 📥 Função para baixar imagem — usa o Friendly URL automaticamente
-// 📥 Função para baixar imagem — usa o Friendly URL automaticamente
-// 🔥 Função para baixar imagem — usa fetch + blob para forçar download
-// 🔥 Função para baixar imagem — usa fetch + blob para forçar download
-// 🔥 Função para baixar imagem — usa fetch + blob para forçar download
-const downloadImage = async () => {
-  try {
-    window.toast?.info("⏳ Baixando imagem...");
+  // 🔥 Função para baixar imagem — usa fetch + blob para forçar download
+  const downloadImage = async () => {
+    try {
+      window.toast?.info("⏳ Baixando imagem...");
 
-    const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
-    const filename = `${title || "imagem"}.${extension}`;
+      const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
+      const filename = `${title || "imagem"}.${extension}`;
 
-    // 🔄 Converte S3 URL em Friendly URL (suporta ambos os formatos do B2)
-    let friendlySrc = src;
-    if (src.includes("s3.us-east-005.backblazeb2.com")) {
-      // Formato 1: https://promptly-staging.s3.us-east-005.backblazeb2.com/uploads/...
-      // Formato 2: https://s3.us-east-005.backblazeb2.com/promply-staging/uploads/...
-      friendlySrc = src
-        .replace("https://promptly-staging.s3.us-east-005.backblazeb2.com", "https://f005.backblazeb2.com/file/promptly-staging")
-        .replace("https://s3.us-east-005.backblazeb2.com/promply-staging", "https://f005.backblazeb2.com/file/promply-staging");
+      // 🔄 Converte S3 URL em Friendly URL (suporta ambos os formatos do B2)
+      let friendlySrc = src;
+      if (src.includes("s3.us-east-005.backblazeb2.com")) {
+        // Formato 1: https://promptly-staging.s3.us-east-005.backblazeb2.com/uploads/...
+        // Formato 2: https://s3.us-east-005.backblazeb2.com/promply-staging/uploads/...
+        friendlySrc = src
+          .replace("https://promptly-staging.s3.us-east-005.backblazeb2.com", "https://f005.backblazeb2.com/file/promptly-staging")
+          .replace("https://s3.us-east-005.backblazeb2.com/promply-staging", "https://f005.backblazeb2.com/file/promply-staging");
+      }
+
+      console.log("🔄 URL Original:", src);
+      console.log("✅ URL Friendly:", friendlySrc);
+
+      // 📥 Baixa a imagem como blob com modo no-cors se necessário
+      const response = await fetch(friendlySrc, { mode: 'cors' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      // 📽 Cria link invisível e dispara o download
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // 🧹 Limpa o blob URL após um pequeno delay
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+
+      window.toast?.success("✅ Download concluído!");
+    } catch (error) {
+      console.error("❌ Erro ao baixar imagem:", error);
+      console.error("URL que falhou:", src);
+      window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
+      window.open(src, "_blank");
     }
+  };
 
-    console.log("🔄 URL Original:", src);
-    console.log("✅ URL Friendly:", friendlySrc);
-
-    // 📥 Baixa a imagem como blob com modo no-cors se necessário
-    const response = await fetch(friendlySrc, { mode: 'cors' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    // 📽 Cria link invisível e dispara o download
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // 🧹 Limpa o blob URL após um pequeno delay
-    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
-
-    window.toast?.success("✅ Download concluído!");
-  } catch (error) {
-    console.error("❌ Erro ao baixar imagem:", error);
-    console.error("URL que falhou:", src);
-    window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
-    window.open(src, "_blank");
-  }
-};
-
-  // 📥 Download de vídeo MP4
+  // 🔥 Download de vídeo MP4
   const downloadVideo = async () => {
     try {
       const response = await fetch(src);
@@ -175,6 +168,18 @@ const downloadImage = async () => {
     }
   };
 
+  // 🔗 Copiar link do YouTube
+  const copyYouTubeLink = () => {
+    try {
+      const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+      navigator.clipboard.writeText(youtubeUrl);
+      window.toast?.success("✅ Link do YouTube copiado!");
+    } catch (error) {
+      console.error("❌ Erro ao copiar link:", error);
+      window.toast?.error("Erro ao copiar link.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
       <div className="relative w-full max-w-4xl bg-black rounded-xl overflow-hidden">
@@ -185,6 +190,11 @@ const downloadImage = async () => {
           </h3>
 
           <div className="flex gap-2">
+            {type === "youtube" && (
+              <Button onClick={copyYouTubeLink} className="bg-red-600 text-white hover:bg-red-700">
+                <Copy className="w-4 h-4 mr-1" /> Copiar Link
+              </Button>
+            )}
             {type === "image" && (
               <Button onClick={downloadImage} className="bg-blue-600 text-white hover:bg-blue-700">
                 <Download className="w-4 h-4 mr-1" /> Baixar
@@ -237,16 +247,9 @@ const downloadImage = async () => {
           )}
         </div>
       </div>
-
-      {/* FECHAR AO CLICAR FORA (seguro) */}
-
-
     </div>
   );
 };
-
-
-
 
 /* ========================================== */
 const getInitials = (name) => {
@@ -358,23 +361,24 @@ const PromptCard = React.memo(({
       videoId: null,
     });
   };
-// 🖼️ Pré-carrega a imagem antes de abrir o modal
-const handlePreviewClick = (url) => {
-  if (!url) return;
-  const img = new Image();
-  img.src = url;
-  window.toast?.info("🕓 Carregando pré-visualização...");
 
-  img.onload = () => {
-    window.toast?.dismiss();
-    openModal("image", url);
-  };
+  // 🖼️ Pré-carrega a imagem antes de abrir o modal
+  const handlePreviewClick = (url) => {
+    if (!url) return;
+    const img = new Image();
+    img.src = url;
+    window.toast?.info("🕐 Carregando pré-visualização...");
 
-  img.onerror = () => {
-    window.toast?.error("❌ Falha ao carregar imagem.");
-    openModal("image", url); // ainda assim abre o modal, caso queira mostrar o erro
+    img.onload = () => {
+      window.toast?.dismiss();
+      openModal("image", url);
+    };
+
+    img.onerror = () => {
+      window.toast?.error("❌ Falha ao carregar imagem.");
+      openModal("image", url);
+    };
   };
-};
 
   return (
     <>
@@ -592,7 +596,8 @@ const handlePreviewClick = (url) => {
                 </Badge>
               </div>
             )}
-            {/* 🎬 NOVA: BADGE "VÍDEO" para vídeos locais (MP4) */}
+
+            {/* 🎬 BADGE "VÍDEO" para vídeos locais (MP4) */}
             {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
               <div className="absolute top-3 right-3 z-10">
                 <Badge className="bg-pink-600 text-white border-0 shadow-lg">
@@ -602,16 +607,15 @@ const handlePreviewClick = (url) => {
               </div>
             )}
 
-            {/* 🖼️ NOVA: BADGE "IMAGEM" quando só tem imagem (sem vídeo) */}
-                {!mediaInfo.hasVideo && mediaInfo.hasImage && (
-                  <div className="absolute top-3 right-3 z-10">
-                    <Badge className="bg-blue-600 text-white border-0 shadow-lg">
-                      <ImageIcon className="w-3 h-3 mr-1" />
-                      Imagem
-                    </Badge>
-                  </div>
-                )}
-
+            {/* 🖼️ BADGE "IMAGEM" quando só tem imagem (sem vídeo) */}
+            {!mediaInfo.hasVideo && mediaInfo.hasImage && (
+              <div className="absolute top-3 right-3 z-10">
+                <Badge className="bg-blue-600 text-white border-0 shadow-lg">
+                  <ImageIcon className="w-3 h-3 mr-1" />
+                  Imagem
+                </Badge>
+              </div>
+            )}
 
             {/* YOUTUBE - Apenas thumbnail clicável */}
             {mediaInfo.hasYouTubeVideo && mediaInfo.videoId && (
@@ -626,7 +630,6 @@ const handlePreviewClick = (url) => {
                   className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                   loading="lazy"
                   onError={(e) => {
-                    // Fallback para mqdefault se hqdefault falhar
                     e.target.src = `https://img.youtube.com/vi/${mediaInfo.videoId}/mqdefault.jpg`;
                   }}
                 />
@@ -727,8 +730,6 @@ const handlePreviewClick = (url) => {
           onClose={closeModal}
         />
       )}
-
-      
     </>
   );
 }, (prevProps, nextProps) => {
@@ -748,6 +749,5 @@ const handlePreviewClick = (url) => {
 PromptCard.displayName = 'PromptCard';
 
 export default PromptCard;
-
 
 export { cardVariants, mediaVariants, contentVariants };
