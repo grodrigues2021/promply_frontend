@@ -108,7 +108,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
 // 📥 Função para baixar imagem — versão final garantida (B2 + comuns)
 // 📥 Função para baixar imagem — versão compatível com build do Vite
-// 📥 Função para baixar imagem — versão final garantida (B2 + comuns)
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Preparando download...");
@@ -118,7 +117,7 @@ const downloadImage = async () => {
     const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
     // Adiciona um pequeno atraso para garantir gesture do usuário
-    setTimeout(async () => { // <-- Adicionado 'async' aqui
+    setTimeout(async () => {
       if (isB2) {
         console.log("🔵 B2 detectado — forçando download via ?download=");
         const separator = src.includes("?") ? "&" : "?";
@@ -157,53 +156,6 @@ const downloadImage = async () => {
   } catch (error) {
     console.error("❌ Erro geral ao baixar imagem:", error);
     window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
-    window.open(src, "_blank");
-  }
-};
-
-
-
-      // 🌍 Fallback: imagens normais
-      const response = await fetch(src);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-
-      window.toast?.success("✅ Download concluído!");
-    }, 50); // ← pequeno atraso garante que o clique é aceito pelo navegador
-  } catch (error) {
-    console.error("❌ Erro ao baixar imagem:", error);
-    window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
-    window.open(src, "_blank");
-  }
-};
-
-
-    // 🌍 Para imagens comuns (mesmo domínio, CORS liberado)
-    console.log("🌐 Baixando imagem via blob");
-    const response = await fetch(src);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-
-    window.toast?.success("✅ Download concluído!");
-  } catch (error) {
-    console.error("Erro ao baixar imagem:", error);
-    window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
     window.open(src, "_blank");
   }
 };
