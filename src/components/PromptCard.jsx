@@ -100,43 +100,57 @@ const extractYouTubeId = (url) => {
 
 // --- 🎬 MODAL SIMPLES E NATIVO (botão dentro) ---
 // --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
+// --- 🎬 MODAL OTIMIZADO COM PRÉ-CARREGAMENTO ---
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
+  const [loading, setLoading] = React.useState(true);
+  
   if (!type) return null;
 
-  // 📥 Função para baixar imagem
-  // 📥 Função para baixar imagem direto (força download mesmo com CORS)
-const downloadImage = async () => {
-  try {
-    window.toast?.info('⏳ Preparando download...');
-    
-    // Fetch da imagem e converte para blob
-    const response = await fetch(src);
-    const blob = await response.blob();
-    
-    // Cria URL temporário do blob
-    const blobUrl = window.URL.createObjectURL(blob);
-    
-    // Cria link e força download
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = `${title || 'imagem'}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    // Limpa URL temporário
-    window.URL.revokeObjectURL(blobUrl);
-    
-    window.toast?.success('✅ Download concluído!');
-  } catch (error) {
-    console.error('Erro ao baixar imagem:', error);
-    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
-    // Fallback: abre em nova aba se falhar
-    window.open(src, '_blank');
-  }
-};
+  // 📥 Download de imagem (com proxy se CORS falhar)
+  const downloadImage = async () => {
+    try {
+      window.toast?.info('⏳ Preparando download...');
+      
+      // Detecta extensão da imagem
+      const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || 'jpg';
+      
+      // Tenta fetch direto primeiro
+      let blob;
+      try {
+        const response = await fetch(src, {
+          mode: 'cors',
+          credentials: 'omit'
+        });
+        
+        if (!response.ok) throw new Error('Fetch failed');
+        blob = await response.blob();
+      } catch (corsError) {
+        // Se CORS falhar, tenta com proxy CORS
+        console.log('CORS bloqueado, tentando com proxy...');
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(src)}`;
+        const response = await fetch(proxyUrl);
+        blob = await response.blob();
+      }
+      
+      // Força download
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${title || 'imagem'}.${extension}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      
+      window.toast?.success('✅ Download concluído!');
+    } catch (error) {
+      console.error('Erro ao baixar imagem:', error);
+      window.toast?.error('❌ Não foi possível baixar. Abrindo em nova aba...');
+      window.open(src, '_blank');
+    }
+  };
 
-  // 📥 Função para baixar vídeo
+  // 📥 Download de vídeo
   const downloadVideo = async () => {
     try {
       window.toast?.info('⏳ Preparando download...');
@@ -158,34 +172,34 @@ const downloadImage = async () => {
     }
   };
 
-  // 🔗 Função para copiar link do YouTube
+  // 🔗 Copiar URL do YouTube
   const copyYouTubeLink = () => {
     const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
     navigator.clipboard.writeText(youtubeUrl);
-    window.toast?.success('🔗 Link copiado! Cole em um downloader de YouTube.');
+    window.toast?.success('🔗 URL copiada! Cole em um downloader de YouTube.');
   };
 
-  // 🎬 Função para abrir no YouTube
+  // 🎬 Abrir no YouTube
   const openInYouTube = () => {
     window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-in fade-in duration-200">
       {/* Conteúdo */}
-      <div className="relative max-w-5xl w-full bg-white rounded-lg shadow-2xl overflow-hidden">
-        {/* Header com título e botões */}
+      <div className="relative max-w-6xl w-full bg-gradient-to-b from-gray-900 to-black rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-gray-700">
           <h3 className="text-white font-semibold truncate flex-1 mr-4">
             {title || 'Mídia'}
           </h3>
           
           <div className="flex items-center gap-2">
-            {/* 🖼️ IMAGEM - Botão Download */}
+            {/* 🖼️ IMAGEM */}
             {type === 'image' && (
               <button
                 onClick={downloadImage}
-                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:scale-95 transition text-sm font-medium shadow-lg hover:shadow-xl"
                 title="Baixar imagem"
               >
                 <Download className="w-4 h-4" />
@@ -193,11 +207,11 @@ const downloadImage = async () => {
               </button>
             )}
 
-            {/* 🎬 VÍDEO MP4 - Botão Download */}
+            {/* 🎬 VÍDEO MP4 */}
             {type === 'video' && (
               <button
                 onClick={downloadVideo}
-                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 active:scale-95 transition text-sm font-medium shadow-lg hover:shadow-xl"
                 title="Baixar vídeo"
               >
                 <Download className="w-4 h-4" />
@@ -205,25 +219,33 @@ const downloadImage = async () => {
               </button>
             )}
 
-            {/* 📺 YOUTUBE - Botões Copiar Link e Abrir */}
+            {/* 📺 YOUTUBE */}
             {type === 'youtube' && videoId && (
               <>
                 <button
                   onClick={copyYouTubeLink}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
-                  title="Copiar link do vídeo"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 active:scale-95 transition text-sm font-medium shadow-lg hover:shadow-xl"
+                  title="Copiar URL do vídeo"
                 >
                   <Copy className="w-4 h-4" />
-                  <span className="hidden sm:inline">Copiar Link</span>
+                  <span className="hidden sm:inline">Copiar URL</span>
                 </button>
                 
-                              </>
+                <button
+                  onClick={openInYouTube}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 active:scale-95 transition text-sm font-medium shadow-lg hover:shadow-xl"
+                  title="Abrir no YouTube"
+                >
+                  <Youtube className="w-4 h-4" />
+                  <span className="hidden sm:inline">Abrir</span>
+                </button>
+              </>
             )}
 
-            {/* ❌ Botão fechar */}
+            {/* ❌ Fechar */}
             <button
               onClick={onClose}
-              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 active:scale-95 transition"
               title="Fechar"
             >
               <X className="w-5 h-5" />
@@ -232,12 +254,21 @@ const downloadImage = async () => {
         </div>
 
         {/* Mídia */}
-        <div className="bg-black">
+        <div className="relative bg-black min-h-[60vh] flex items-center justify-center">
+          {/* Loading spinner */}
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+              <Loader2 className="w-12 h-12 text-white animate-spin" />
+            </div>
+          )}
+
           {type === 'image' && (
             <img
               src={src}
               alt={title}
-              className="w-full h-auto max-h-[75vh] object-contain"
+              className="w-full h-auto max-h-[80vh] object-contain"
+              onLoad={() => setLoading(false)}
+              onError={() => setLoading(false)}
             />
           )}
 
@@ -246,19 +277,24 @@ const downloadImage = async () => {
               src={src}
               controls
               autoPlay
-              className="w-full h-auto max-h-[75vh]"
+              preload="auto"
+              className="w-full h-auto max-h-[80vh]"
+              onLoadedData={() => setLoading(false)}
+              onError={() => setLoading(false)}
             />
           )}
 
           {type === 'youtube' && videoId && (
             <div className="relative w-full aspect-video">
               <iframe
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`}
                 title={title}
                 className="w-full h-full"
                 frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
+                loading="eager"
+                onLoad={() => setLoading(false)}
               />
             </div>
           )}
