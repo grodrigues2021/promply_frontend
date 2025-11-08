@@ -103,33 +103,30 @@ const extractYouTubeId = (url) => {
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
-  // 📥 Função para baixar imagem
-  // 📥 Função para baixar imagem (MESMA LÓGICA DO VÍDEO)
+// 📥 Função para baixar imagem - MESMA LÓGICA DO VÍDEO
 const downloadImage = async () => {
   try {
     window.toast?.info('⏳ Preparando download...');
     
-    // Detecta extensão
+    // Detecta extensão da imagem
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || 'jpg';
-    const filename = `${title || 'imagem'}.${extension}`;
     
-    // MESMA LÓGICA DO VÍDEO
+    // MESMA LÓGICA DO downloadVideo
     const response = await fetch(src);
     const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
+    link.href = url;
+    link.download = `${title || 'imagem'}.${extension}`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
+    window.URL.revokeObjectURL(url);
     
     window.toast?.success('✅ Download concluído!');
   } catch (error) {
     console.error('Erro ao baixar imagem:', error);
-    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
+    window.toast?.error('❌ Erro ao baixar. Tentando abrir em nova aba...');
     window.open(src, '_blank');
   }
 };
