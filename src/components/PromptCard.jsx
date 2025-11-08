@@ -1,4 +1,4 @@
-// src/components/PromptCard.jsx - MODAL SIMPLES PARA TODAS AS MÍDIAS
+// src/components/PromptCard.jsx - COM BADGE E THUMBNAIL CORRETO
 import React, { useMemo, useState } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
@@ -13,6 +13,7 @@ import {
   PlusCircle,
   Tag as TagIcon,
   X,
+  Youtube,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -96,22 +97,22 @@ const extractYouTubeId = (url) => {
   }
 };
 
-// --- 🎬 MODAL SIMPLES E NATIVO ---
+// --- 🎬 MODAL SIMPLES E NATIVO (botão dentro) ---
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Botão fechar */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-10 p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition"
-      >
-        <X className="w-6 h-6 text-gray-700" />
-      </button>
-
       {/* Conteúdo */}
       <div className="relative max-w-5xl w-full bg-white rounded-lg shadow-2xl overflow-hidden">
+        {/* Botão fechar DENTRO do modal */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {type === "image" && (
           <img
             src={src}
@@ -180,7 +181,7 @@ const PromptCard = React.memo(({
   // Estado do modal
   const [modalState, setModalState] = useState({
     isOpen: false,
-    type: null, // 'image', 'video', 'youtube'
+    type: null,
     src: null,
     videoId: null,
   });
@@ -197,8 +198,10 @@ const PromptCard = React.memo(({
     const hasMedia = hasVideo || hasImage;
     
     const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
+    
+    // ✅ Usar hqdefault (sempre existe) ao invés de maxresdefault
     const youtubeThumbnail = videoId 
-      ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
       : null;
     
     let imageUrlWithCacheBuster = null;
@@ -468,6 +471,16 @@ const PromptCard = React.memo(({
         {mediaInfo.hasMedia && (
           <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
             
+            {/* ✅ BADGE "YOUTUBE" no canto superior direito */}
+            {mediaInfo.hasYouTubeVideo && (
+              <div className="absolute top-3 right-3 z-10">
+                <Badge className="bg-red-600 text-white border-0 shadow-lg">
+                  <Youtube className="w-3 h-3 mr-1" />
+                  YouTube
+                </Badge>
+              </div>
+            )}
+
             {/* YOUTUBE - Apenas thumbnail clicável */}
             {mediaInfo.hasYouTubeVideo && mediaInfo.videoId && (
               <button
@@ -480,6 +493,10 @@ const PromptCard = React.memo(({
                   alt={prompt.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                   loading="lazy"
+                  onError={(e) => {
+                    // Fallback para mqdefault se hqdefault falhar
+                    e.target.src = `https://img.youtube.com/vi/${mediaInfo.videoId}/mqdefault.jpg`;
+                  }}
                 />
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
