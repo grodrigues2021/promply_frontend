@@ -480,6 +480,26 @@ const PromptCard = React.memo(({
                 </Badge>
               </div>
             )}
+            {/* 🎬 NOVA: BADGE "VÍDEO" para vídeos locais (MP4) */}
+            {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
+              <div className="absolute top-3 right-3 z-10">
+                <Badge className="bg-pink-600 text-white border-0 shadow-lg">
+                  <Play className="w-3 h-3 mr-1" />
+                  Vídeo
+                </Badge>
+              </div>
+            )}
+
+            {/* 🖼️ NOVA: BADGE "IMAGEM" quando só tem imagem (sem vídeo) */}
+                {!mediaInfo.hasVideo && mediaInfo.hasImage && (
+                  <div className="absolute top-3 right-3 z-10">
+                    <Badge className="bg-blue-600 text-white border-0 shadow-lg">
+                      <ImageIcon className="w-3 h-3 mr-1" />
+                      Imagem
+                    </Badge>
+                  </div>
+                )}
+
 
             {/* YOUTUBE - Apenas thumbnail clicável */}
             {mediaInfo.hasYouTubeVideo && mediaInfo.videoId && (
