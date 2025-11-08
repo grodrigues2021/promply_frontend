@@ -103,27 +103,27 @@ const extractYouTubeId = (url) => {
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
-  // 📥 Download de imagem com fallback
-  // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
+// 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
-    // Detecta extensão e nome
+    // Detecta extensão e nome do arquivo
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
     const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
+    // 🔵 Caso seja arquivo hospedado no Backblaze B2
     if (isB2) {
-      console.log("🔵 B2 detectado — forçando download via URL pública");
+      console.log("🔵 B2 detectado — forçando download direto via URL pública");
       const separator = src.includes("?") ? "&" : "?";
       const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
 
-      // cria link temporário e dispara o download
+      // Cria link temporário e dispara download sem abrir nova aba
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = filename;
-      link.target = "_self";
+      link.target = "_self"; // evita abrir nova aba
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -132,12 +132,14 @@ const downloadImage = async () => {
       return;
     }
 
-    // 🌍 Para imagens comuns (mesmo domínio, CORS liberado)
-    console.log("🌐 Baixando imagem via blob");
-    const response = await fetch(src);
+    // 🌍 Fallback: imagem comum com CORS liberado
+    console.log("🌐 Fazendo download via blob");
+    const response = await fetch(src, { mode: "cors" });
+    if (!response.ok) throw new Error("Erro ao buscar imagem");
     const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
 
+    // Cria URL temporária e dispara download
+    const blobUrl = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = blobUrl;
     link.download = filename;
@@ -148,11 +150,12 @@ const downloadImage = async () => {
 
     window.toast?.success("✅ Download concluído!");
   } catch (error) {
-    console.error("Erro ao baixar imagem:", error);
-    window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
+    console.error("❌ Erro ao baixar imagem:", error);
+    window.toast?.error("Falha no download, abrindo imagem em nova aba...");
     window.open(src, "_blank");
   }
 };
+
 
 
   // 📥 Download de vídeo MP4
