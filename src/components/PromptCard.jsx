@@ -106,6 +106,7 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 // 📥 Função para baixar imagem - versão final funcional
 // 📥 Função para baixar imagem — versão final garantida (sem CORS)
 // 📥 Função para baixar imagem — usa o Friendly URL automaticamente
+// 📥 Função para baixar imagem — usa o Friendly URL automaticamente
 const downloadImage = () => {
   try {
     window.toast?.info("⏳ Preparando download...");
@@ -140,10 +141,6 @@ const downloadImage = () => {
     window.open(src, "_blank");
   }
 };
-
-
-
-
 
   // 📥 Download de vídeo MP4
   const downloadVideo = async () => {
