@@ -100,83 +100,77 @@ const extractYouTubeId = (url) => {
 };
 
 
-// --- 📥 Funções de Download (Movidas para fora do componente) ---
-
-// 📥 Função para baixar imagem — versão final garantida (B2 + comuns)
-const downloadImage = async (src, title) => {
-  try {
-    window.toast?.info("⏳ Preparando download...");
-
-    const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
-    const filename = `${title || "imagem"}.${extension}`;
-    const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
-
-    // Adiciona um pequeno atraso para garantir gesture do usuário
-    setTimeout(async () => {
-      if (isB2) {
-        console.log("🔵 B2 detectado — forçando download via ?download=");
-        const separator = src.includes("?") ? "&" : "?";
-        const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
-
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = filename;
-        link.target = "_self";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        window.toast?.success("✅ Download iniciado!");
-      } else {
-        console.log("🌐 Baixando imagem via blob");
-        try {
-            const response = await fetch(src);
-            const blob = await response.blob();
-            const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = blobUrl;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
-            window.toast?.success("✅ Download concluído!");
-        } catch (err) {
-            console.error("Erro ao baixar imagem via blob:", err);
-            window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
-            window.open(src, "_blank");
-        }
-      }
-    }, 50);
-  } catch (error) {
-    console.error("❌ Erro geral ao baixar imagem:", error);
-    window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
-    window.open(src, "_blank");
-  }
-};
-
-// 📥 Função para baixar vídeo MP4
-const downloadVideo = async (src, title) => {
-  try {
-    const response = await fetch(src);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = `${title || "video"}.mp4`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-  } catch (error) {
-    window.open(src, "_blank");
-  }
-};
-
-
 // --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
+
+  // 📥 Função para baixar imagem — versão final garantida (B2 + comuns)
+  const downloadImage = async () => {
+    try {
+      window.toast?.info("⏳ Preparando download...");
+
+      const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
+      const filename = `${title || "imagem"}.${extension}`;
+      const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
+
+        if (isB2) {
+          console.log("🔵 B2 detectado — forçando download via ?download=");
+          const separator = src.includes("?") ? "&" : "?";
+          const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
+
+          const link = document.createElement("a");
+          link.href = downloadUrl;
+          link.download = filename;
+          link.target = "_self";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          window.toast?.success("✅ Download iniciado!");
+        } else {
+          console.log("🌐 Baixando imagem via blob");
+          try {
+              const response = await fetch(src);
+              const blob = await response.blob();
+              const blobUrl = window.URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = blobUrl;
+              link.download = filename;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              window.URL.revokeObjectURL(blobUrl);
+              window.toast?.success("✅ Download concluído!");
+          } catch (err) {
+              console.error("Erro ao baixar imagem via blob:", err);
+              window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
+              window.open(src, "_blank");
+          }
+        }
+    } catch (error) {
+      console.error("❌ Erro geral ao baixar imagem:", error);
+      window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
+      window.open(src, "_blank");
+    }
+  };
+
+  // 📥 Download de vídeo MP4
+  const downloadVideo = async () => {
+    try {
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${title || "video"}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      window.open(src, "_blank");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
@@ -189,12 +183,12 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 
           <div className="flex gap-2">
             {type === "image" && (
-              <Button onClick={() => downloadImage(src, title)} className="bg-blue-600 text-white hover:bg-blue-700">
+              <Button onClick={downloadImage} className="bg-blue-600 text-white hover:bg-blue-700">
                 <Download className="w-4 h-4 mr-1" /> Baixar
               </Button>
             )}
             {type === "video" && (
-              <Button onClick={() => downloadVideo(src, title)} className="bg-purple-600 text-white hover:bg-purple-700">
+              <Button onClick={downloadVideo} className="bg-purple-600 text-white hover:bg-purple-700">
                 <Download className="w-4 h-4 mr-1" /> Baixar
               </Button>
             )}
