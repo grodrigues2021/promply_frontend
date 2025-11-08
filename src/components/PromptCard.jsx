@@ -106,32 +106,55 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 
   // 📥 Download de imagem com fallback
   // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
+// 📥 Função para baixar imagem — versão final garantida (B2 + comuns)
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
-    // Detecta extensão e nome
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
     const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
-    if (isB2) {
-      console.log("🔵 B2 detectado — forçando download via URL pública");
-      const separator = src.includes("?") ? "&" : "?";
-      const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
+    setTimeout(async () => {
+      if (isB2) {
+        console.log("🔵 B2 detectado — forçando download via ?download=");
+        const separator = src.includes("?") ? "&" : "?";
+        const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
 
-      // cria link temporário e dispara o download
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = filename;
+        link.target = "_self";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        window.toast?.success("✅ Download iniciado!");
+        return;
+      }
+
+      // 🌍 Fallback: imagens normais
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
       const link = document.createElement("a");
-      link.href = downloadUrl;
+      link.href = blobUrl;
       link.download = filename;
-      link.target = "_self";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
 
-      window.toast?.success("✅ Download iniciado!");
-      return;
-    }
+      window.toast?.success("✅ Download concluído!");
+    }, 50); // ← pequeno atraso garante que o clique é aceito pelo navegador
+  } catch (error) {
+    console.error("❌ Erro ao baixar imagem:", error);
+    window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
+    window.open(src, "_blank");
+  }
+};
+
 
     // 🌍 Para imagens comuns (mesmo domínio, CORS liberado)
     console.log("🌐 Baixando imagem via blob");
