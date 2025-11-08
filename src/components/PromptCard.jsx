@@ -85,6 +85,7 @@ const detectVideoType = (url) => {
   return null;
 };
 
+
 const extractYouTubeId = (url) => {
   if (!url) return null;
   try {
@@ -105,39 +106,35 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 
   // 📥 Download de imagem com fallback
   // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
-// 📥 Função para baixar imagem — 100% funcional (B2 + CORS)
-// 📥 Função para baixar imagem - COM SUPORTE B2
-// 📥 Função para baixar imagem - versão final funcional
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
-    // Detecta extensão e nome do arquivo
+    // Detecta extensão e nome
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
-    const isB2 = src.includes("backblazeb2.com");
+    const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
-    // 🟣 Caso seja B2, força o fetch para baixar o blob
     if (isB2) {
-      console.log("🔵 B2 detectado - baixando via blob manual");
-      const response = await fetch(src, { mode: "cors" });
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      console.log("🔵 B2 detectado — forçando download via URL pública");
+      const separator = src.includes("?") ? "&" : "?";
+      const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
 
+      // cria link temporário e dispara o download
       const link = document.createElement("a");
-      link.href = blobUrl;
+      link.href = downloadUrl;
       link.download = filename;
+      link.target = "_self";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
 
-      window.toast?.success("✅ Download concluído!");
+      window.toast?.success("✅ Download iniciado!");
       return;
     }
 
-    // 🌍 Para outros domínios (ou data:image)
-    console.log("🌐 URL externa - usando fetch + blob padrão");
+    // 🌍 Para imagens comuns (mesmo domínio, CORS liberado)
+    console.log("🌐 Baixando imagem via blob");
     const response = await fetch(src);
     const blob = await response.blob();
     const blobUrl = window.URL.createObjectURL(blob);
@@ -157,31 +154,6 @@ const downloadImage = async () => {
     window.open(src, "_blank");
   }
 };
-
-
-    // Fallback para outras URLs (fetch + blob)
-    console.log('🌐 URL externa - usando fetch + blob');
-    const response = await fetch(src);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-    
-    window.toast?.success('✅ Download concluído!');
-  } catch (error) {
-    console.error('Erro ao baixar imagem:', error);
-    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
-    window.open(src, '_blank');
-  }
-};
-
-
 
 
   // 📥 Download de vídeo MP4
@@ -385,28 +357,22 @@ const PromptCard = React.memo(({
     });
   };
 // 🖼️ Pré-carrega a imagem antes de abrir o modal
-// 🖼️ Pré-carrega a imagem antes de abrir o modal (com transição suave)
 const handlePreviewClick = (url) => {
   if (!url) return;
-
   const img = new Image();
   img.src = url;
-  window.toast?.info("🕓 Carregando imagem...");
+  window.toast?.info("🕓 Carregando pré-visualização...");
 
   img.onload = () => {
     window.toast?.dismiss();
-    // Pequeno atraso para transição suave
-    setTimeout(() => {
-      openModal("image", url);
-    }, 120);
+    openModal("image", url);
   };
 
   img.onerror = () => {
-    window.toast?.error("❌ Falha ao carregar imagem. Abrindo mesmo assim...");
-    openModal("image", url);
+    window.toast?.error("❌ Falha ao carregar imagem.");
+    openModal("image", url); // ainda assim abre o modal, caso queira mostrar o erro
   };
 };
-
 
   return (
     <>
