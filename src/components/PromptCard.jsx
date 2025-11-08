@@ -104,15 +104,37 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
   // 📥 Função para baixar imagem
-  const downloadImage = () => {
+  // 📥 Função para baixar imagem direto (força download mesmo com CORS)
+const downloadImage = async () => {
+  try {
+    window.toast?.info('⏳ Preparando download...');
+    
+    // Fetch da imagem e converte para blob
+    const response = await fetch(src);
+    const blob = await response.blob();
+    
+    // Cria URL temporário do blob
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    // Cria link e força download
     const link = document.createElement('a');
-    link.href = src;
+    link.href = blobUrl;
     link.download = `${title || 'imagem'}.jpg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.toast?.success('✅ Download iniciado!');
-  };
+    
+    // Limpa URL temporário
+    window.URL.revokeObjectURL(blobUrl);
+    
+    window.toast?.success('✅ Download concluído!');
+  } catch (error) {
+    console.error('Erro ao baixar imagem:', error);
+    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
+    // Fallback: abre em nova aba se falhar
+    window.open(src, '_blank');
+  }
+};
 
   // 📥 Função para baixar vídeo
   const downloadVideo = async () => {
@@ -195,15 +217,7 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
                   <span className="hidden sm:inline">Copiar Link</span>
                 </button>
                 
-                <button
-                  onClick={openInYouTube}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
-                  title="Abrir no YouTube"
-                >
-                  <Youtube className="w-4 h-4" />
-                  <span className="hidden sm:inline">Abrir</span>
-                </button>
-              </>
+                              </>
             )}
 
             {/* ❌ Botão fechar */}
