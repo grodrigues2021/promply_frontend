@@ -109,6 +109,7 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 // 📥 Função para baixar imagem — usa o Friendly URL automaticamente
 // 🔥 Função para baixar imagem — usa fetch + blob para forçar download
 // 🔥 Função para baixar imagem — usa fetch + blob para forçar download
+// 🔥 Função para baixar imagem — usa fetch + blob para forçar download
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Baixando imagem...");
