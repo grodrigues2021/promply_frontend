@@ -106,33 +106,39 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   // 📥 Download de imagem com fallback
   // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
 // 📥 Função para baixar imagem — 100% funcional (B2 + CORS)
+// 📥 Função para baixar imagem - COM SUPORTE B2
+// 📥 Função para baixar imagem - versão final funcional
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
+    // Detecta extensão e nome do arquivo
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
-    const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
+    const isB2 = src.includes("backblazeb2.com");
 
-    // 🟢 Se for imagem do B2, forçar via URL de download
+    // 🟣 Caso seja B2, força o fetch para baixar o blob
     if (isB2) {
-      console.log("🔵 B2 detectado — forçando download via URL pública");
-      const separator = src.includes("?") ? "&" : "?";
-      const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
+      console.log("🔵 B2 detectado - baixando via blob manual");
+      const response = await fetch(src, { mode: "cors" });
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+
       const link = document.createElement("a");
-      link.href = downloadUrl;
+      link.href = blobUrl;
       link.download = filename;
-      link.target = "_self";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.toast?.success("✅ Download iniciado!");
+      window.URL.revokeObjectURL(blobUrl);
+
+      window.toast?.success("✅ Download concluído!");
       return;
     }
 
-    // 🌍 Caso comum: faz fetch e baixa via blob
-    const response = await fetch(src, { mode: "cors" });
-    if (!response.ok) throw new Error("Erro ao buscar imagem");
+    // 🌍 Para outros domínios (ou data:image)
+    console.log("🌐 URL externa - usando fetch + blob padrão");
+    const response = await fetch(src);
     const blob = await response.blob();
     const blobUrl = window.URL.createObjectURL(blob);
 
@@ -146,11 +152,35 @@ const downloadImage = async () => {
 
     window.toast?.success("✅ Download concluído!");
   } catch (error) {
-    console.error("❌ Erro ao baixar imagem:", error);
-    window.toast?.error("Erro no download. Abrindo imagem em nova aba...");
+    console.error("Erro ao baixar imagem:", error);
+    window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
     window.open(src, "_blank");
   }
 };
+
+
+    // Fallback para outras URLs (fetch + blob)
+    console.log('🌐 URL externa - usando fetch + blob');
+    const response = await fetch(src);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+    
+    window.toast?.success('✅ Download concluído!');
+  } catch (error) {
+    console.error('Erro ao baixar imagem:', error);
+    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
+    window.open(src, '_blank');
+  }
+};
+
 
 
 
