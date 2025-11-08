@@ -104,37 +104,15 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
   // 📥 Função para baixar imagem
-  // 📥 Função para baixar imagem direto (força download mesmo com CORS)
-const downloadImage = async () => {
-  try {
-    window.toast?.info('⏳ Preparando download...');
-    
-    // Fetch da imagem e converte para blob
-    const response = await fetch(src);
-    const blob = await response.blob();
-    
-    // Cria URL temporário do blob
-    const blobUrl = window.URL.createObjectURL(blob);
-    
-    // Cria link e força download
+  const downloadImage = () => {
     const link = document.createElement('a');
-    link.href = blobUrl;
+    link.href = src;
     link.download = `${title || 'imagem'}.jpg`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    // Limpa URL temporário
-    window.URL.revokeObjectURL(blobUrl);
-    
-    window.toast?.success('✅ Download concluído!');
-  } catch (error) {
-    console.error('Erro ao baixar imagem:', error);
-    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
-    // Fallback: abre em nova aba se falhar
-    window.open(src, '_blank');
-  }
-};
+    window.toast?.success('✅ Download iniciado!');
+  };
 
   // 📥 Função para baixar vídeo
   const downloadVideo = async () => {
