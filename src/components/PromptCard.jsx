@@ -100,15 +100,10 @@ const extractYouTubeId = (url) => {
 };
 
 
-// --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
-const MediaModal = ({ type, src, videoId, title, onClose }) => {
-  if (!type) return null;
+// --- 📥 Funções de Download (Movidas para fora do componente) ---
 
-  // 📥 Download de imagem com fallback
-  // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
 // 📥 Função para baixar imagem — versão final garantida (B2 + comuns)
-// 📥 Função para baixar imagem — versão compatível com build do Vite
-const downloadImage = async () => {
+const downloadImage = async (src, title) => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
@@ -160,24 +155,28 @@ const downloadImage = async () => {
   }
 };
 
+// 📥 Função para baixar vídeo MP4
+const downloadVideo = async (src, title) => {
+  try {
+    const response = await fetch(src);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = `${title || "video"}.mp4`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (error) {
+    window.open(src, "_blank");
+  }
+};
 
-  // 📥 Download de vídeo MP4
-  const downloadVideo = async () => {
-    try {
-      const response = await fetch(src);
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = `${title || "video"}.mp4`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      window.open(src, "_blank");
-    }
-  };
+
+// --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
+const MediaModal = ({ type, src, videoId, title, onClose }) => {
+  if (!type) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
@@ -190,12 +189,12 @@ const downloadImage = async () => {
 
           <div className="flex gap-2">
             {type === "image" && (
-              <Button onClick={downloadImage} className="bg-blue-600 text-white hover:bg-blue-700">
+              <Button onClick={() => downloadImage(src, title)} className="bg-blue-600 text-white hover:bg-blue-700">
                 <Download className="w-4 h-4 mr-1" /> Baixar
               </Button>
             )}
             {type === "video" && (
-              <Button onClick={downloadVideo} className="bg-purple-600 text-white hover:bg-purple-700">
+              <Button onClick={() => downloadVideo(src, title)} className="bg-purple-600 text-white hover:bg-purple-700">
                 <Download className="w-4 h-4 mr-1" /> Baixar
               </Button>
             )}
