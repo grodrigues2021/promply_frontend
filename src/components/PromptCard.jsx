@@ -102,196 +102,132 @@ const extractYouTubeId = (url) => {
 // --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
-// 📥 Função para baixar imagem - COM SUPORTE B2
-// 📥 Função para baixar imagem - versão final funcional
-const downloadImage = async () => {
-  try {
-    window.toast?.info("⏳ Preparando download...");
 
-    // Detecta extensão e nome do arquivo
-    const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
-    const filename = `${title || "imagem"}.${extension}`;
-    const isB2 = src.includes("backblazeb2.com");
-
-    // 🟣 Caso seja B2, força o fetch para baixar o blob
-    if (isB2) {
-      console.log("🔵 B2 detectado - baixando via blob manual");
-      const response = await fetch(src, { mode: "cors" });
+  const downloadImage = async () => {
+    try {
+      const response = await fetch(src);
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-
       const link = document.createElement("a");
       link.href = blobUrl;
-      link.download = filename;
+      link.download = `${title || "imagem"}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
-
-      window.toast?.success("✅ Download concluído!");
-      return;
+    } catch (err) {
+      console.error(err);
+      window.open(src, "_blank");
     }
+  };
 
-    // 🌍 Para outros domínios (ou data:image)
-    console.log("🌐 URL externa - usando fetch + blob padrão");
-    const response = await fetch(src);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
-
-    window.toast?.success("✅ Download concluído!");
-  } catch (error) {
-    console.error("Erro ao baixar imagem:", error);
-    window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
-    window.open(src, "_blank");
-  }
-};
-
-
-  // 📥 Função para baixar vídeo
   const downloadVideo = async () => {
     try {
-      window.toast?.info('⏳ Preparando download...');
       const response = await fetch(src);
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${title || 'video'}.mp4`;
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `${title || "video"}.mp4`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      window.toast?.success('✅ Download concluído!');
-    } catch (error) {
-      console.error('Erro ao baixar vídeo:', error);
-      window.toast?.error('❌ Erro ao baixar. Tentando abrir em nova aba...');
-      window.open(src, '_blank');
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error(err);
+      window.open(src, "_blank");
     }
   };
 
-  // 🔗 Função para copiar link do YouTube
-  const copyYouTubeLink = () => {
-    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    navigator.clipboard.writeText(youtubeUrl);
-    window.toast?.success('🔗 Link copiado! Cole em um downloader de YouTube.');
-  };
-
-  // 🎬 Função para abrir no YouTube
-  const openInYouTube = () => {
-    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+  const openYouTube = () => {
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, "_blank");
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      {/* Conteúdo */}
-      <div className="relative max-w-5xl w-full bg-white rounded-lg shadow-2xl overflow-hidden">
-        {/* Header com título e botões */}
-        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-gray-700">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
+      <div className="relative w-full max-w-4xl bg-black rounded-xl overflow-hidden">
+        {/* Topo */}
+        <div className="flex justify-between items-center px-4 py-3 bg-black/70">
           <h3 className="text-white font-semibold truncate flex-1 mr-4">
-            {title || 'Mídia'}
+            {title || "Mídia"}
           </h3>
-          
-          <div className="flex items-center gap-2">
-            {/* 🖼️ IMAGEM - Botão Download */}
-            {type === 'image' && (
-              <button
-                onClick={downloadImage}
-                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
-                title="Baixar imagem"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Baixar</span>
-              </button>
+
+          <div className="flex gap-2">
+            {type === "image" && (
+              <Button onClick={downloadImage} className="bg-blue-600 text-white hover:bg-blue-700">
+                <Download className="w-4 h-4" /> Baixar
+              </Button>
             )}
 
-            {/* 🎬 VÍDEO MP4 - Botão Download */}
-            {type === 'video' && (
-              <button
-                onClick={downloadVideo}
-                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
-                title="Baixar vídeo"
-              >
-                <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Baixar</span>
-              </button>
+            {type === "video" && (
+              <Button onClick={downloadVideo} className="bg-purple-600 text-white hover:bg-purple-700">
+                <Download className="w-4 h-4" /> Baixar
+              </Button>
             )}
 
-            {/* 📺 YOUTUBE - Botões Copiar Link e Abrir */}
-            {type === 'youtube' && videoId && (
-              <>
-                <button
-                  onClick={copyYouTubeLink}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
-                  title="Copiar link do vídeo"
-                >
-                  <Copy className="w-4 h-4" />
-                  <span className="hidden sm:inline">Copiar Link</span>
-                </button>
-                
-                              </>
+            {type === "youtube" && (
+              <Button onClick={openYouTube} className="bg-red-600 text-white hover:bg-red-700">
+                <Youtube className="w-4 h-4" /> Assistir no YouTube
+              </Button>
             )}
 
-            {/* ❌ Botão fechar */}
-            <button
+            <Button
               onClick={onClose}
-              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
-              title="Fechar"
+              className="bg-gray-700 text-white hover:bg-gray-600"
             >
-              <X className="w-5 h-5" />
-            </button>
+              <X className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 
-        {/* Mídia */}
-        <div className="bg-black">
-          {type === 'image' && (
+        {/* Corpo */}
+        <div className="bg-black flex items-center justify-center">
+          {type === "image" && (
             <img
               src={src}
               alt={title}
-              className="w-full h-auto max-h-[75vh] object-contain"
+              className="w-full h-auto max-h-[80vh] object-contain"
+              loading="lazy"
             />
           )}
 
-          {type === 'video' && (
+          {type === "video" && (
             <video
               src={src}
               controls
+              playsInline
+              preload="metadata"
               autoPlay
-              className="w-full h-auto max-h-[75vh]"
+              className="w-full h-auto max-h-[80vh] bg-black"
             />
           )}
 
-          {type === 'youtube' && videoId && (
-            <div className="relative w-full aspect-video">
-              <iframe
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-                title={title}
-                className="w-full h-full"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+          {type === "youtube" && videoId && (
+            <video
+              controls
+              playsInline
+              preload="metadata"
+              className="w-full h-auto max-h-[80vh] bg-black"
+              poster={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+            >
+              <source
+                src={`https://www.youtube.com/embed/${videoId}`}
+                type="video/mp4"
               />
-            </div>
+              Seu navegador não suporta vídeo.
+            </video>
           )}
         </div>
       </div>
 
-      {/* Clique fora para fechar */}
       <div
-        className="absolute inset-0 -z-10"
+        className="absolute inset-0 cursor-pointer"
         onClick={onClose}
       />
     </div>
   );
 };
+
 
 /* ========================================== */
 const getInitials = (name) => {
