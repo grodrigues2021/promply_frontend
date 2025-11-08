@@ -105,21 +105,20 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
 
   // 📥 Download de imagem com fallback
   // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
+// 📥 Função para baixar imagem — 100% funcional (B2 + CORS)
 const downloadImage = async () => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
-    // Detecta extensão e nome
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
     const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
+    // 🟢 Se for imagem do B2, forçar via URL de download
     if (isB2) {
       console.log("🔵 B2 detectado — forçando download via URL pública");
       const separator = src.includes("?") ? "&" : "?";
       const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
-
-      // cria link temporário e dispara o download
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = filename;
@@ -127,14 +126,13 @@ const downloadImage = async () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
       window.toast?.success("✅ Download iniciado!");
       return;
     }
 
-    // 🌍 Para imagens comuns (mesmo domínio, CORS liberado)
-    console.log("🌐 Baixando imagem via blob");
-    const response = await fetch(src);
+    // 🌍 Caso comum: faz fetch e baixa via blob
+    const response = await fetch(src, { mode: "cors" });
+    if (!response.ok) throw new Error("Erro ao buscar imagem");
     const blob = await response.blob();
     const blobUrl = window.URL.createObjectURL(blob);
 
@@ -148,11 +146,12 @@ const downloadImage = async () => {
 
     window.toast?.success("✅ Download concluído!");
   } catch (error) {
-    console.error("Erro ao baixar imagem:", error);
-    window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
+    console.error("❌ Erro ao baixar imagem:", error);
+    window.toast?.error("Erro no download. Abrindo imagem em nova aba...");
     window.open(src, "_blank");
   }
 };
+
 
 
   // 📥 Download de vídeo MP4
@@ -356,23 +355,28 @@ const PromptCard = React.memo(({
     });
   };
 // 🖼️ Pré-carrega a imagem antes de abrir o modal
+// 🖼️ Pré-carrega a imagem antes de abrir o modal (com transição suave)
 const handlePreviewClick = (url) => {
   if (!url) return;
+
   const img = new Image();
   img.src = url;
-  window.toast?.info("🕓 Carregando pré-visualização...");
+  window.toast?.info("🕓 Carregando imagem...");
 
   img.onload = () => {
     window.toast?.dismiss();
-    openModal("image", url);
+    // Pequeno atraso para transição suave
+    setTimeout(() => {
+      openModal("image", url);
+    }, 120);
   };
 
-  
   img.onerror = () => {
-    window.toast?.error("❌ Falha ao carregar imagem.");
-    openModal("image", url); // ainda assim abre o modal, caso queira mostrar o erro
+    window.toast?.error("❌ Falha ao carregar imagem. Abrindo mesmo assim...");
+    openModal("image", url);
   };
 };
+
 
   return (
     <>
