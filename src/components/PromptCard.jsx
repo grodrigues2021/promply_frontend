@@ -367,6 +367,7 @@ const handlePreviewClick = (url) => {
     openModal("image", url);
   };
 
+  
   img.onerror = () => {
     window.toast?.error("❌ Falha ao carregar imagem.");
     openModal("image", url); // ainda assim abre o modal, caso queira mostrar o erro
