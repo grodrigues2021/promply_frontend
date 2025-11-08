@@ -115,20 +115,14 @@ const downloadImage = async () => {
     const isB2 = src.includes("backblazeb2.com");
     
     if (isB2) {
-      console.log('🔵 B2 detectado - usando parâmetro ?download=');
-      const downloadUrl = `${src}?download=${encodeURIComponent(filename)}`;
-      
-      // Abre direto - o B2 vai mandar como attachment
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      window.toast?.success('✅ Download iniciado!');
-      return;
-    }
+  console.log('🔵 B2 detectado - forçando download direto');
+  const separator = src.includes('?') ? '&' : '?';
+  const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
+  window.open(downloadUrl, '_self'); // ⚡ força o download direto
+  window.toast?.success('✅ Download iniciado!');
+  return;
+}
+
     
     // Fallback para outras URLs (fetch + blob)
     console.log('🌐 URL externa - usando fetch + blob');
