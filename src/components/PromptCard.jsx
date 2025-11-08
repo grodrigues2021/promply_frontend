@@ -154,7 +154,11 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   // 🔥 Download de vídeo MP4
   const downloadVideo = async () => {
     try {
+      toast.info("⏳ Baixando vídeo...");
+      
       const response = await fetch(src);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -164,7 +168,11 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
+      
+      toast.success("✅ Download do vídeo concluído!");
     } catch (error) {
+      console.error("❌ Erro ao baixar vídeo:", error);
+      toast.error("Erro ao baixar. Abrindo em nova aba...");
       window.open(src, "_blank");
     }
   };
