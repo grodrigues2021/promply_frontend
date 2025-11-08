@@ -104,55 +104,51 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
 // 📥 Função para baixar imagem - versão final funcional
-const downloadImage = async () => {
+// 📥 Função para baixar imagem — versão final garantida (sem CORS)
+const downloadImage = () => {
   try {
     window.toast?.info("⏳ Preparando download...");
 
-    // Detecta extensão e nome do arquivo
     const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
     const filename = `${title || "imagem"}.${extension}`;
-    const isB2 = src.includes("backblazeb2.com");
+    const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
-    // 🟣 Caso seja B2, força o fetch para baixar o blob
+    // 🔹 Se for B2, força o download direto via URL pública (?download=)
     if (isB2) {
-      console.log("🔵 B2 detectado - baixando via blob manual");
-      const response = await fetch(src, { mode: "cors" });
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
+      console.log("🔵 B2 detectado — forçando download via ?download=");
+      const separator = src.includes("?") ? "&" : "?";
+      const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
 
+      // Cria link invisível e dispara o download
       const link = document.createElement("a");
-      link.href = blobUrl;
+      link.href = downloadUrl;
       link.download = filename;
+      link.target = "_self"; // evita abrir nova aba
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
 
-      window.toast?.success("✅ Download concluído!");
+      window.toast?.success("✅ Download iniciado!");
       return;
     }
 
-    // 🌍 Para outros domínios (ou data:image)
-    console.log("🌐 URL externa - usando fetch + blob padrão");
-    const response = await fetch(src);
-    const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
+    // 🌍 Fallback para imagens locais / mesmas origens
     const link = document.createElement("a");
-    link.href = blobUrl;
+    link.href = src;
     link.download = filename;
+    link.target = "_self";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    window.URL.revokeObjectURL(blobUrl);
 
     window.toast?.success("✅ Download concluído!");
   } catch (error) {
-    console.error("Erro ao baixar imagem:", error);
-    window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
+    console.error("❌ Erro ao baixar imagem:", error);
+    window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
     window.open(src, "_blank");
   }
 };
+
 
 
 
