@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
+import { toast } from "sonner";
 import {
   Star,
   Copy,
@@ -105,7 +106,7 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   // 🔥 Função para baixar imagem — usa fetch + blob para forçar download
   const downloadImage = async () => {
     try {
-      window.toast?.info("⏳ Baixando imagem...");
+      toast.info("⏳ Baixando imagem...");
 
       const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
       const filename = `${title || "imagem"}.${extension}`;
@@ -141,11 +142,11 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
       // 🧹 Limpa o blob URL após um pequeno delay
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
 
-      window.toast?.success("✅ Download concluído!");
+      toast.success("✅ Download concluído!");
     } catch (error) {
       console.error("❌ Erro ao baixar imagem:", error);
       console.error("URL que falhou:", src);
-      window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
+      toast.error("Erro ao baixar. Abrindo em nova aba...");
       window.open(src, "_blank");
     }
   };
@@ -175,17 +176,13 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
       await navigator.clipboard.writeText(youtubeUrl);
       
       // Toast de sucesso no topo
-      if (window.toast) {
-        window.toast.success("✅ Link do YouTube copiado!", {
-          position: "top-center",
-          duration: 2000,
-        });
-      }
+      toast.success("✅ Link do YouTube copiado!", {
+        position: "top-center",
+        duration: 2000,
+      });
     } catch (error) {
       console.error("❌ Erro ao copiar link:", error);
-      if (window.toast) {
-        window.toast.error("❌ Erro ao copiar link do YouTube");
-      }
+      toast.error("❌ Erro ao copiar link do YouTube");
     }
   };
 
@@ -376,15 +373,15 @@ const PromptCard = React.memo(({
     if (!url) return;
     const img = new Image();
     img.src = url;
-    window.toast?.info("🕐 Carregando pré-visualização...");
+    toast.info("🕐 Carregando pré-visualização...");
 
     img.onload = () => {
-      window.toast?.dismiss();
+      toast.dismiss();
       openModal("image", url);
     };
 
     img.onerror = () => {
-      window.toast?.error("❌ Falha ao carregar imagem.");
+      toast.error("❌ Falha ao carregar imagem.");
       openModal("image", url);
     };
   };
