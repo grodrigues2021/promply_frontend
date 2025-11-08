@@ -100,7 +100,179 @@ const extractYouTubeId = (url) => {
 
 // --- 🎬 MODAL SIMPLES E NATIVO (botão dentro) ---
 // --- 🎬 MODAL COMPLETO COM BOTÕES DE DOWNLOAD E COPIAR ---
+const MediaModal = ({ type, src, videoId, title, onClose }) => {
+  if (!type) return null;
 
+  // 📥 Função para baixar imagem
+  // 📥 Função para baixar imagem direto (força download mesmo com CORS)
+const downloadImage = async () => {
+  try {
+    window.toast?.info('⏳ Preparando download...');
+    
+    // Fetch da imagem e converte para blob
+    const response = await fetch(src);
+    const blob = await response.blob();
+    
+    // Cria URL temporário do blob
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    // Cria link e força download
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `${title || 'imagem'}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Limpa URL temporário
+    window.URL.revokeObjectURL(blobUrl);
+    
+    window.toast?.success('✅ Download concluído!');
+  } catch (error) {
+    console.error('Erro ao baixar imagem:', error);
+    window.toast?.error('❌ Erro ao baixar. Abrindo em nova aba...');
+    // Fallback: abre em nova aba se falhar
+    window.open(src, '_blank');
+  }
+};
+
+  // 📥 Função para baixar vídeo
+  const downloadVideo = async () => {
+    try {
+      window.toast?.info('⏳ Preparando download...');
+      const response = await fetch(src);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${title || 'video'}.mp4`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      window.toast?.success('✅ Download concluído!');
+    } catch (error) {
+      console.error('Erro ao baixar vídeo:', error);
+      window.toast?.error('❌ Erro ao baixar. Tentando abrir em nova aba...');
+      window.open(src, '_blank');
+    }
+  };
+
+  // 🔗 Função para copiar link do YouTube
+  const copyYouTubeLink = () => {
+    const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    navigator.clipboard.writeText(youtubeUrl);
+    window.toast?.success('🔗 Link copiado! Cole em um downloader de YouTube.');
+  };
+
+  // 🎬 Função para abrir no YouTube
+  const openInYouTube = () => {
+    window.open(`https://www.youtube.com/watch?v=${videoId}`, '_blank');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      {/* Conteúdo */}
+      <div className="relative max-w-5xl w-full bg-white rounded-lg shadow-2xl overflow-hidden">
+        {/* Header com título e botões */}
+        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-gray-800 to-gray-900 border-b border-gray-700">
+          <h3 className="text-white font-semibold truncate flex-1 mr-4">
+            {title || 'Mídia'}
+          </h3>
+          
+          <div className="flex items-center gap-2">
+            {/* 🖼️ IMAGEM - Botão Download */}
+            {type === 'image' && (
+              <button
+                onClick={downloadImage}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
+                title="Baixar imagem"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Baixar</span>
+              </button>
+            )}
+
+            {/* 🎬 VÍDEO MP4 - Botão Download */}
+            {type === 'video' && (
+              <button
+                onClick={downloadVideo}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
+                title="Baixar vídeo"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Baixar</span>
+              </button>
+            )}
+
+            {/* 📺 YOUTUBE - Botões Copiar Link e Abrir */}
+            {type === 'youtube' && videoId && (
+              <>
+                <button
+                  onClick={copyYouTubeLink}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium shadow-lg hover:shadow-xl"
+                  title="Copiar link do vídeo"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span className="hidden sm:inline">Copiar Link</span>
+                </button>
+                
+                              </>
+            )}
+
+            {/* ❌ Botão fechar */}
+            <button
+              onClick={onClose}
+              className="p-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition"
+              title="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Mídia */}
+        <div className="bg-black">
+          {type === 'image' && (
+            <img
+              src={src}
+              alt={title}
+              className="w-full h-auto max-h-[75vh] object-contain"
+            />
+          )}
+
+          {type === 'video' && (
+            <video
+              src={src}
+              controls
+              autoPlay
+              className="w-full h-auto max-h-[75vh]"
+            />
+          )}
+
+          {type === 'youtube' && videoId && (
+            <div className="relative w-full aspect-video">
+              <iframe
+                src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
+                title={title}
+                className="w-full h-full"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Clique fora para fechar */}
+      <div
+        className="absolute inset-0 -z-10"
+        onClick={onClose}
+      />
+    </div>
+  );
+};
 
 /* ========================================== */
 const getInitials = (name) => {
