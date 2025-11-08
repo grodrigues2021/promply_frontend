@@ -85,7 +85,6 @@ const detectVideoType = (url) => {
   return null;
 };
 
-
 const extractYouTubeId = (url) => {
   if (!url) return null;
   try {
@@ -104,55 +103,57 @@ const extractYouTubeId = (url) => {
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
-  // 📥 Função para baixar imagem — versão final garantida (B2 + comuns)
-  const downloadImage = async () => {
-    try {
-      window.toast?.info("⏳ Preparando download...");
+  // 📥 Download de imagem com fallback
+  // 📥 Função para baixar imagem — versão final (com suporte B2 e CORS)
+const downloadImage = async () => {
+  try {
+    window.toast?.info("⏳ Preparando download...");
 
-      const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
-      const filename = `${title || "imagem"}.${extension}`;
-      const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
+    // Detecta extensão e nome
+    const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
+    const filename = `${title || "imagem"}.${extension}`;
+    const isB2 = src.includes("backblazeb2.com") || src.includes(".b2.");
 
-        if (isB2) {
-          console.log("🔵 B2 detectado — forçando download via ?download=");
-          const separator = src.includes("?") ? "&" : "?";
-          const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
+    if (isB2) {
+      console.log("🔵 B2 detectado — forçando download via URL pública");
+      const separator = src.includes("?") ? "&" : "?";
+      const downloadUrl = `${src}${separator}download=${encodeURIComponent(filename)}`;
 
-          const link = document.createElement("a");
-          link.href = downloadUrl;
-          link.download = filename;
-          link.target = "_self";
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
+      // cria link temporário e dispara o download
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = filename;
+      link.target = "_self";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-          window.toast?.success("✅ Download iniciado!");
-        } else {
-          console.log("🌐 Baixando imagem via blob");
-          try {
-              const response = await fetch(src);
-              const blob = await response.blob();
-              const blobUrl = window.URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.href = blobUrl;
-              link.download = filename;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              window.URL.revokeObjectURL(blobUrl);
-              window.toast?.success("✅ Download concluído!");
-          } catch (err) {
-              console.error("Erro ao baixar imagem via blob:", err);
-              window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
-              window.open(src, "_blank");
-          }
-        }
-    } catch (error) {
-      console.error("❌ Erro geral ao baixar imagem:", error);
-      window.toast?.error("Erro ao baixar. Abrindo em nova aba...");
-      window.open(src, "_blank");
+      window.toast?.success("✅ Download iniciado!");
+      return;
     }
-  };
+
+    // 🌍 Para imagens comuns (mesmo domínio, CORS liberado)
+    console.log("🌐 Baixando imagem via blob");
+    const response = await fetch(src);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(blobUrl);
+
+    window.toast?.success("✅ Download concluído!");
+  } catch (error) {
+    console.error("Erro ao baixar imagem:", error);
+    window.toast?.error("❌ Erro ao baixar. Abrindo em nova aba...");
+    window.open(src, "_blank");
+  }
+};
+
 
   // 📥 Download de vídeo MP4
   const downloadVideo = async () => {
@@ -744,5 +745,6 @@ const handlePreviewClick = (url) => {
 PromptCard.displayName = 'PromptCard';
 
 export default PromptCard;
+
 
 export { cardVariants, mediaVariants, contentVariants };
