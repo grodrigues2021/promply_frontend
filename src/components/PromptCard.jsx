@@ -243,12 +243,7 @@ const downloadImage = async () => {
       </div>
 
       {/* FECHAR AO CLICAR FORA (seguro) */}
-<div
-  className="fixed inset-0 bg-black/70 z-40"
-  onClick={(e) => {
-    if (e.target === e.currentTarget) onClose();
-  }}
-></div>
+
 
     </div>
   );
