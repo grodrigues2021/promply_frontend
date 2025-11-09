@@ -180,88 +180,80 @@ export default function PromptManager({
   }, []);
 
   const handleVideoUpload = useCallback((e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    if (!file.type.startsWith("video/")) {
-      toast.error("Selecione um vídeo válido");
-      return;
-    }
+  if (!file.type.startsWith("video/")) {
+    toast.error("Selecione um vídeo válido");
+    return;
+  }
 
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("Vídeo muito grande! Máx. 50MB");
-      return;
-    }
+  if (file.size > 50 * 1024 * 1024) {
+    toast.error("Vídeo muito grande! Máx. 50MB");
+    return;
+  }
 
-    setUploadingImage(true);
+  setUploadingImage(true);
+  toast.info("📹 Processando vídeo...");
 
-    const videoURL = URL.createObjectURL(file);
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.muted = true;
-    video.playsInline = true;
+  // ✅ Cria blob URL para preview (não converte para base64)
+  const videoURL = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  video.preload = "metadata";
+  video.muted = true;
+  video.playsInline = true;
 
-    video.onloadeddata = () => {
-      video.currentTime = Math.min(1, video.duration / 2);
-    };
+  video.onloadeddata = () => {
+    video.currentTime = Math.min(1, video.duration / 2);
+  };
 
-    video.onseeked = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  video.onseeked = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const thumbnailBase64 = canvas.toDataURL("image/jpeg", 0.8);
+    const thumbnailBase64 = canvas.toDataURL("image/jpeg", 0.8);
 
-      canvas.toBlob(
-        (blob) => {
-          const thumbnailFile = new File([blob], "video-thumbnail.jpg", {
-            type: "image/jpeg",
-          });
+    canvas.toBlob(
+      (blob) => {
+        const thumbnailFile = new File([blob], "video-thumbnail.jpg", {
+          type: "image/jpeg",
+        });
 
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setPromptForm((prev) => ({
-              ...prev,
-              videoFile: file,
-              video_url: reader.result,
-              image_url: prev.image_url || thumbnailBase64,
-              imageFile: prev.imageFile || thumbnailFile,
-              youtube_url: "", // 🔄 limpa link de YouTube se havia
-            }));
-            setUploadingImage(false);
-            toast.success("Vídeo e thumbnail capturados!");
+        // ✅ CORREÇÃO: NÃO salvar base64, apenas o arquivo
+        setPromptForm((prev) => ({
+          ...prev,
+          videoFile: file,  // ✅ Arquivo real
+          video_url: "",    // ✅ Vazio para forçar FormData
+          image_url: prev.image_url || thumbnailBase64,  // Thumbnail
+          imageFile: prev.imageFile || thumbnailFile,
+          youtube_url: "",
+        }));
+        
+        setUploadingImage(false);
+        toast.success("✅ Vídeo selecionado!");
 
-            URL.revokeObjectURL(videoURL);
-            video.remove();
-            canvas.remove();
-          };
+        URL.revokeObjectURL(videoURL);
+        video.remove();
+        canvas.remove();
+      },
+      "image/jpeg",
+      0.8
+    );
+  };
 
-          reader.onerror = () => {
-            toast.error("Erro ao carregar vídeo");
-            setUploadingImage(false);
-            URL.revokeObjectURL(videoURL);
-            video.remove();
-            canvas.remove();
-          };
+  
+  video.onerror = () => {
+    toast.error("Erro ao processar vídeo");
+    setUploadingImage(false);
+    URL.revokeObjectURL(videoURL);
+    video.remove();
+  };
 
-          reader.readAsDataURL(file);
-        },
-        "image/jpeg",
-        0.8
-      );
-    };
-
-    video.onerror = () => {
-      toast.error("Erro ao processar vídeo");
-      setUploadingImage(false);
-      URL.revokeObjectURL(videoURL);
-      video.remove();
-    };
-
-    video.src = videoURL;
-  }, []);
+  video.src = videoURL;
+}, []);
 
   const openVideoModal = useCallback((url) => {
     setCurrentVideoUrl(url);
