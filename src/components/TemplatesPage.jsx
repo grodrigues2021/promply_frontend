@@ -337,95 +337,106 @@ const handleVideoUpload = (e) => {
 
   // ===== 💾 SALVAR TEMPLATE (REPLICADO DO PromptManager)
   const saveTemplate = async () => {
-    try {
-      const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
-      const method = editingTemplate ? "PUT" : "POST";
+  try {
+    const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
+    const method = editingTemplate ? "PUT" : "POST";
 
-      let body;
-      let headers = {};
+    // 🔐 PEGA O TOKEN DO LOCALSTORAGE
+    const token = localStorage.getItem('token');
+    
+    if (!token) {
+      toast.error("Sessão expirada. Faça login novamente.");
+      return;
+    }
 
-      // 🔹 Se houver upload de vídeo ou imagem (arquivo local), usar FormData
-      if (templateForm.videoFile || templateForm.imageFile) {
-        body = new FormData();
-        body.append("title", templateForm.title);
-        body.append("content", templateForm.content);
-        body.append("description", templateForm.description);
-        body.append(
-          "tags",
-          Array.isArray(templateForm.tags)
-            ? templateForm.tags.join(",")
-            : templateForm.tags
-        );
-        body.append(
-          "category_id",
-          templateForm.category_id === "none" ? "" : templateForm.category_id
-        );
+    let body;
+    let headers = {
+      'Authorization': `Bearer ${token}`  // ✅ ADICIONA TOKEN
+    };
 
-        // 🔹 Envia link do YouTube (se houver e não for arquivo local)
-        if (templateForm.video_url && !templateForm.videoFile) {
-          body.append("video_url", templateForm.video_url);
-        }
+    // 📹 Se houver upload de vídeo ou imagem (arquivo local), usar FormData
+    if (templateForm.videoFile || templateForm.imageFile) {
+      body = new FormData();
+      body.append("title", templateForm.title);
+      body.append("content", templateForm.content);
+      body.append("description", templateForm.description);
+      body.append(
+        "tags",
+        Array.isArray(templateForm.tags)
+          ? templateForm.tags.join(",")
+          : templateForm.tags
+      );
+      body.append(
+        "category_id",
+        templateForm.category_id === "none" ? "" : templateForm.category_id
+      );
 
-        // 🔹 Envia imagem ou vídeo local (se houver)
-        if (templateForm.imageFile) body.append("file", templateForm.imageFile);
-        if (templateForm.videoFile) body.append("video", templateForm.videoFile);
-
-        console.log("📤 ENVIANDO FormData com arquivos");
-        console.log("🔍 DEBUG - FormData sendo enviado:");
-        console.log("📹 videoFile:", templateForm.videoFile);
-        console.log("🖼️ imageFile:", templateForm.imageFile);
-        console.log("🖼️ image_url (preview):", templateForm.image_url?.substring(0, 50) + "...");
-        for (let pair of body.entries()) {
-          console.log(pair[0] + ':', pair[1]);
-          }
-      } else {
-        // 🔹 Caso contrário, envia como JSON normal
-        headers["Content-Type"] = "application/json";
-        body = JSON.stringify({
-          title: templateForm.title,
-          content: templateForm.content,
-          description: templateForm.description,
-          tags:
-            typeof templateForm.tags === "string"
-              ? templateForm.tags
-                  .split(",")
-                  .map((t) => t.trim())
-                  .filter(Boolean)
-              : templateForm.tags,
-          category_id:
-            templateForm.category_id === "none"
-              ? null
-              : templateForm.category_id,
-          image_url: templateForm.image_url || "",
-          video_url: templateForm.video_url || "",
-        });
-
-        console.log("📤 ENVIANDO JSON");
+      // 📹 Envia link do YouTube (se houver e não for arquivo local)
+      if (templateForm.video_url && !templateForm.videoFile) {
+        body.append("video_url", templateForm.video_url);
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}${url}`, {
-        method,
-        headers,
-        credentials: "include",
-        body,
+      // 📹 Envia imagem ou vídeo local (se houver)
+      if (templateForm.imageFile) body.append("file", templateForm.imageFile);
+      if (templateForm.videoFile) body.append("video", templateForm.videoFile);
+
+      console.log("📤 ENVIANDO FormData com arquivos");
+      console.log("🔍 DEBUG - FormData sendo enviado:");
+      console.log("📹 videoFile:", templateForm.videoFile);
+      console.log("🖼️ imageFile:", templateForm.imageFile);
+      console.log("🖼️ image_url (preview):", templateForm.image_url?.substring(0, 50) + "...");
+      for (let pair of body.entries()) {
+        console.log(pair[0] + ':', pair[1]);
+      }
+      
+      // ✅ NÃO ADICIONA Content-Type - deixa o browser definir o boundary
+      
+    } else {
+      // 📹 Caso contrário, envia como JSON normal
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify({
+        title: templateForm.title,
+        content: templateForm.content,
+        description: templateForm.description,
+        tags:
+          typeof templateForm.tags === "string"
+            ? templateForm.tags
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean)
+            : templateForm.tags,
+        category_id:
+          templateForm.category_id === "none"
+            ? null
+            : templateForm.category_id,
+        image_url: templateForm.image_url || "",
+        video_url: templateForm.video_url || "",
       });
 
-      const data = await response.json();
-      console.log("📥 RESPOSTA:", data);
-
-      if (data.success) {
-        toast.success(editingTemplate ? "Template atualizado!" : "Template criado!");
-        setIsTemplateDialogOpen(false);
-        setEditingTemplate(null);
-        loadTemplates();
-      } else {
-        toast.error(data.error || "Erro ao salvar template");
-      }
-    } catch (err) {
-      console.error("❌ ERRO:", err);
-      toast.error("Erro ao salvar template");
+      console.log("📤 ENVIANDO JSON");
     }
-  };
+
+    // ✅ USA API (AXIOS) EM VEZ DE FETCH
+    const response = method === "PUT" 
+      ? await api.put(url, body, { headers })
+      : await api.post(url, body, { headers });
+
+    const data = response.data;
+    console.log("📥 RESPOSTA:", data);
+
+    if (data.success) {
+      toast.success(editingTemplate ? "Template atualizado!" : "Template criado!");
+      setIsTemplateDialogOpen(false);
+      setEditingTemplate(null);
+      loadTemplates();
+    } else {
+      toast.error(data.error || "Erro ao salvar template");
+    }
+  } catch (err) {
+    console.error("❌ ERRO:", err);
+    toast.error("Erro ao salvar template");
+  }
+};
 
   const deleteTemplate = async (id) => {
     if (!confirm("Tem certeza que deseja excluir este template?")) return;
