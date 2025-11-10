@@ -229,7 +229,7 @@ export default function PromptManager({
           }));
           
           setUploadingImage(false);
-          toast.success("✅ Vídeo selecionado!");
+          //toast.success("✅ Vídeo selecionado!");
 
           URL.revokeObjectURL(videoURL);
           video.remove();
