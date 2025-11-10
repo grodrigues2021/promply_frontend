@@ -48,13 +48,18 @@ export default function PromptGrid({
     );
   }
 
-  // === GRID SIMPLES SEM FRAMER MOTION ===
-  return (
-    <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
-      {prompts.map((prompt) => (
+// === GRID COM KEYS ESTÁVEIS PARA EVITAR PISCADA ===
+return (
+  <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
+    {prompts.map((prompt) => {
+      // Usa _tempId como key se existir, senão usa o ID normal
+      // Isso mantém o mesmo elemento do DOM durante a transição temp -> real
+      const stableKey = prompt._tempId || prompt.id;
+      
+      return (
         <div
-          key={prompt.id}
-          className="animate-in fade-in duration-200"
+          key={stableKey}
+          className={prompt._skipAnimation ? "" : "animate-in fade-in duration-200"}
         >
           <CardComponent
             prompt={prompt}
@@ -67,7 +72,7 @@ export default function PromptGrid({
             onOpenVideo={onOpenVideo}
           />
         </div>
-      ))}
-    </div>
-  );
-}
+      );
+    })}
+  </div>
+);}

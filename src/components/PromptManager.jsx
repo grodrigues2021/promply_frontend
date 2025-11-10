@@ -508,6 +508,8 @@ export default function PromptManager({
         
         const optimisticPrompt = {
           id: tempId,
+          _tempId: tempId, // 🎯 Mantém o ID temp como key estável
+          _skipAnimation: true, // 🎯 Flag para não animar este item
           title: promptForm.title,
           content: promptForm.content,
           description: promptForm.description,
@@ -588,9 +590,16 @@ export default function PromptManager({
             
             // ✅ Substitui temporário pelo real
             if (serverPrompt) {
-              setPrompts(prev => 
-                prev.map(p => p.id === tempId ? serverPrompt : p)
-              );
+            setPrompts(prev => 
+              prev.map(p => p.id === tempId 
+                ? { 
+                    ...serverPrompt, 
+                    _tempId: tempId, // Mantém o ID temp como key estável
+                    _skipAnimation: true 
+                  }
+                : p
+              )
+            );
             } else {
               setTimeout(() => loadPrompts(), 800);
             }
