@@ -4,7 +4,7 @@ import PromptCard from "./PromptCard";
 import { Loader2, FolderOpen } from "lucide-react";
 
 /**
- * PromptGrid
+ * PromptGrid - Otimizado para Optimistic Updates
  * Componente genérico para renderizar uma grade de cards.
  *
  * Pode receber qualquer componente de card via prop `CardComponent`,
@@ -22,7 +22,7 @@ export default function PromptGrid({
   onShare,
   onOpenImage,
   onOpenVideo,
-  CardComponent = PromptCard, // 👈 permite usar outro componente de card
+  CardComponent = PromptCard,
 }) {
   // === Estado de carregamento ===
   if (isLoading) {
@@ -53,24 +53,22 @@ export default function PromptGrid({
     );
   }
 
-  // === GRID ANIMADO ===
+  // === GRID OTIMIZADO ===
   return (
-    <motion.div
-      layout
-      transition={{ duration: 0.4, ease: "easeInOut" }}
-      className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr"
-    >
-      <AnimatePresence>
+    <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
+      <AnimatePresence mode="popLayout">
         {prompts.map((prompt) => (
           <motion.div
             key={prompt.id}
-            layout
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
+            layout="position"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ 
+              duration: 0.2,
+              ease: "easeOut"
+            }}
           >
-            {/* 👇 Usa o componente de card definido (PromptCard ou TemplateCard) */}
             <CardComponent
               prompt={prompt}
               onEdit={onEdit}
@@ -84,6 +82,6 @@ export default function PromptGrid({
           </motion.div>
         ))}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
