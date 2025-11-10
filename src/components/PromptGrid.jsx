@@ -6,10 +6,6 @@ import { Loader2, FolderOpen } from "lucide-react";
 /**
  * PromptGrid - Otimizado para Optimistic Updates
  * Componente genérico para renderizar uma grade de cards.
- *
- * Pode receber qualquer componente de card via prop `CardComponent`,
- * permitindo reuso tanto para PromptCard (página principal)
- * quanto TemplateCard (página de templates).
  */
 export default function PromptGrid({
   prompts = [],
@@ -53,34 +49,45 @@ export default function PromptGrid({
     );
   }
 
-  // === GRID OTIMIZADO ===
+  // === GRID OTIMIZADO SEM PISCAR ===
   return (
     <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
-      <AnimatePresence mode="popLayout">
-        {prompts.map((prompt) => (
-          <motion.div
-            key={prompt.id}
-            layout="position"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ 
-              duration: 0.2,
-              ease: "easeOut"
-            }}
-          >
-            <CardComponent
-              prompt={prompt}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onCopy={onCopy}
-              onToggleFavorite={onToggleFavorite}
-              onShare={onShare}
-              onOpenImage={onOpenImage}
-              onOpenVideo={onOpenVideo}
-            />
-          </motion.div>
-        ))}
+      <AnimatePresence mode="sync" initial={false}>
+        {prompts.map((prompt, index) => {
+          // ✅ Usa título+índice como chave estável para evitar piscar
+          // Quando o ID temporário vira real, o título permanece o mesmo
+          const stableKey = prompt._isOptimistic 
+            ? `temp-${prompt.title}-${index}`
+            : `prompt-${prompt.id}`;
+          
+          // ✅ Desabilita animação inicial para prompts otimistas
+          const shouldAnimate = !prompt._isOptimistic;
+
+          return (
+            <motion.div
+              key={stableKey}
+              layout="position"
+              initial={shouldAnimate ? { opacity: 0, y: 20 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ 
+                duration: 0.15,
+                ease: "easeOut"
+              }}
+            >
+              <CardComponent
+                prompt={prompt}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onCopy={onCopy}
+                onToggleFavorite={onToggleFavorite}
+                onShare={onShare}
+                onOpenImage={onOpenImage}
+                onOpenVideo={onOpenVideo}
+              />
+            </motion.div>
+          );
+        })}
       </AnimatePresence>
     </div>
   );
