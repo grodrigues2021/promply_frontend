@@ -143,11 +143,10 @@ export default function PromptManager({
 
       console.log("🧾 FormData antes do envio:", [...formData.entries()]);
       console.log(
-        "🔐 Header Authorization:",
+        "🔒 Header Authorization:",
         api.defaults.headers?.Authorization
       );
 
-      // ❌ Não defina Content-Type manualmente — Axios define o boundary correto
       const res = await api.post("/upload", formData);
       console.log("📩 Resposta do backend:", res.data);
 
@@ -169,7 +168,6 @@ export default function PromptManager({
       toast.error("Falha ao enviar imagem.");
     } finally {
       setUploadingImage(false);
-      // permite reenviar o mesmo arquivo depois
       if (e.target) e.target.value = "";
     }
   };
@@ -180,80 +178,77 @@ export default function PromptManager({
   }, []);
 
   const handleVideoUpload = useCallback((e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  if (!file.type.startsWith("video/")) {
-    toast.error("Selecione um vídeo válido");
-    return;
-  }
+    if (!file.type.startsWith("video/")) {
+      toast.error("Selecione um vídeo válido");
+      return;
+    }
 
-  if (file.size > 50 * 1024 * 1024) {
-    toast.error("Vídeo muito grande! Máx. 50MB");
-    return;
-  }
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Vídeo muito grande! Máx. 50MB");
+      return;
+    }
 
-  setUploadingImage(true);
-  toast.info("📹 Processando vídeo...");
+    setUploadingImage(true);
+    toast.info("📹 Processando vídeo...");
 
-  // ✅ Cria blob URL para preview (não converte para base64)
-  const videoURL = URL.createObjectURL(file);
-  const video = document.createElement("video");
-  video.preload = "metadata";
-  video.muted = true;
-  video.playsInline = true;
+    const videoURL = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
 
-  video.onloadeddata = () => {
-    video.currentTime = Math.min(1, video.duration / 2);
-  };
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(1, video.duration / 2);
+    };
 
-  video.onseeked = () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    video.onseeked = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const thumbnailBase64 = canvas.toDataURL("image/jpeg", 0.8);
+      const thumbnailBase64 = canvas.toDataURL("image/jpeg", 0.8);
 
-    canvas.toBlob(
-      (blob) => {
-        const thumbnailFile = new File([blob], "video-thumbnail.jpg", {
-          type: "image/jpeg",
-        });
+      canvas.toBlob(
+        (blob) => {
+          const thumbnailFile = new File([blob], "video-thumbnail.jpg", {
+            type: "image/jpeg",
+          });
 
-        // ✅ CORREÇÃO: NÃO salvar base64, apenas o arquivo
-        setPromptForm((prev) => ({
-          ...prev,
-          videoFile: file,  // ✅ Arquivo real
-          video_url: "",    // ✅ Vazio para forçar FormData
-          image_url: prev.image_url || thumbnailBase64,  // Thumbnail
-          imageFile: prev.imageFile || thumbnailFile,
-          youtube_url: "",
-        }));
-        
-        setUploadingImage(false);
-        toast.success("✅ Vídeo selecionado!");
+          setPromptForm((prev) => ({
+            ...prev,
+            videoFile: file,
+            video_url: "",
+            image_url: prev.image_url || thumbnailBase64,
+            imageFile: prev.imageFile || thumbnailFile,
+            youtube_url: "",
+          }));
+          
+          setUploadingImage(false);
+          toast.success("✅ Vídeo selecionado!");
 
-        URL.revokeObjectURL(videoURL);
-        video.remove();
-        canvas.remove();
-      },
-      "image/jpeg",
-      0.8
-    );
-  };
+          URL.revokeObjectURL(videoURL);
+          video.remove();
+          canvas.remove();
+        },
+        "image/jpeg",
+        0.8
+      );
+    };
 
-  
-  video.onerror = () => {
-    toast.error("Erro ao processar vídeo");
-    setUploadingImage(false);
-    URL.revokeObjectURL(videoURL);
-    video.remove();
-  };
+    video.onerror = () => {
+      toast.error("Erro ao processar vídeo");
+      setUploadingImage(false);
+      URL.revokeObjectURL(videoURL);
+      video.remove();
+    };
 
-  video.src = videoURL;
-}, []);
+    video.src = videoURL;
+  }, []);
 
   const openVideoModal = useCallback((url) => {
     setCurrentVideoUrl(url);
@@ -330,8 +325,8 @@ export default function PromptManager({
         image_url: prompt.image_url || "",
         video_url: prompt.video_url || "",
         youtube_url: prompt.youtube_url || "",
-        imageFile: null, // ✅ garante estado limpo
-        videoFile: null, // ✅ idem
+        imageFile: null,
+        videoFile: null,
       });
 
       setEditingPrompt(prompt);
@@ -413,7 +408,7 @@ export default function PromptManager({
       setDbConnected(false);
       toast.error("Erro ao conectar com o banco de dados");
     }
-  }, [loadPrompts, loadCategories, loadStats]);
+  }, []);
 
   const handleLogout = useCallback(async () => {
     try {
@@ -430,16 +425,13 @@ export default function PromptManager({
     toast.success("✅ Prompt adicionado com sucesso!");
   }, []);
 
-  // ✅✅✅ NOVA FUNÇÃO: Abre chat de forma inteligente ✅✅✅
   const openChatIntelligently = useCallback(() => {
     if (isChatDetached) {
-      // Chat destacado - apenas dá foco
       const channel = new BroadcastChannel("promply-chat-status");
       channel.postMessage({ type: "focus-chat" });
       channel.close();
       toast.success("💬 Chat destacado atualizado!");
     } else {
-      // Chat não destacado - abre modal
       setShowChatModal(true);
     }
   }, [isChatDetached]);
@@ -450,7 +442,6 @@ export default function PromptManager({
     loadStats();
   }, [refreshKey]);
 
-  // 🔗 Monitora se o chat está destacado em outra janela
   useEffect(() => {
     const channel = new BroadcastChannel("promply-chat-status");
 
@@ -472,6 +463,7 @@ export default function PromptManager({
     channel.postMessage({ type: "ping" });
     return () => channel.close();
   }, []);
+
   const filteredPrompts = Array.isArray(prompts)
     ? prompts.filter((prompt) => {
         const matchesSearch =
@@ -490,15 +482,16 @@ export default function PromptManager({
       })
     : [];
 
+  // ========================================
+  // 🆕 SAVE PROMPT - COM OPTIMISTIC UPDATES
+  // ========================================
   const savePrompt = async () => {
     try {
-      // 🧠 Proteção: não salvar enquanto imagem está subindo
       if (uploadingImage) {
         toast.warning("Aguarde o envio da imagem antes de salvar.");
         return;
       }
 
-      // 🧠 Proteção: não permitir salvar com imagem local ainda não enviada
       if (promptForm.imageFile && !promptForm.image_url) {
         toast.warning("Envie a imagem antes de salvar o prompt.");
         return;
@@ -506,122 +499,226 @@ export default function PromptManager({
 
       const isEditing = !!editingPrompt;
       const endpoint = isEditing ? `/prompts/${editingPrompt.id}` : `/prompts`;
-      const method = isEditing ? "PUT" : "POST";
 
-      console.log("💾 Salvando prompt:", {
-        editando: isEditing,
-        category_id: promptForm.category_id,
-        method,
-        image_url: promptForm.image_url,
-      });
-
-      let body;
-      let headers = {};
-
-      // ✅ Usa JSON normal, exceto se realmente houver um arquivo físico não enviado
-      const shouldUseFormData =
-        (promptForm.videoFile && !promptForm.video_url) ||
-        (promptForm.imageFile && !promptForm.image_url);
-
-      if (shouldUseFormData) {
-        body = new FormData();
-        body.append("title", promptForm.title);
-        body.append("content", promptForm.content);
-        body.append("description", promptForm.description);
-        body.append(
-          "tags",
-          Array.isArray(promptForm.tags)
-            ? promptForm.tags.join(",")
-            : promptForm.tags
-        );
-
-        const categoryValue =
-          !promptForm.category_id || promptForm.category_id === "none"
-            ? ""
-            : String(promptForm.category_id);
-        body.append("category_id", categoryValue);
-        body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
-
-        // ✅ URLs existentes (image_url, youtube_url)
-        if (promptForm.image_url)
-          body.append("image_url", promptForm.image_url);
-        if (promptForm.youtube_url)
-          body.append("youtube_url", promptForm.youtube_url);
-
-        // ✅ Adiciona arquivos de mídia se existirem fisicamente
-        if (promptForm.videoFile) body.append("video", promptForm.videoFile);
-        if (promptForm.imageFile) body.append("file", promptForm.imageFile);
-
-        // 🚫 NÃO define Content-Type — Axios cuida do boundary automaticamente
-      } else {
-        headers["Content-Type"] = "application/json";
-        body = JSON.stringify({
+      // ========================================
+      // CRIAR PROMPT - OPTIMISTIC UPDATE
+      // ========================================
+      if (!isEditing) {
+        const tempId = `temp-${Date.now()}`;
+        
+        const optimisticPrompt = {
+          id: tempId,
           title: promptForm.title,
           content: promptForm.content,
           description: promptForm.description,
-          tags:
-            typeof promptForm.tags === "string"
-              ? promptForm.tags
-                  .split(",")
-                  .map((t) => t.trim())
-                  .filter(Boolean)
-              : promptForm.tags,
-          category_id:
-            !promptForm.category_id || promptForm.category_id === "none"
-              ? null
-              : Number(promptForm.category_id),
+          tags: promptForm.tags,
+          category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
+          category: promptForm.category_id !== "none" 
+            ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
+            : null,
           is_favorite: promptForm.is_favorite,
           image_url: promptForm.image_url || "",
           video_url: promptForm.video_url || "",
           youtube_url: promptForm.youtube_url || "",
-        });
-      }
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          _isOptimistic: true,
+        };
 
-      console.log("🚀 Enviando requisição:", {
-        endpoint,
-        method,
-        tipo: shouldUseFormData ? "FormData" : "JSON",
-      });
-
-      const response = isEditing
-        ? await api.put(endpoint, body, { headers })
-        : await api.post(endpoint, body, { headers });
-
-      const data = response.data;
-      console.log("📥 Resposta do servidor:", data);
-
-      if (data.success) {
-        const updatedPrompt = data.data || data.prompt || data.updated || null;
-
-        if (updatedPrompt) {
-          // ✅ Atualiza a lista local
-          setPrompts((prev) => {
-            const exists = prev.some((p) => p.id === updatedPrompt.id);
-            return exists
-              ? prev.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p))
-              : [updatedPrompt, ...prev];
-          });
-        } else {
-          console.warn("⚠️ Nenhum objeto retornado, recarregando lista...");
-        }
-
-        // ⏳ Delay curto para o B2 processar a URL pública
-        setTimeout(() => {
-          loadPrompts();
-        }, 800);
-
-        await loadStats();
-        resetPromptForm();
+        // ✅ Adiciona IMEDIATAMENTE na UI
+        setPrompts([optimisticPrompt, ...prompts]);
+        
+        // ✅ Fecha dialog e limpa formulário ANTES da requisição
         setIsPromptDialogOpen(false);
-        toast.success(
-          isEditing ? "🖊️ Prompt atualizado!" : "✅ Prompt criado com sucesso!"
+        resetPromptForm();
+        
+        // ✅ Feedback instantâneo
+        toast.success('✅ Prompt criado!');
+
+        try {
+          let body;
+          let headers = {};
+          
+          const shouldUseFormData =
+            (promptForm.videoFile && !promptForm.video_url) ||
+            (promptForm.imageFile && !promptForm.image_url);
+
+          if (shouldUseFormData) {
+            body = new FormData();
+            body.append("title", promptForm.title);
+            body.append("content", promptForm.content);
+            body.append("description", promptForm.description);
+            body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
+            
+            const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
+              ? ""
+              : String(promptForm.category_id);
+            body.append("category_id", categoryValue);
+            body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+            
+            if (promptForm.image_url) body.append("image_url", promptForm.image_url);
+            if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+            if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+            if (promptForm.imageFile) body.append("file", promptForm.imageFile);
+          } else {
+            headers["Content-Type"] = "application/json";
+            body = JSON.stringify({
+              title: promptForm.title,
+              content: promptForm.content,
+              description: promptForm.description,
+              tags: typeof promptForm.tags === "string"
+                ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+                : promptForm.tags,
+              category_id: !promptForm.category_id || promptForm.category_id === "none"
+                ? null
+                : Number(promptForm.category_id),
+              is_favorite: promptForm.is_favorite,
+              image_url: promptForm.image_url || "",
+              video_url: promptForm.video_url || "",
+              youtube_url: promptForm.youtube_url || "",
+            });
+          }
+
+          // 🔄 Requisição em background
+          const response = await api.post(endpoint, body, { headers });
+          const data = response.data;
+
+          if (data.success) {
+            const serverPrompt = data.data || data.prompt || data.updated || null;
+            
+            // ✅ Substitui temporário pelo real
+            if (serverPrompt) {
+              setPrompts(prev => 
+                prev.map(p => p.id === tempId ? serverPrompt : p)
+              );
+            } else {
+              setTimeout(() => loadPrompts(), 800);
+            }
+            
+            await loadStats();
+          } else {
+            // ❌ Remove temporário se falhar
+            setPrompts(prev => prev.filter(p => p.id !== tempId));
+            toast.error(data.error || "Erro ao criar prompt");
+          }
+        } catch (err) {
+          console.error("❌ ERRO AO CRIAR PROMPT:", err);
+          // ❌ Remove temporário se erro
+          setPrompts(prev => prev.filter(p => p.id !== tempId));
+          toast.error("Erro ao criar prompt. Verifique o console.");
+        }
+      } 
+      // ========================================
+      // EDITAR PROMPT - OPTIMISTIC UPDATE
+      // ========================================
+      else {
+        const previousPrompts = [...prompts];
+        
+        const updatedPrompt = {
+          ...editingPrompt,
+          title: promptForm.title,
+          content: promptForm.content,
+          description: promptForm.description,
+          tags: promptForm.tags,
+          category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
+          category: promptForm.category_id !== "none" 
+            ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
+            : null,
+          is_favorite: promptForm.is_favorite,
+          image_url: promptForm.image_url || "",
+          video_url: promptForm.video_url || "",
+          youtube_url: promptForm.youtube_url || "",
+          updated_at: new Date().toISOString(),
+        };
+
+        // ✅ Atualiza UI IMEDIATAMENTE
+        setPrompts(prev => 
+          prev.map(p => p.id === editingPrompt.id ? updatedPrompt : p)
         );
-      } else {
-        toast.error(data.error || "Erro ao salvar prompt");
+        
+        // ✅ Fecha dialog e limpa formulário ANTES da requisição
+        setIsPromptDialogOpen(false);
+        resetPromptForm();
+        
+        // ✅ Feedback instantâneo
+        toast.success('✏️ Prompt atualizado!');
+
+        try {
+          let body;
+          let headers = {};
+          
+          const shouldUseFormData =
+            (promptForm.videoFile && !promptForm.video_url) ||
+            (promptForm.imageFile && !promptForm.image_url);
+
+          if (shouldUseFormData) {
+            body = new FormData();
+            body.append("title", promptForm.title);
+            body.append("content", promptForm.content);
+            body.append("description", promptForm.description);
+            body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
+            
+            const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
+              ? ""
+              : String(promptForm.category_id);
+            body.append("category_id", categoryValue);
+            body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+            
+            if (promptForm.image_url) body.append("image_url", promptForm.image_url);
+            if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+            if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+            if (promptForm.imageFile) body.append("file", promptForm.imageFile);
+          } else {
+            headers["Content-Type"] = "application/json";
+            body = JSON.stringify({
+              title: promptForm.title,
+              content: promptForm.content,
+              description: promptForm.description,
+              tags: typeof promptForm.tags === "string"
+                ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+                : promptForm.tags,
+              category_id: !promptForm.category_id || promptForm.category_id === "none"
+                ? null
+                : Number(promptForm.category_id),
+              is_favorite: promptForm.is_favorite,
+              image_url: promptForm.image_url || "",
+              video_url: promptForm.video_url || "",
+              youtube_url: promptForm.youtube_url || "",
+            });
+          }
+
+          // 🔄 Requisição em background
+          const response = await api.put(endpoint, body, { headers });
+          const data = response.data;
+
+          if (data.success) {
+            const serverPrompt = data.data || data.prompt || data.updated || null;
+            
+            // ✅ Atualiza com dados do servidor
+            if (serverPrompt) {
+              setPrompts(prev => 
+                prev.map(p => p.id === serverPrompt.id ? serverPrompt : p)
+              );
+            } else {
+              setTimeout(() => loadPrompts(), 800);
+            }
+            
+            await loadStats();
+          } else {
+            // ❌ Reverte se falhar
+            setPrompts(previousPrompts);
+            toast.error(data.error || "Erro ao atualizar prompt");
+          }
+        } catch (err) {
+          console.error("❌ ERRO AO EDITAR PROMPT:", err);
+          // ❌ Reverte se erro
+          setPrompts(previousPrompts);
+          toast.error("Erro ao atualizar prompt. Verifique o console.");
+        }
       }
     } catch (err) {
-      console.error("❌ ERRO AO SALVAR PROMPT:", err);
-      toast.error("Erro ao salvar prompt. Verifique o console.");
+      console.error("❌ ERRO GERAL:", err);
+      toast.error("Erro ao salvar prompt");
     }
   };
 
@@ -642,16 +739,38 @@ export default function PromptManager({
     }
   };
 
+  // ========================================
+  // 🆕 DELETE PROMPT - COM OPTIMISTIC UPDATES
+  // ========================================
   const deletePrompt = async (id) => {
     if (!confirm("Tem certeza que deseja deletar este prompt?")) return;
+    
+    // 1. Salva estado anterior (para rollback)
+    const previousPrompts = [...prompts];
+    
+    // 2. Remove da UI IMEDIATAMENTE
+    setPrompts(prompts.filter(p => p.id !== id));
+    
+    // 3. Feedback instantâneo
+    toast.success('🗑️ Prompt deletado!');
+    
     try {
+      // 4. Faz requisição em background
       const response = await api.delete(`/prompts/${id}`);
       const data = response.data;
+      
       if (data.success) {
-        loadPrompts();
+        // Atualiza estatísticas
         loadStats();
-      } else toast.error(data.error || "Erro ao deletar prompt");
-    } catch {
+      } else {
+        // 5. Se falhar, REVERTE
+        setPrompts(previousPrompts);
+        toast.error(data.error || "Erro ao deletar prompt");
+      }
+    } catch (error) {
+      // 6. Se erro, REVERTE
+      console.error('❌ Erro ao deletar:', error);
+      setPrompts(previousPrompts);
       toast.error("Erro ao deletar prompt");
     }
   };
@@ -671,6 +790,9 @@ export default function PromptManager({
     }
   };
 
+  // ========================================
+  // ✅ TOGGLE FAVORITE - JÁ ESTAVA PERFEITO!
+  // ========================================
   const toggleFavorite = async (prompt) => {
     setPrompts((prev) =>
       prev.map((p) =>
@@ -1046,15 +1168,15 @@ export default function PromptManager({
                 onCopy={copyToClipboard}
                 onToggleFavorite={toggleFavorite}
                 onShare={(prompt) => {
-                console.log('🎯 onShare chamado com prompt:', prompt);
-                console.log('📦 Prompt ID:', prompt.id);
-                console.log('📝 Prompt Title:', prompt.title);
-  
-  setPromptToShare(prompt);
-  setShowShareModal(true);
-  
-  console.log('✅ Modal deveria abrir agora');
-}}
+                  console.log('🎯 onShare chamado com prompt:', prompt);
+                  console.log('📦 Prompt ID:', prompt.id);
+                  console.log('📝 Prompt Title:', prompt.title);
+                  
+                  setPromptToShare(prompt);
+                  setShowShareModal(true);
+                  
+                  console.log('✅ Modal deveria abrir agora');
+                }}
                 onOpenImage={openImageModal}
                 onOpenVideo={openVideoModal}
               />
@@ -1062,6 +1184,7 @@ export default function PromptManager({
           </div>
         </div>
       </div>
+
       <Dialog
         open={isCategoryDialogOpen}
         onOpenChange={setIsCategoryDialogOpen}
@@ -1133,6 +1256,7 @@ export default function PromptManager({
           </div>
         </DialogContent>
       </Dialog>
+
       <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700">
           <DialogHeader>
@@ -1249,7 +1373,7 @@ export default function PromptManager({
                     id="prompt-image-upload"
                     type="file"
                     accept="image/*"
-                    onChange={handleImageUpload} // ✅ agora o handler recebe o evento
+                    onChange={handleImageUpload}
                     disabled={uploadingImage}
                     className="hidden"
                   />
@@ -1259,7 +1383,7 @@ export default function PromptManager({
                 </p>
               </div>
             </div>
-            // ... código anterior ...
+
             <div className="space-y-3">
               <Label>Vídeo do Prompt (opcional)</Label>
 
@@ -1369,14 +1493,14 @@ export default function PromptManager({
                   }
                 }}
               />
-            </div>{" "}
-            {/* ✅ FECHAR DIV DA SEÇÃO DE VÍDEO */}
+            </div>
+
             <div>
               <Label>Categoria</Label>
               <Select
                 onValueChange={(value) => {
-                  console.log("📝 Categoria selecionada:", value);
-                  console.log("📝 Estado anterior:", promptForm.category_id);
+                  console.log("📂 Categoria selecionada:", value);
+                  console.log("📂 Estado anterior:", promptForm.category_id);
                   setPromptForm((prev) => ({
                     ...prev,
                     category_id: value === "none" ? "none" : value,
@@ -1416,6 +1540,7 @@ export default function PromptManager({
                   : promptForm.category_id}
               </p>
             </div>
+
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -1431,6 +1556,7 @@ export default function PromptManager({
               />
               <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
             </div>
+
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -1442,22 +1568,24 @@ export default function PromptManager({
                 {editingPrompt ? "Salvar" : "Criar"}
               </Button>
             </div>
-          </div>{" "}
-          {/* ✅ FECHAR DIV PRINCIPAL DO DIALOG CONTENT */}
+          </div>
         </DialogContent>
-      </Dialog>{" "}
-      {/* ✅ FECHAR DIALOG DO PROMPT */}
+      </Dialog>
+
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-        {/* ... conteúdo do image modal ... */}
+        {/* Conteúdo do image modal */}
       </Dialog>
+
       <Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
-        {/* ... conteúdo do video modal ... */}
+        {/* Conteúdo do video modal */}
       </Dialog>
+
       <ChatModal
         isOpen={showChatModal}
         onClose={() => setShowChatModal(false)}
         onPromptSaved={handlePromptSaved}
       />
+
       {showShareModal && promptToShare && (
         <SharePromptModal
           prompt={promptToShare}
@@ -1475,4 +1603,4 @@ export default function PromptManager({
       )}
     </>
   );
-} // ✅ FECHAR FUNÇÃO PRINCIPAL
+}
