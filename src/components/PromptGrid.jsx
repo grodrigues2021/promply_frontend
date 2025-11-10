@@ -1,10 +1,9 @@
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import PromptCard from "./PromptCard";
 import { Loader2, FolderOpen } from "lucide-react";
+import PromptCard from "./PromptCard";
 
 /**
- * PromptGrid - Otimizado para Optimistic Updates
+ * PromptGrid - Sem animações estranhas para Optimistic Updates
  * Componente genérico para renderizar uma grade de cards.
  */
 export default function PromptGrid({
@@ -49,46 +48,26 @@ export default function PromptGrid({
     );
   }
 
-  // === GRID OTIMIZADO SEM PISCAR ===
+  // === GRID SIMPLES SEM FRAMER MOTION ===
   return (
     <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
-      <AnimatePresence mode="sync" initial={false}>
-        {prompts.map((prompt, index) => {
-          // ✅ Usa título+índice como chave estável para evitar piscar
-          // Quando o ID temporário vira real, o título permanece o mesmo
-          const stableKey = prompt._isOptimistic 
-            ? `temp-${prompt.title}-${index}`
-            : `prompt-${prompt.id}`;
-          
-          // ✅ Desabilita animação inicial para prompts otimistas
-          const shouldAnimate = !prompt._isOptimistic;
-
-          return (
-            <motion.div
-              key={stableKey}
-              layout="position"
-              initial={shouldAnimate ? { opacity: 0, y: 20 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ 
-                duration: 0.15,
-                ease: "easeOut"
-              }}
-            >
-              <CardComponent
-                prompt={prompt}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onCopy={onCopy}
-                onToggleFavorite={onToggleFavorite}
-                onShare={onShare}
-                onOpenImage={onOpenImage}
-                onOpenVideo={onOpenVideo}
-              />
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+      {prompts.map((prompt) => (
+        <div
+          key={prompt.id}
+          className="animate-in fade-in duration-200"
+        >
+          <CardComponent
+            prompt={prompt}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onCopy={onCopy}
+            onToggleFavorite={onToggleFavorite}
+            onShare={onShare}
+            onOpenImage={onOpenImage}
+            onOpenVideo={onOpenVideo}
+          />
+        </div>
+      ))}
     </div>
   );
 }
