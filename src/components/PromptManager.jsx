@@ -482,114 +482,118 @@ export default function PromptManager({
       })
     : [];
 
-  // ========================================
-  // 🆕 SAVE PROMPT - COM OPTIMISTIC UPDATES
-  // ========================================
-  const savePrompt = async () => {
-    try {
-      if (uploadingImage) {
-        toast.warning("Aguarde o envio da imagem antes de salvar.");
-        return;
-      }
+ // ========================================
+// 🆕 SAVE PROMPT - COM OPTIMISTIC UPDATES E FLAGS DE MÍDIA
+// ========================================
+// Substitua TODA a função savePrompt no seu PromptManager.jsx
 
-      if (promptForm.imageFile && !promptForm.image_url) {
-        toast.warning("Envie a imagem antes de salvar o prompt.");
-        return;
-      }
+const savePrompt = async () => {
+  try {
+    if (uploadingImage) {
+      toast.warning("Aguarde o envio da imagem antes de salvar.");
+      return;
+    }
 
-      const isEditing = !!editingPrompt;
-      const endpoint = isEditing ? `/prompts/${editingPrompt.id}` : `/prompts`;
+    if (promptForm.imageFile && !promptForm.image_url) {
+      toast.warning("Envie a imagem antes de salvar o prompt.");
+      return;
+    }
 
-      // ========================================
-      // CRIAR PROMPT - OPTIMISTIC UPDATE
-      // ========================================
-      if (!isEditing) {
-        const tempId = `temp-${Date.now()}`;
+    const isEditing = !!editingPrompt;
+    const endpoint = isEditing ? `/prompts/${editingPrompt.id}` : `/prompts`;
+
+    // ========================================
+    // CRIAR PROMPT - OPTIMISTIC UPDATE COM FLAGS DE MÍDIA
+    // ========================================
+    if (!isEditing) {
+      const tempId = `temp-${Date.now()}`;
+      
+      const optimisticPrompt = {
+        id: tempId,
+        _tempId: tempId, // 🎯 Mantém o ID temp como key estável
+        _skipAnimation: true, // 🎯 Flag para não animar este item
+        _hasLocalVideo: !!promptForm.videoFile, // 🎯 Flag para detectar vídeo MP4
+        _hasYouTube: !!promptForm.youtube_url, // 🎯 Flag para detectar YouTube
+        title: promptForm.title,
+        content: promptForm.content,
+        description: promptForm.description,
+        tags: promptForm.tags,
+        category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
+        category: promptForm.category_id !== "none" 
+          ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
+          : null,
+        is_favorite: promptForm.is_favorite,
+        image_url: promptForm.image_url || "",
+        video_url: promptForm.video_url || "",
+        youtube_url: promptForm.youtube_url || "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        _isOptimistic: true,
+      };
+
+      // ✅ Adiciona IMEDIATAMENTE na UI
+      setPrompts([optimisticPrompt, ...prompts]);
+      
+      // ✅ Fecha dialog e limpa formulário ANTES da requisição
+      setIsPromptDialogOpen(false);
+      resetPromptForm();
+      
+      // ✅ Feedback instantâneo
+      toast.success('✅ Prompt criado!');
+
+      try {
+        let body;
+        let headers = {};
         
-        const optimisticPrompt = {
-          id: tempId,
-          _tempId: tempId, // 🎯 Mantém o ID temp como key estável
-          _skipAnimation: true, // 🎯 Flag para não animar este item
-          title: promptForm.title,
-          content: promptForm.content,
-          description: promptForm.description,
-          tags: promptForm.tags,
-          category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
-          category: promptForm.category_id !== "none" 
-            ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
-            : null,
-          is_favorite: promptForm.is_favorite,
-          image_url: promptForm.image_url || "",
-          video_url: promptForm.video_url || "",
-          youtube_url: promptForm.youtube_url || "",
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          _isOptimistic: true,
-        };
+        const shouldUseFormData =
+          (promptForm.videoFile && !promptForm.video_url) ||
+          (promptForm.imageFile && !promptForm.image_url);
 
-        // ✅ Adiciona IMEDIATAMENTE na UI
-        setPrompts([optimisticPrompt, ...prompts]);
-        
-        // ✅ Fecha dialog e limpa formulário ANTES da requisição
-        setIsPromptDialogOpen(false);
-        resetPromptForm();
-        
-        // ✅ Feedback instantâneo
-        toast.success('✅ Prompt criado!');
-
-        try {
-          let body;
-          let headers = {};
+        if (shouldUseFormData) {
+          body = new FormData();
+          body.append("title", promptForm.title);
+          body.append("content", promptForm.content);
+          body.append("description", promptForm.description);
+          body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
           
-          const shouldUseFormData =
-            (promptForm.videoFile && !promptForm.video_url) ||
-            (promptForm.imageFile && !promptForm.image_url);
+          const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
+            ? ""
+            : String(promptForm.category_id);
+          body.append("category_id", categoryValue);
+          body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+          
+          if (promptForm.image_url) body.append("image_url", promptForm.image_url);
+          if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+          if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+          if (promptForm.imageFile) body.append("file", promptForm.imageFile);
+        } else {
+          headers["Content-Type"] = "application/json";
+          body = JSON.stringify({
+            title: promptForm.title,
+            content: promptForm.content,
+            description: promptForm.description,
+            tags: typeof promptForm.tags === "string"
+              ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+              : promptForm.tags,
+            category_id: !promptForm.category_id || promptForm.category_id === "none"
+              ? null
+              : Number(promptForm.category_id),
+            is_favorite: promptForm.is_favorite,
+            image_url: promptForm.image_url || "",
+            video_url: promptForm.video_url || "",
+            youtube_url: promptForm.youtube_url || "",
+          });
+        }
 
-          if (shouldUseFormData) {
-            body = new FormData();
-            body.append("title", promptForm.title);
-            body.append("content", promptForm.content);
-            body.append("description", promptForm.description);
-            body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
-            
-            const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
-              ? ""
-              : String(promptForm.category_id);
-            body.append("category_id", categoryValue);
-            body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
-            
-            if (promptForm.image_url) body.append("image_url", promptForm.image_url);
-            if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
-            if (promptForm.videoFile) body.append("video", promptForm.videoFile);
-            if (promptForm.imageFile) body.append("file", promptForm.imageFile);
-          } else {
-            headers["Content-Type"] = "application/json";
-            body = JSON.stringify({
-              title: promptForm.title,
-              content: promptForm.content,
-              description: promptForm.description,
-              tags: typeof promptForm.tags === "string"
-                ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-                : promptForm.tags,
-              category_id: !promptForm.category_id || promptForm.category_id === "none"
-                ? null
-                : Number(promptForm.category_id),
-              is_favorite: promptForm.is_favorite,
-              image_url: promptForm.image_url || "",
-              video_url: promptForm.video_url || "",
-              youtube_url: promptForm.youtube_url || "",
-            });
-          }
+        // 🔄 Requisição em background
+        const response = await api.post(endpoint, body, { headers });
+        const data = response.data;
 
-          // 🔄 Requisição em background
-          const response = await api.post(endpoint, body, { headers });
-          const data = response.data;
-
-          if (data.success) {
-            const serverPrompt = data.data || data.prompt || data.updated || null;
-            
-            // ✅ Substitui temporário pelo real
-            if (serverPrompt) {
+        if (data.success) {
+          const serverPrompt = data.data || data.prompt || data.updated || null;
+          
+          // ✅ Substitui temporário pelo real MANTENDO _tempId e _skipAnimation
+          if (serverPrompt) {
             setPrompts(prev => 
               prev.map(p => p.id === tempId 
                 ? { 
@@ -600,136 +604,136 @@ export default function PromptManager({
                 : p
               )
             );
-            } else {
-              setTimeout(() => loadPrompts(), 800);
-            }
-            
-            await loadStats();
           } else {
-            // ❌ Remove temporário se falhar
-            setPrompts(prev => prev.filter(p => p.id !== tempId));
-            toast.error(data.error || "Erro ao criar prompt");
+            setTimeout(() => loadPrompts(), 800);
           }
-        } catch (err) {
-          console.error("❌ ERRO AO CRIAR PROMPT:", err);
-          // ❌ Remove temporário se erro
-          setPrompts(prev => prev.filter(p => p.id !== tempId));
-          toast.error("Erro ao criar prompt. Verifique o console.");
-        }
-      } 
-      // ========================================
-      // EDITAR PROMPT - OPTIMISTIC UPDATE
-      // ========================================
-      else {
-        const previousPrompts = [...prompts];
-        
-        const updatedPrompt = {
-          ...editingPrompt,
-          title: promptForm.title,
-          content: promptForm.content,
-          description: promptForm.description,
-          tags: promptForm.tags,
-          category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
-          category: promptForm.category_id !== "none" 
-            ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
-            : null,
-          is_favorite: promptForm.is_favorite,
-          image_url: promptForm.image_url || "",
-          video_url: promptForm.video_url || "",
-          youtube_url: promptForm.youtube_url || "",
-          updated_at: new Date().toISOString(),
-        };
-
-        // ✅ Atualiza UI IMEDIATAMENTE
-        setPrompts(prev => 
-          prev.map(p => p.id === editingPrompt.id ? updatedPrompt : p)
-        );
-        
-        // ✅ Fecha dialog e limpa formulário ANTES da requisição
-        setIsPromptDialogOpen(false);
-        resetPromptForm();
-        
-        // ✅ Feedback instantâneo
-        toast.success('✏️ Prompt atualizado!');
-
-        try {
-          let body;
-          let headers = {};
           
-          const shouldUseFormData =
-            (promptForm.videoFile && !promptForm.video_url) ||
-            (promptForm.imageFile && !promptForm.image_url);
-
-          if (shouldUseFormData) {
-            body = new FormData();
-            body.append("title", promptForm.title);
-            body.append("content", promptForm.content);
-            body.append("description", promptForm.description);
-            body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
-            
-            const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
-              ? ""
-              : String(promptForm.category_id);
-            body.append("category_id", categoryValue);
-            body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
-            
-            if (promptForm.image_url) body.append("image_url", promptForm.image_url);
-            if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
-            if (promptForm.videoFile) body.append("video", promptForm.videoFile);
-            if (promptForm.imageFile) body.append("file", promptForm.imageFile);
-          } else {
-            headers["Content-Type"] = "application/json";
-            body = JSON.stringify({
-              title: promptForm.title,
-              content: promptForm.content,
-              description: promptForm.description,
-              tags: typeof promptForm.tags === "string"
-                ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-                : promptForm.tags,
-              category_id: !promptForm.category_id || promptForm.category_id === "none"
-                ? null
-                : Number(promptForm.category_id),
-              is_favorite: promptForm.is_favorite,
-              image_url: promptForm.image_url || "",
-              video_url: promptForm.video_url || "",
-              youtube_url: promptForm.youtube_url || "",
-            });
-          }
-
-          // 🔄 Requisição em background
-          const response = await api.put(endpoint, body, { headers });
-          const data = response.data;
-
-          if (data.success) {
-            const serverPrompt = data.data || data.prompt || data.updated || null;
-            
-            // ✅ Atualiza com dados do servidor
-            if (serverPrompt) {
-              setPrompts(prev => 
-                prev.map(p => p.id === serverPrompt.id ? serverPrompt : p)
-              );
-            } else {
-              setTimeout(() => loadPrompts(), 800);
-            }
-            
-            await loadStats();
-          } else {
-            // ❌ Reverte se falhar
-            setPrompts(previousPrompts);
-            toast.error(data.error || "Erro ao atualizar prompt");
-          }
-        } catch (err) {
-          console.error("❌ ERRO AO EDITAR PROMPT:", err);
-          // ❌ Reverte se erro
-          setPrompts(previousPrompts);
-          toast.error("Erro ao atualizar prompt. Verifique o console.");
+          await loadStats();
+        } else {
+          // ❌ Remove temporário se falhar
+          setPrompts(prev => prev.filter(p => p.id !== tempId));
+          toast.error(data.error || "Erro ao criar prompt");
         }
+      } catch (err) {
+        console.error("❌ ERRO AO CRIAR PROMPT:", err);
+        // ❌ Remove temporário se erro
+        setPrompts(prev => prev.filter(p => p.id !== tempId));
+        toast.error("Erro ao criar prompt. Verifique o console.");
       }
-    } catch (err) {
-      console.error("❌ ERRO GERAL:", err);
-      toast.error("Erro ao salvar prompt");
+    } 
+    // ========================================
+    // EDITAR PROMPT - OPTIMISTIC UPDATE
+    // ========================================
+    else {
+      const previousPrompts = [...prompts];
+      
+      const updatedPrompt = {
+        ...editingPrompt,
+        title: promptForm.title,
+        content: promptForm.content,
+        description: promptForm.description,
+        tags: promptForm.tags,
+        category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
+        category: promptForm.category_id !== "none" 
+          ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
+          : null,
+        is_favorite: promptForm.is_favorite,
+        image_url: promptForm.image_url || "",
+        video_url: promptForm.video_url || "",
+        youtube_url: promptForm.youtube_url || "",
+        updated_at: new Date().toISOString(),
+      };
+
+      // ✅ Atualiza UI IMEDIATAMENTE
+      setPrompts(prev => 
+        prev.map(p => p.id === editingPrompt.id ? updatedPrompt : p)
+      );
+      
+      // ✅ Fecha dialog e limpa formulário ANTES da requisição
+      setIsPromptDialogOpen(false);
+      resetPromptForm();
+      
+      // ✅ Feedback instantâneo
+      toast.success('✏️ Prompt atualizado!');
+
+      try {
+        let body;
+        let headers = {};
+        
+        const shouldUseFormData =
+          (promptForm.videoFile && !promptForm.video_url) ||
+          (promptForm.imageFile && !promptForm.image_url);
+
+        if (shouldUseFormData) {
+          body = new FormData();
+          body.append("title", promptForm.title);
+          body.append("content", promptForm.content);
+          body.append("description", promptForm.description);
+          body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
+          
+          const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
+            ? ""
+            : String(promptForm.category_id);
+          body.append("category_id", categoryValue);
+          body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+          
+          if (promptForm.image_url) body.append("image_url", promptForm.image_url);
+          if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+          if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+          if (promptForm.imageFile) body.append("file", promptForm.imageFile);
+        } else {
+          headers["Content-Type"] = "application/json";
+          body = JSON.stringify({
+            title: promptForm.title,
+            content: promptForm.content,
+            description: promptForm.description,
+            tags: typeof promptForm.tags === "string"
+              ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+              : promptForm.tags,
+            category_id: !promptForm.category_id || promptForm.category_id === "none"
+              ? null
+              : Number(promptForm.category_id),
+            is_favorite: promptForm.is_favorite,
+            image_url: promptForm.image_url || "",
+            video_url: promptForm.video_url || "",
+            youtube_url: promptForm.youtube_url || "",
+          });
+        }
+
+        // 🔄 Requisição em background
+        const response = await api.put(endpoint, body, { headers });
+        const data = response.data;
+
+        if (data.success) {
+          const serverPrompt = data.data || data.prompt || data.updated || null;
+          
+          // ✅ Atualiza com dados do servidor
+          if (serverPrompt) {
+            setPrompts(prev => 
+              prev.map(p => p.id === serverPrompt.id ? serverPrompt : p)
+            );
+          } else {
+            setTimeout(() => loadPrompts(), 800);
+          }
+          
+          await loadStats();
+        } else {
+          // ❌ Reverte se falhar
+          setPrompts(previousPrompts);
+          toast.error(data.error || "Erro ao atualizar prompt");
+        }
+      } catch (err) {
+        console.error("❌ ERRO AO EDITAR PROMPT:", err);
+        // ❌ Reverte se erro
+        setPrompts(previousPrompts);
+        toast.error("Erro ao atualizar prompt. Verifique o console.");
+      }
     }
-  };
+  } catch (err) {
+    console.error("❌ ERRO GERAL:", err);
+    toast.error("Erro ao salvar prompt");
+  }
+};
 
   const saveCategory = async () => {
     try {

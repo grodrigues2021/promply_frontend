@@ -3,7 +3,7 @@ import { Loader2, FolderOpen } from "lucide-react";
 import PromptCard from "./PromptCard";
 
 /**
- * PromptGrid - Sem animações estranhas para Optimistic Updates
+ * PromptGrid - Com keys estáveis para Optimistic Updates sem piscada
  * Componente genérico para renderizar uma grade de cards.
  */
 export default function PromptGrid({
@@ -48,31 +48,32 @@ export default function PromptGrid({
     );
   }
 
-// === GRID COM KEYS ESTÁVEIS PARA EVITAR PISCADA ===
-return (
-  <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
-    {prompts.map((prompt) => {
-      // Usa _tempId como key se existir, senão usa o ID normal
-      // Isso mantém o mesmo elemento do DOM durante a transição temp -> real
-      const stableKey = prompt._tempId || prompt.id;
-      
-      return (
-        <div
-          key={stableKey}
-          className={prompt._skipAnimation ? "" : "animate-in fade-in duration-200"}
-        >
-          <CardComponent
-            prompt={prompt}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onCopy={onCopy}
-            onToggleFavorite={onToggleFavorite}
-            onShare={onShare}
-            onOpenImage={onOpenImage}
-            onOpenVideo={onOpenVideo}
-          />
-        </div>
-      );
-    })}
-  </div>
-);}
+  // === GRID COM KEYS ESTÁVEIS PARA EVITAR PISCADA ===
+  return (
+    <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
+      {prompts.map((prompt) => {
+        // 🎯 Usa _tempId como key se existir, senão usa o ID normal
+        // Isso mantém o mesmo elemento do DOM durante a transição temp -> real
+        const stableKey = prompt._tempId || prompt.id;
+        
+        return (
+          <div
+            key={stableKey}
+            className={prompt._skipAnimation ? "" : "animate-in fade-in duration-200"}
+          >
+            <CardComponent
+              prompt={prompt}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onCopy={onCopy}
+              onToggleFavorite={onToggleFavorite}
+              onShare={onShare}
+              onOpenImage={onOpenImage}
+              onOpenVideo={onOpenVideo}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}

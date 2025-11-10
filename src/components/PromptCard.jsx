@@ -103,7 +103,7 @@ const extractYouTubeId = (url) => {
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
-  // 🔥 Função para baixar imagem — usa fetch + blob para forçar download
+  // 📥 Função para baixar imagem – usa fetch + blob para forçar download
   const downloadImage = async () => {
     try {
       toast.info("⏳ Baixando imagem...");
@@ -114,24 +114,17 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
       // 🔄 Converte S3 URL em Friendly URL (suporta ambos os formatos do B2)
       let friendlySrc = src;
       if (src.includes("s3.us-east-005.backblazeb2.com")) {
-        // Formato 1: https://promptly-staging.s3.us-east-005.backblazeb2.com/uploads/...
-        // Formato 2: https://s3.us-east-005.backblazeb2.com/promply-staging/uploads/...
         friendlySrc = src
           .replace("https://promptly-staging.s3.us-east-005.backblazeb2.com", "https://f005.backblazeb2.com/file/promptly-staging")
           .replace("https://s3.us-east-005.backblazeb2.com/promply-staging", "https://f005.backblazeb2.com/file/promply-staging");
       }
 
-      console.log("🔄 URL Original:", src);
-      console.log("✅ URL Friendly:", friendlySrc);
-
-      // 📥 Baixa a imagem como blob com modo no-cors se necessário
       const response = await fetch(friendlySrc, { mode: 'cors' });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
 
-      // 📽 Cria link invisível e dispara o download
       const link = document.createElement("a");
       link.href = blobUrl;
       link.download = filename;
@@ -139,19 +132,17 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
       link.click();
       document.body.removeChild(link);
 
-      // 🧹 Limpa o blob URL após um pequeno delay
       setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
 
       toast.success("✅ Download concluído!");
     } catch (error) {
       console.error("❌ Erro ao baixar imagem:", error);
-      console.error("URL que falhou:", src);
       toast.error("Erro ao baixar. Abrindo em nova aba...");
       window.open(src, "_blank");
     }
   };
 
-  // 🔥 Download de vídeo MP4
+  // 📥 Download de vídeo MP4
   const downloadVideo = async () => {
     try {
       toast.info("⏳ Baixando vídeo...");
@@ -183,7 +174,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
       const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
       await navigator.clipboard.writeText(youtubeUrl);
       
-      // Toast de sucesso no topo
       toast.success("✅ Link do YouTube copiado!", {
         position: "top-center",
         duration: 2000,
@@ -304,8 +294,9 @@ const PromptCard = React.memo(({
     
     const videoType = detectVideoType(videoUrl);
     
-    const hasYouTubeVideo = videoType === 'youtube';
-    const hasLocalVideo = videoType === 'local';
+    // 🎯 Considera as flags de mídia otimista
+    const hasYouTubeVideo = prompt._hasYouTube || videoType === 'youtube';
+    const hasLocalVideo = prompt._hasLocalVideo || videoType === 'local';
     const hasVideo = hasYouTubeVideo || hasLocalVideo;
     const hasMedia = hasVideo || hasImage;
     
@@ -340,7 +331,7 @@ const PromptCard = React.memo(({
       videoId, 
       thumbnailUrl 
     };
-  }, [prompt.video_url, prompt.youtube_url, prompt.image_url, prompt.updated_at]);
+  }, [prompt.video_url, prompt.youtube_url, prompt.image_url, prompt.updated_at, prompt._hasYouTube, prompt._hasLocalVideo]);
 
   const tagsArray = useMemo(() => {
     if (Array.isArray(prompt.tags)) return prompt.tags;
@@ -374,24 +365,6 @@ const PromptCard = React.memo(({
       src: null,
       videoId: null,
     });
-  };
-
-  // 🖼️ Pré-carrega a imagem antes de abrir o modal
-  const handlePreviewClick = (url) => {
-    if (!url) return;
-    const img = new Image();
-    img.src = url;
-    toast.info("🕐 Carregando pré-visualização...");
-
-    img.onload = () => {
-      toast.dismiss();
-      openModal("image", url);
-    };
-
-    img.onerror = () => {
-      toast.error("❌ Falha ao carregar imagem.");
-      openModal("image", url);
-    };
   };
 
   return (
@@ -759,6 +732,7 @@ const PromptCard = React.memo(({
     </>
   );
 }, (prevProps, nextProps) => {
+  // Ignora mudanças apenas na flag _skipAnimation, _isOptimistic, _hasLocalVideo e _hasYouTube
   return (
     prevProps.prompt.id === nextProps.prompt.id &&
     prevProps.prompt.title === nextProps.prompt.title &&
