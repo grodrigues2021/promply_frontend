@@ -1,4 +1,4 @@
-// src/components/PromptCard.jsx - VERSÃO COMPLETA COM COPIAR LINK YOUTUBE
+// src/components/PromptCard.jsx - VERSÃO COMPLETA COM TODAS AS CORREÇÕES
 import React, { useMemo, useState } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
@@ -288,6 +288,11 @@ const PromptCard = React.memo(({
     videoId: null,
   });
 
+  // 🎯 Detecta se é um prompt otimista (temporário)
+  const isOptimistic = useMemo(() => {
+    return String(prompt.id).startsWith('temp-') || prompt._isOptimistic;
+  }, [prompt.id, prompt._isOptimistic]);
+
   const mediaInfo = useMemo(() => {
     const videoUrl = prompt.video_url || prompt.youtube_url;
     const hasImage = prompt.image_url;
@@ -503,11 +508,13 @@ const PromptCard = React.memo(({
               <Button
                 variant="outline"
                 size="sm"
-                title="Editar Prompt"
+                title={isOptimistic ? "Aguarde a criação do prompt" : "Editar Prompt"}
+                disabled={isOptimistic}
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(prompt);
                 }}
+                className={isOptimistic ? "opacity-50 cursor-not-allowed" : ""}
               >
                 <Edit className="w-4 h-4" />
               </Button>
@@ -517,8 +524,12 @@ const PromptCard = React.memo(({
               <Button
                 variant="outline"
                 size="sm"
-                title="Excluir Prompt"
-                className="text-red-600 hover:text-red-700"
+                title={isOptimistic ? "Aguarde a criação do prompt" : "Excluir Prompt"}
+                disabled={isOptimistic}
+                className={cn(
+                  "text-red-600 hover:text-red-700",
+                  isOptimistic && "opacity-50 cursor-not-allowed"
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(prompt.id);

@@ -753,56 +753,48 @@ const savePrompt = async () => {
   };
 
   // ========================================
-  // 🆕 DELETE PROMPT - COM OPTIMISTIC UPDATES
-  // ========================================
-  const deletePrompt = async (id) => {
-    if (!confirm("Tem certeza que deseja deletar este prompt?")) return;
+// 🆕 DELETE PROMPT - COM OPTIMISTIC UPDATES E PROTEÇÃO PARA IDs TEMPORÁRIOS
+// ========================================
+const deletePrompt = async (id) => {
+  // 🛡️ PROTEÇÃO: Não permite deletar prompts com ID temporário
+  if (String(id).startsWith('temp-')) {
+    toast.warning('⏳ Aguarde o prompt ser criado antes de deletar!', {
+      duration: 3000,
+    });
+    return;
+  }
+
+  if (!confirm("Tem certeza que deseja deletar este prompt?")) return;
+  
+  // 1. Salva estado anterior (para rollback)
+  const previousPrompts = [...prompts];
+  
+  // 2. Remove da UI IMEDIATAMENTE
+  setPrompts(prompts.filter(p => p.id !== id));
+  
+  // 3. Feedback instantâneo
+  toast.success('🗑️ Prompt deletado!');
+  
+  try {
+    // 4. Faz requisição em background
+    const response = await api.delete(`/prompts/${id}`);
+    const data = response.data;
     
-    // 1. Salva estado anterior (para rollback)
-    const previousPrompts = [...prompts];
-    
-    // 2. Remove da UI IMEDIATAMENTE
-    setPrompts(prompts.filter(p => p.id !== id));
-    
-    // 3. Feedback instantâneo
-    toast.success('🗑️ Prompt deletado!');
-    
-    try {
-      // 4. Faz requisição em background
-      const response = await api.delete(`/prompts/${id}`);
-      const data = response.data;
-      
-      if (data.success) {
-        // Atualiza estatísticas
-        loadStats();
-      } else {
-        // 5. Se falhar, REVERTE
-        setPrompts(previousPrompts);
-        toast.error(data.error || "Erro ao deletar prompt");
-      }
-    } catch (error) {
-      // 6. Se erro, REVERTE
-      console.error('❌ Erro ao deletar:', error);
+    if (data.success) {
+      // Atualiza estatísticas
+      loadStats();
+    } else {
+      // 5. Se falhar, REVERTE
       setPrompts(previousPrompts);
-      toast.error("Erro ao deletar prompt");
+      toast.error(data.error || "Erro ao deletar prompt");
     }
-  };
-
-  const deleteCategory = async (id) => {
-    if (!confirm("Tem certeza que deseja deletar esta categoria?")) return;
-    try {
-      const response = await api.delete(`/categories/${id}`);
-      const data = response.data;
-      if (data.success) {
-        loadCategories();
-        loadStats();
-        if (selectedCategory === id) setSelectedCategory(null);
-      } else toast.error(data.error || "Erro ao deletar categoria");
-    } catch {
-      toast.error("Erro ao deletar categoria");
-    }
-  };
-
+  } catch (error) {
+    // 6. Se erro, REVERTE
+    console.error('❌ Erro ao deletar:', error);
+    setPrompts(previousPrompts);
+    toast.error("Erro ao deletar prompt");
+  }
+};
   // ========================================
   // ✅ TOGGLE FAVORITE - JÁ ESTAVA PERFEITO!
   // ========================================
