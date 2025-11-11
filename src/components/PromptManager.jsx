@@ -952,67 +952,24 @@ const deletePrompt = async (id) => {
               </div>
 
               <div className="space-y-6">
-                <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3">
-                  <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
-                    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-                      <div className="flex flex-col items-center lg:hidden space-y-1">
-                        <BookOpen className="w-5 h-5 text-blue-100" />
-                        <p className="text-xs font-semibold">
-                          {stats.total_prompts || 0}
-                        </p>
-                      </div>
-                      <div className="hidden lg:flex flex-col w-full justify-between">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Prompts</p>
-                          <BookOpen className="w-7 h-7 text-blue-100" />
-                        </div>
-                        <p className="text-xl font-bold mt-1">
-                          {stats.total_prompts || 0}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                {/* 🧩 Barra de status compacta */}
+<div className="flex flex-wrap items-center gap-2 mb-4 px-2">
+  <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <BookOpen className="w-4 h-4" />
+    <span>{stats.total_prompts || 0} Prompts</span>
+  </div>
 
-                  <Card className="bg-purple-500/90 text-white border border-purple-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
-                    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-                      <div className="flex flex-col items-center lg:hidden space-y-1">
-                        <Tag className="w-5 h-5 text-purple-100" />
-                        <p className="text-xs font-semibold">
-                          {stats.total_categories || 0}
-                        </p>
-                      </div>
-                      <div className="hidden lg:flex flex-col w-full justify-between">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Categorias</p>
-                          <Tag className="w-7 h-7 text-purple-100" />
-                        </div>
-                        <p className="text-xl font-bold mt-1">
-                          {stats.total_categories || 0}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+  <div className="flex items-center gap-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <Tag className="w-4 h-4" />
+    <span>{stats.total_categories || 0} Categorias</span>
+  </div>
 
-                  <Card className="bg-pink-500/90 text-white border border-pink-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
-                    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-                      <div className="flex flex-col items-center lg:hidden space-y-1">
-                        <Heart className="w-5 h-5 text-pink-100" />
-                        <p className="text-xs font-semibold">
-                          {stats.favorite_prompts || 0}
-                        </p>
-                      </div>
-                      <div className="hidden lg:flex flex-col w-full justify-between">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Favoritos</p>
-                          <Heart className="w-7 h-7 text-pink-100" />
-                        </div>
-                        <p className="text-xl font-bold mt-1">
-                          {stats.favorite_prompts || 0}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+  <div className="flex items-center gap-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <Heart className="w-4 h-4" />
+    <span>{stats.favorite_prompts || 0} Favoritos</span>
+  </div>
+</div>
+
 
                 <Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] flex flex-col h-full border-0">
                   <CardHeader className="pb-3 flex items-center justify-between">
