@@ -1052,7 +1052,7 @@ const deletePrompt = async (id) => {
                     ))}
                   </CardContent>
                   {/* 🧩 Status compactos abaixo das categorias */}
-<div className="mt-4 flex flex-wrap items-center gap-2 px-3 pb-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+<div className="mt-4 flex flex-wrap items-center gap-2 px-3 pb-3 pt-3 bg-gradient-to-t from-slate-50/60 dark:from-slate-800/20">
   <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
     <BookOpen className="w-4 h-4" />
     <span>{stats.total_prompts || 0} Prompts</span>
