@@ -1587,8 +1587,9 @@ const deletePrompt = async (id) => {
 <DialogContent
   onInteractOutside={(e) => e.preventDefault()}
   className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto rounded-t-2xl p-0 
-             bg-white dark:bg-slate-900 shadow-xl border border-slate-200 dark:border-slate-800"
+             bg-white dark:bg-slate-900 shadow-xl"
 >
+
         <div className="p-4 border-b flex items-center justify-between">
           <h2 className="text-lg font-semibold">Escolha uma categoria</h2>
           <button
