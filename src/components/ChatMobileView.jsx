@@ -187,32 +187,37 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
     <>
       {/* 📱 TELA CHEIA MOBILE - SUBSTITUI A VIEW PRINCIPAL */}
       <div className="fixed inset-0 bg-white z-50 flex flex-col">
-        {/* Header Mobile - Estilo WhatsApp */}
-        <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg">
-          {/* Botão Voltar */}
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
-            aria-label="Voltar"
-          >
-            <X className="w-6 h-6" />
-          </button>
+       {/* Header Mobile - Estilo WhatsApp */}
+<div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg">
+  {/* Botão Voltar (esquerda) */}
+  <button
+    onClick={onClose}
+    className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
+    aria-label="Voltar"
+  >
+    <X className="w-6 h-6" />
+  </button>
 
-          {/* Título */}
-          <div className="flex items-center gap-2 flex-1 justify-center">
-            <MessageSquare className="w-5 h-5" />
-            <h2 className="font-semibold text-lg">Chat da Comunidade</h2>
-          </div>
+  {/* Título central */}
+  <div className="flex items-center gap-2 flex-1 justify-center">
+    <MessageSquare className="w-5 h-5" />
+    <h2 className="font-semibold text-lg">Chat da Comunidade</h2>
+  </div>
 
-          {/* Botão Menu (Prompts) */}
-          <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
-            aria-label="Ver prompts compartilhados"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-        </div>
+  {/* Botão Dinâmico: ☰ vira ✕ */}
+  <button
+    onClick={() => setIsSidebarOpen((prev) => !prev)}
+    className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
+    aria-label={isSidebarOpen ? "Fechar sidebar" : "Abrir sidebar"}
+  >
+    {isSidebarOpen ? (
+      <X className="w-6 h-6" />
+    ) : (
+      <Menu className="w-6 h-6" />
+    )}
+  </button>
+</div>
+
 
         {/* Feed de Mensagens */}
         <div className="flex-1 overflow-hidden">
