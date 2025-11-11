@@ -913,17 +913,28 @@ const deletePrompt = async (id) => {
   }, [isPopupMode, defaultView]);
 
   // 🧭 Corrige altura real da viewport no mobile (100vh dinâmico e preciso)
-  useEffect(() => {
-    const setRealHeight = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty("--vh", `${vh}px`);
-    };
+// 🧭 Corrige altura real da viewport em todos os navegadores
+useEffect(() => {
+  const setRealHeight = () => {
+    // usa a API moderna quando disponível
+    const viewportHeight =
+      window.visualViewport?.height || window.innerHeight;
+    const vh = viewportHeight * 0.01;
+    document.documentElement.style.setProperty("--vh", `${vh}px`);
+  };
 
-    setRealHeight();
-    window.addEventListener("resize", setRealHeight);
+  setRealHeight();
 
-    return () => window.removeEventListener("resize", setRealHeight);
-  }, []);
+  // atualiza em tempo real se o usuário gira o celular, abre teclado etc.
+  window.visualViewport?.addEventListener("resize", setRealHeight);
+  window.addEventListener("resize", setRealHeight);
+
+  return () => {
+    window.visualViewport?.removeEventListener("resize", setRealHeight);
+    window.removeEventListener("resize", setRealHeight);
+  };
+}, []);
+
   return (
     <>
       <div
@@ -1005,10 +1016,11 @@ const deletePrompt = async (id) => {
             )}
 
 <aside
-  className={`promply-sidebar relative flex flex-col h-[calc(var(--vh,1vh)*100-80px)] lg:h-auto ${
+  className={`promply-sidebar relative flex flex-col h-[calc(var(--vh,1vh)*100)] lg:h-auto ${
     isMobileSidebarOpen ? "mobile-open" : ""
   } z-40`}
 >
+
 
 
 
