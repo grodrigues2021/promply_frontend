@@ -1589,19 +1589,24 @@ const deletePrompt = async (id) => {
   <DialogContent
     onInteractOutside={(e) => e.preventDefault()}
     className="
-      !fixed !top-0 !left-0 !right-0 !bottom-0 
-      max-w-full w-full h-full 
-      overflow-y-auto 
-      rounded-none 
-      bg-white dark:bg-slate-900 
-      shadow-none 
-      border-none 
-      p-0 m-0 
-      flex flex-col
+      max-w-full w-full sm:max-w-lg 
+      sm:rounded-2xl rounded-t-2xl
+      sm:my-0 my-0
+      sm:translate-y-0 translate-y-0
+      bg-white dark:bg-slate-900
+      border-none shadow-lg
+      overflow-hidden
+      p-0
     "
+    style={{
+      top: 'auto',
+      bottom: 0,
+      marginTop: 0,
+      transform: 'none',
+    }}
   >
-    {/* Header */}
-    <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-3 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
+    {/* Cabeçalho fixo */}
+    <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-2 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
       <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
         Escolha uma categoria
       </h2>
@@ -1613,8 +1618,8 @@ const deletePrompt = async (id) => {
       </button>
     </div>
 
-    {/* Corpo */}
-    <div className="p-4 flex-1 overflow-y-auto space-y-3">
+    {/* Corpo rolável */}
+    <div className="p-4 max-h-[70vh] overflow-y-auto space-y-3">
       <Input
         placeholder="Buscar categoria..."
         value={categorySearch}
@@ -1654,6 +1659,7 @@ const deletePrompt = async (id) => {
     </div>
   </DialogContent>
 </Dialog>
+
 
 </div>
 </div>
