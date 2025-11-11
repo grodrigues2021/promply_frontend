@@ -953,7 +953,7 @@ const deletePrompt = async (id) => {
 
               <div className="space-y-6">
                {/* 🧩 Cards grandes — visíveis apenas no desktop */}
-div className="space-y-6">
+
                 <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3">
                   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
                     <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
