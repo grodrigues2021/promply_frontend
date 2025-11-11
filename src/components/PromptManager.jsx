@@ -87,6 +87,24 @@ export default function PromptManager({
   const [selectedImage, setSelectedImage] = useState(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+// 🧭 Bloqueia o scroll do body quando a sidebar mobile está aberta
+useEffect(() => {
+  if (isMobileSidebarOpen) {
+    document.body.style.overflow = "hidden";
+    document.body.style.height = "100%";
+  } else {
+    document.body.style.overflow = "";
+    document.body.style.height = "";
+  }
+
+  return () => {
+    document.body.style.overflow = "";
+    document.body.style.height = "";
+  };
+}, [isMobileSidebarOpen]);
+
+
+
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isChatDetached, setIsChatDetached] = useState(false);
