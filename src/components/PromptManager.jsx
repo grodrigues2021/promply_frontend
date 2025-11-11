@@ -1195,7 +1195,7 @@ const deletePrompt = async (id) => {
             </aside>
 
 {/* 🔹 Conteúdo com rolagem apenas no mobile */}
-<div className="space-y-6 overflow-y-auto lg:overflow-visible pb-24">
+<div className="space-y-6 overflow-y-auto lg:overflow-visible pb-28">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-grow min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
