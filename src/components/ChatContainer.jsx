@@ -1,6 +1,6 @@
 // src/components/ChatContainer.jsx - GERENCIADOR DE NAVEGAÇÃO MOBILE/DESKTOP
 import React from "react";
-import { useIsMobile } from "../hooks/useMediaQuery";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import ChatModal from "./ChatModal";
 import ChatMobileView from "./ChatMobileView";
 
