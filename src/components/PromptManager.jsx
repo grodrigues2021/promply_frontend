@@ -998,7 +998,7 @@ const deletePrompt = async (id) => {
                 
               </div>
 
-                     <div className="space-y-6">
+<div className="space-y-6 lg:overflow-visible overflow-y-auto max-h-[calc(100vh-80px)] pb-24">
 <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
 
                   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
