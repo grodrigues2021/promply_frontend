@@ -987,11 +987,12 @@ const deletePrompt = async (id) => {
               />
             )}
 
-            <aside
-  className={`promply-sidebar relative ${
+  <aside
+  className={`promply-sidebar relative flex flex-col min-h-screen ${
     isMobileSidebarOpen ? "mobile-open" : ""
   } z-40`}
 >
+
 
               <div className="sidebar-mobile-header lg:hidden">
                 <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
@@ -999,7 +1000,7 @@ const deletePrompt = async (id) => {
               </div>
 
                      <div className="space-y-6">
-<div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
+<div className="grid grid-cols-3 gap-3 mb-4 lg:grid-cols-1 lg:gap-4 lg:mb-6">
 
                   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
                     <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
@@ -1195,7 +1196,7 @@ const deletePrompt = async (id) => {
             </aside>
 
 {/* 🔹 Conteúdo com rolagem apenas no mobile */}
-<div className="space-y-6 overflow-y-auto lg:overflow-visible pb-28">
+<div className="flex-1 space-y-6 overflow-y-auto lg:overflow-visible pb-28">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-grow min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
