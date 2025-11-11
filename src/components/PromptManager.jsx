@@ -1585,14 +1585,23 @@ const deletePrompt = async (id) => {
 
 
   {/* Modal fullscreen */}
-{/* Modal fullscreen */}
 <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
   <DialogContent
     onInteractOutside={(e) => e.preventDefault()}
-    className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-slate-900 shadow-lg p-0 mt-0 border-none"
+    className="
+      !fixed !top-0 !left-0 !right-0 !bottom-0 
+      max-w-full w-full h-full 
+      overflow-y-auto 
+      rounded-none 
+      bg-white dark:bg-slate-900 
+      shadow-none 
+      border-none 
+      p-0 m-0 
+      flex flex-col
+    "
   >
-    {/* SUBSTITUIR DialogHeader por div simples */}
-    <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-3 flex items-center justify-between border-none">
+    {/* Header */}
+    <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-3 flex items-center justify-between border-b border-slate-200 dark:border-slate-700">
       <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
         Escolha uma categoria
       </h2>
@@ -1605,14 +1614,14 @@ const deletePrompt = async (id) => {
     </div>
 
     {/* Corpo */}
-    <div className="p-4 space-y-3">
+    <div className="p-4 flex-1 overflow-y-auto space-y-3">
       <Input
         placeholder="Buscar categoria..."
         value={categorySearch}
         onChange={(e) => setCategorySearch(e.target.value)}
       />
 
-      <div className="max-h-[60vh] overflow-y-auto space-y-1">
+      <div className="space-y-1 mt-2">
         <Button
           variant="ghost"
           className="w-full justify-start"
@@ -1645,6 +1654,7 @@ const deletePrompt = async (id) => {
     </div>
   </DialogContent>
 </Dialog>
+
 </div>
 </div>
 </div>
