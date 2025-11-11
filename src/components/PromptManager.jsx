@@ -952,32 +952,7 @@ const deletePrompt = async (id) => {
               </div>
 
               <div className="space-y-6">
-               {/* 🧩 Cards grandes — visíveis apenas no desktop */}
-
-                <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3">
-                  <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
-                    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-                      <div className="flex flex-col items-center lg:hidden space-y-1">
-                        <BookOpen className="w-5 h-5 text-blue-100" />
-                        <p className="text-xs font-semibold">
-                          {stats.total_prompts || 0}
-                        </p>
-                      </div>
-                      <div className="hidden lg:flex flex-col w-full justify-between">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Prompts</p>
-                          <BookOpen className="w-7 h-7 text-blue-100" />
-                        </div>
-                        <p className="text-xl font-bold mt-1">
-                          {stats.total_prompts || 0}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-purple-500/90 text-white border border-purple-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
-                    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-                      {/* 🧩 Cards grandes — exibidos apenas no desktop */}
+  {/* 🧩 Cards grandes — exibidos apenas no desktop */}
 <div className="hidden lg:grid grid-cols-3 gap-4 mb-6">
   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-md hover:shadow-lg transition-all">
     <CardContent className="p-4 flex flex-col items-center justify-center">
@@ -1003,12 +978,6 @@ const deletePrompt = async (id) => {
     </CardContent>
   </Card>
 </div>
-
-                    </CardContent>
-                  </Card>
-                </div>
-
-
 
 
                 <Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] flex flex-col h-full border-0">
