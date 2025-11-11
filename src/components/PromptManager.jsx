@@ -1585,37 +1585,37 @@ const deletePrompt = async (id) => {
 
 
   {/* Modal fullscreen */}
+{/* Modal fullscreen */}
 <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
   <DialogContent
     onInteractOutside={(e) => e.preventDefault()}
     className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-slate-900 shadow-lg p-0 mt-0 border-none"
   >
-    {/* HEADER COMPACTADO - SEM ESPAÇOS EXTRAS */}
-    <DialogHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-2 flex items-center justify-between border-none">
-      <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-white">
+    {/* SUBSTITUIR DialogHeader por div simples */}
+    <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-3 flex items-center justify-between border-none">
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
         Escolha uma categoria
-      </DialogTitle>
+      </h2>
       <button
         onClick={() => setShowCategoryModal(false)}
-        className="p-1 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors absolute right-3 top-3"
+        className="p-1 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
         <X className="w-5 h-5" />
       </button>
-    </DialogHeader>
+    </div>
 
-    {/* CORPO COM ESPAÇAMENTO REDUZIDO */}
-    <div className="p-3 space-y-3">
+    {/* Corpo */}
+    <div className="p-4 space-y-3">
       <Input
         placeholder="Buscar categoria..."
         value={categorySearch}
         onChange={(e) => setCategorySearch(e.target.value)}
-        className="mb-2"
       />
 
-      <div className="max-h-[65vh] overflow-y-auto space-y-1">
+      <div className="max-h-[60vh] overflow-y-auto space-y-1">
         <Button
           variant="ghost"
-          className="w-full justify-start py-2"
+          className="w-full justify-start"
           onClick={() => {
             setPromptForm((prev) => ({ ...prev, category_id: "none" }));
             setShowCategoryModal(false);
@@ -1632,7 +1632,7 @@ const deletePrompt = async (id) => {
             <Button
               key={cat.id}
               variant={promptForm.category_id === cat.id ? "default" : "ghost"}
-              className="w-full justify-start py-2"
+              className="w-full justify-start"
               onClick={() => {
                 setPromptForm((prev) => ({ ...prev, category_id: cat.id }));
                 setShowCategoryModal(false);
