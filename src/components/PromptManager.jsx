@@ -1030,7 +1030,11 @@ const deletePrompt = async (id) => {
                                 ? "text-white hover:text-blue-100"
                                 : "text-slate-500 hover:text-blue-600"
                             }`}
-                            onClick={() => editCategory(category)}
+                            onClick={() => {
+                              setIsMobileSidebarOpen(false);
+                              editCategory(category);
+                            }}
+
                           >
                             <Edit3 className="h-4 w-4" />
                           </Button>
@@ -1157,7 +1161,7 @@ const deletePrompt = async (id) => {
         open={isCategoryDialogOpen}
         onOpenChange={setIsCategoryDialogOpen}
       >
-        <DialogContent className="max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700">
+        <DialogContent className="max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 z-[9999]">
           <DialogHeader>
             <DialogTitle>
               {editingCategory ? "Editar Categoria" : "Nova Categoria"}
