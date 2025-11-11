@@ -906,7 +906,24 @@ const deletePrompt = async (id) => {
       />
     );
   }
+  useEffect(() => {
+    if (isPopupMode && defaultView === "chat") {
+      setShowChatModal(true);
+    }
+  }, [isPopupMode, defaultView]);
 
+  // 🧭 Corrige altura real da viewport no mobile (100vh dinâmico e preciso)
+  useEffect(() => {
+    const setRealHeight = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty("--vh", `${vh}px`);
+    };
+
+    setRealHeight();
+    window.addEventListener("resize", setRealHeight);
+
+    return () => window.removeEventListener("resize", setRealHeight);
+  }, []);
   return (
     <>
       <div
@@ -988,10 +1005,11 @@ const deletePrompt = async (id) => {
             )}
 
 <aside
-  className={`promply-sidebar relative flex flex-col min-h-screen max-h-[calc(100vh-64px)] lg:max-h-none ${
+  className={`promply-sidebar relative flex flex-col h-[calc(var(--vh,1vh)*100-80px)] lg:h-auto ${
     isMobileSidebarOpen ? "mobile-open" : ""
   } z-40`}
 >
+
 
 
 
