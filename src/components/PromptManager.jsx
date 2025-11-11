@@ -753,6 +753,42 @@ const savePrompt = async () => {
   };
 
   // ========================================
+// 🗑️ DELETE CATEGORY - COM CONFIRMAÇÃO E RECARREGAMENTO
+// ========================================
+const deleteCategory = async (id) => {
+  if (!id) {
+    toast.error("Categoria inválida!");
+    return;
+  }
+
+  if (!confirm("Tem certeza que deseja excluir esta categoria?")) return;
+
+  try {
+    // Remove da UI imediatamente (opcional)
+    setMyCategories((prev) => prev.filter((cat) => cat.id !== id));
+
+    const response = await api.delete(`/categories/${id}`);
+    const data = response.data;
+
+    if (data.success) {
+      toast.success("🗑️ Categoria removida com sucesso!");
+      loadCategories();
+      loadStats();
+    } else {
+      toast.error(data.error || "Erro ao deletar categoria");
+      // Recarrega lista caso o backend não tenha atualizado corretamente
+      loadCategories();
+    }
+  } catch (err) {
+    console.error("❌ Erro ao deletar categoria:", err);
+    toast.error("Erro ao excluir categoria");
+    // Recarrega lista para manter estado consistente
+    loadCategories();
+  }
+};
+
+
+  // ========================================
 // 🆕 DELETE PROMPT - COM OPTIMISTIC UPDATES E PROTEÇÃO PARA IDs TEMPORÁRIOS
 // ========================================
 const deletePrompt = async (id) => {
