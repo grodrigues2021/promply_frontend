@@ -1583,79 +1583,68 @@ const deletePrompt = async (id) => {
     <ChevronDown className="w-4 h-4 opacity-60" />
   </Button>
 
+
   {/* Modal fullscreen */}
-  <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
-    <DialogContent
-  onInteractOutside={(e) => e.preventDefault()}
-  className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto 
-             rounded-t-2xl bg-white dark:bg-slate-900 shadow-lg p-0 mt-0 border-none ring-0 outline-none"
-  style={{
-    border: "none",
-    outline: "none",
-    boxShadow: "0 -2px 12px rgba(0,0,0,0.15)",
-  }}
->
-
-      <DialogHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-3 flex items-center justify-between border-none">
-  <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-white">
-    Escolha uma categoria
-  </DialogTitle>
-  <button
-    onClick={() => setShowCategoryModal(false)}
-    className="p-2 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+<Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+  <DialogContent
+    onInteractOutside={(e) => e.preventDefault()}
+    className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-slate-900 shadow-lg p-0 mt-0 border-none"
   >
-    <X className="w-5 h-5" />
-  </button>
-</DialogHeader>
+    {/* HEADER COMPACTADO - SEM ESPAÇOS EXTRAS */}
+    <DialogHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-2 flex items-center justify-between border-none">
+      <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-white">
+        Escolha uma categoria
+      </DialogTitle>
+      <button
+        onClick={() => setShowCategoryModal(false)}
+        className="p-1 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors absolute right-3 top-3"
+      >
+        <X className="w-5 h-5" />
+      </button>
+    </DialogHeader>
 
-      {/* Corpo */}
-      <div className="p-4 space-y-3">
-        <Input
-          placeholder="Buscar categoria..."
-          value={categorySearch}
-          onChange={(e) => setCategorySearch(e.target.value)}
-        />
+    {/* CORPO COM ESPAÇAMENTO REDUZIDO */}
+    <div className="p-3 space-y-3">
+      <Input
+        placeholder="Buscar categoria..."
+        value={categorySearch}
+        onChange={(e) => setCategorySearch(e.target.value)}
+        className="mb-2"
+      />
 
-        <div className="max-h-[60vh] overflow-y-auto space-y-1">
-          <Button
-            variant="ghost"
-            className="w-full justify-start"
-            onClick={() => {
-              setPromptForm((prev) => ({ ...prev, category_id: "none" }));
-              setShowCategoryModal(false);
-            }}
-          >
-            <span>Sem categoria</span>
-          </Button>
+      <div className="max-h-[65vh] overflow-y-auto space-y-1">
+        <Button
+          variant="ghost"
+          className="w-full justify-start py-2"
+          onClick={() => {
+            setPromptForm((prev) => ({ ...prev, category_id: "none" }));
+            setShowCategoryModal(false);
+          }}
+        >
+          Sem categoria
+        </Button>
 
-          {myCategories
-            .filter((cat) =>
-              cat.name
-                .toLowerCase()
-                .includes(categorySearch.toLowerCase().trim())
-            )
-            .map((cat) => (
-              <Button
-                key={cat.id}
-                variant={
-                  promptForm.category_id === cat.id ? "default" : "ghost"
-                }
-                className="w-full justify-start"
-                onClick={() => {
-                  setPromptForm((prev) => ({
-                    ...prev,
-                    category_id: cat.id,
-                  }));
-                  setShowCategoryModal(false);
-                }}
-              >
-                {cat.name}
-              </Button>
-            ))}
-        </div>
+        {myCategories
+          .filter((cat) =>
+            cat.name.toLowerCase().includes(categorySearch.toLowerCase().trim())
+          )
+          .map((cat) => (
+            <Button
+              key={cat.id}
+              variant={promptForm.category_id === cat.id ? "default" : "ghost"}
+              className="w-full justify-start py-2"
+              onClick={() => {
+                setPromptForm((prev) => ({ ...prev, category_id: cat.id }));
+                setShowCategoryModal(false);
+              }}
+            >
+              {cat.name}
+            </Button>
+          ))}
       </div>
-    </DialogContent>
-  </Dialog>
+    </div>
+  </DialogContent>
+</Dialog>
 </div>
 </div>
 </div>
