@@ -99,6 +99,7 @@ export default function PromptManager({
     youtube_url: "",
     videoFile: null,
     imageFile: null,
+    selectedMedia: "none", 
   });
 
   const [categoryForm, setCategoryForm] = useState({
@@ -1371,6 +1372,45 @@ const deletePrompt = async (id) => {
                 }
               />
             </div>
+
+            {/* 🧭 Tipo de mídia */}
+<div>
+  <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
+    Tipo de mídia
+  </Label>
+  <div className="flex flex-wrap gap-2 mt-2">
+    {[
+      { key: "none", label: "Nenhum", icon: "❌" },
+      { key: "imagem", label: "Imagem", icon: "📷" },
+      { key: "video", label: "Vídeo", icon: "🎥" },
+      { key: "youtube", label: "YouTube", icon: "🔗" },
+    ].map(({ key, label, icon }) => (
+      <button
+        key={key}
+        type="button"
+        onClick={() =>
+          setPromptForm((prev) => ({
+            ...prev,
+            selectedMedia: key,
+            image_url: "",
+            video_url: "",
+            youtube_url: "",
+            videoFile: null,
+            imageFile: null,
+          }))
+        }
+        className={`px-3 py-1.5 text-sm rounded-md border transition ${
+          promptForm.selectedMedia === key
+            ? "bg-blue-600 text-white border-blue-600"
+            : "bg-transparent border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+        }`}
+      >
+        <span className="mr-1">{icon}</span> {label}
+      </button>
+    ))}
+  </div>
+</div>
+
             <div>
               <Label>Tags</Label>
               <Input
@@ -1381,190 +1421,115 @@ const deletePrompt = async (id) => {
                 placeholder="tag1, tag2, tag3"
               />
             </div>
-            <div>
-              <Label>Imagem do Prompt (opcional)</Label>
-              <div className="space-y-3">
-                {promptForm.image_url && (
-                  <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
-                    <img
-                      src={promptForm.image_url}
-                      alt="Preview"
-                      className="w-full h-full object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
+            {/* 🔁 Campos de mídia exibidos de acordo com o tipo selecionado */}
+{promptForm.selectedMedia === "imagem" && (
+  <div className="mt-4 space-y-2">
+    <Label>Upload de imagem</Label>
+    {promptForm.image_url ? (
+      <div className="relative w-full h-48 rounded-lg overflow-hidden border">
+        <img
+          src={promptForm.image_url}
+          alt="Preview"
+          className="object-contain w-full h-full"
+        />
+        <button
+          type="button"
+          onClick={removeImage}
+          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    ) : (
+      <label
+        htmlFor="prompt-image-upload"
+        className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800"
+      >
+        <span className="text-sm text-slate-600 dark:text-slate-300">
+          Selecione uma imagem
+        </span>
+        <input
+          id="prompt-image-upload"
+          type="file"
+          accept="image/*"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+      </label>
+    )}
+  </div>
+)}
 
-                <div className="flex items-center gap-3">
-                  <label
-                    htmlFor="prompt-image-upload"
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
-                      uploadingImage
-                        ? "border-gray-300 bg-gray-50 cursor-wait"
-                        : "border-blue-300 hover:border-blue-500 hover:bg-blue-50"
-                    }`}
-                  >
-                    {uploadingImage ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                        <span className="text-sm text-gray-600">
-                          Carregando...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-5 h-5 text-blue-600"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                        <span className="text-sm font-medium text-gray-700">
-                          {promptForm.image_url
-                            ? "Trocar imagem"
-                            : "Selecionar imagem"}
-                        </span>
-                      </>
-                    )}
-                  </label>
-                  <input
-                    id="prompt-image-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploadingImage}
-                    className="hidden"
-                  />
-                </div>
-                <p className="text-xs text-gray-500">
-                  Formatos suportados: JPG, PNG, SVG (máx. 5MB)
-                </p>
-              </div>
-            </div>
+{promptForm.selectedMedia === "video" && (
+  <div className="mt-4 space-y-2">
+    <Label>Upload de vídeo</Label>
+    {promptForm.video_url ? (
+      <div className="relative w-full h-56 rounded-lg overflow-hidden border">
+        <video
+          src={promptForm.video_url}
+          controls
+          className="w-full h-full object-cover"
+        />
+        <button
+          type="button"
+          onClick={() =>
+            setPromptForm((prev) => ({
+              ...prev,
+              video_url: "",
+              videoFile: null,
+            }))
+          }
+          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    ) : (
+      <label
+        htmlFor="prompt-video-upload"
+        className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-purple-50 dark:hover:bg-slate-800"
+      >
+        <span className="text-sm text-slate-600 dark:text-slate-300">
+          Selecione um vídeo
+        </span>
+        <input
+          id="prompt-video-upload"
+          type="file"
+          accept="video/mp4,video/webm,video/ogg,video/mov"
+          onChange={handleVideoUpload}
+          className="hidden"
+        />
+      </label>
+    )}
+  </div>
+)}
 
-            <div className="space-y-3">
-              <Label>Vídeo do Prompt (opcional)</Label>
+{promptForm.selectedMedia === "youtube" && (
+  <div className="mt-4 space-y-2">
+    <Label>Link do YouTube</Label>
+    <Input
+      type="url"
+      placeholder="https://www.youtube.com/watch?v=..."
+      value={promptForm.youtube_url || ""}
+      onChange={(e) =>
+        setPromptForm((prev) => ({
+          ...prev,
+          youtube_url: e.target.value.trim(),
+          video_url: "",
+          image_url: "",
+          videoFile: null,
+          imageFile: null,
+        }))
+      }
+    />
+    <p className="text-xs text-slate-500 dark:text-slate-400">
+      Cole o link completo do vídeo (formato válido do YouTube)
+    </p>
+  </div>
+)}
 
-              {promptForm.video_url &&
-                promptForm.video_url.startsWith("data:video") && (
-                  <div className="relative w-full h-56 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
-                    <video
-                      src={promptForm.video_url}
-                      controls
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPromptForm({
-                          ...promptForm,
-                          video_url: "",
-                          videoFile: null,
-                        })
-                      }
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
 
-              <div className="flex items-center gap-3">
-                <label
-                  htmlFor="prompt-video-upload"
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
-                    uploadingImage
-                      ? "border-gray-300 bg-gray-50 cursor-wait"
-                      : "border-purple-300 hover:border-purple-500 hover:bg-purple-50"
-                  }`}
-                >
-                  {uploadingImage ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600"></div>
-                      <span className="text-sm text-gray-600">
-                        Carregando...
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className="w-5 h-5 text-purple-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M15.172 7l-6.586 6.586a2 2 0 01-2.828 0L3 11.828m6-6L21 3m0 0v6m0-6h-6"
-                        />
-                      </svg>
-                      <span className="text-sm font-medium text-gray-700">
-                        {promptForm.video_url
-                          ? "Trocar vídeo"
-                          : "Selecionar vídeo"}
-                      </span>
-                    </>
-                  )}
-                </label>
-                <input
-                  id="prompt-video-upload"
-                  type="file"
-                  accept="video/mp4,video/webm,video/ogg,video/mov"
-                  onChange={handleVideoUpload}
-                  disabled={uploadingImage}
-                  className="hidden"
-                />
-              </div>
-
-              <p className="text-xs text-gray-500">
-                🎞️ Formatos suportados: MP4, WebM, OGG, MOV (máx. 50MB)
-              </p>
-
-              <Input
-                type="url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                value={promptForm.youtube_url || ""}
-                onChange={(e) => {
-                  const url = e.target.value.trim();
-                  const isYouTube =
-                    url.includes("youtube.com") || url.includes("youtu.be");
-
-                  if (isYouTube) {
-                    console.log("[YOUTUBE DETECTADO]", url);
-                    toast.info("🎬 Link do YouTube detectado!");
-
-                    setPromptForm((prev) => ({
-                      ...prev,
-                      youtube_url: url,
-                      video_url: "",
-                      image_url: "",
-                      videoFile: null,
-                      imageFile: null,
-                    }));
-                  } else {
-                    setPromptForm((prev) => ({
-                      ...prev,
-                      youtube_url: url,
-                    }));
-                  }
-                }}
-              />
-            </div>
+           
 
             <div>
               <Label>Categoria</Label>
