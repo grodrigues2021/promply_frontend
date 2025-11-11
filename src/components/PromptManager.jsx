@@ -988,10 +988,11 @@ const deletePrompt = async (id) => {
             )}
 
  <aside
-  className={`promply-sidebar relative flex flex-col h-[calc(100vh-80px)] ${
+  className={`promply-sidebar flex flex-col min-h-[100dvh] lg:min-h-0 ${
     isMobileSidebarOpen ? "mobile-open" : ""
   } z-40`}
 >
+
   <div className="sidebar-mobile-header lg:hidden">
     <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
   </div>
