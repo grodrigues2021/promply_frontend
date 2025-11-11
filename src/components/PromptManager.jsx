@@ -988,10 +988,11 @@ const deletePrompt = async (id) => {
             )}
 
             <aside
-              className={`promply-sidebar ${
-                isMobileSidebarOpen ? "mobile-open" : ""
-              } z-40`}
-            >
+  className={`promply-sidebar relative ${
+    isMobileSidebarOpen ? "mobile-open" : ""
+  } z-40`}
+>
+
               <div className="sidebar-mobile-header lg:hidden">
                 <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
                 
@@ -1184,6 +1185,10 @@ const deletePrompt = async (id) => {
 
                 </Card>
               </div>
+              <div className="lg:hidden bg-purple-100 text-purple-700 text-center py-2 text-sm font-medium">
+  [Área de Rodapé Mobile - OK]
+</div>
+
             </aside>
 
             <div className="space-y-6">
