@@ -1657,9 +1657,9 @@ const deletePrompt = async (id) => {
     </DialogContent>
   </Dialog>
 </div>
-
-  </div>
 </div>
+</div>
+
 
 
             <div className="flex items-center space-x-2">
@@ -1689,7 +1689,7 @@ const deletePrompt = async (id) => {
                 {editingPrompt ? "Salvar" : "Criar"}
               </Button>
             </div>
-          </div>
+          
         </DialogContent>
       </Dialog>
 
