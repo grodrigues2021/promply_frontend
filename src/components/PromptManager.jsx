@@ -957,41 +957,33 @@ const deletePrompt = async (id) => {
                 <div className="grid grid-cols-3 lg:grid-cols-1 gap-2 sm:gap-3">
                   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
                     <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-                      <div className="flex flex-col items-center lg:hidden space-y-1">
-                        <BookOpen className="w-5 h-5 text-blue-100" />
-                        <p className="text-xs font-semibold">
-                          {stats.total_prompts || 0}
-                        </p>
-                      </div>
-                      <div className="hidden lg:flex flex-col w-full justify-between">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Prompts</p>
-                          <BookOpen className="w-7 h-7 text-blue-100" />
-                        </div>
-                        <p className="text-xl font-bold mt-1">
-                          {stats.total_prompts || 0}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      {/* 🧩 Cards grandes — exibidos apenas no desktop */}
+<div className="hidden lg:grid grid-cols-3 gap-4 mb-6">
+  <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-md hover:shadow-lg transition-all">
+    <CardContent className="p-4 flex flex-col items-center justify-center">
+      <BookOpen className="w-8 h-8 mb-2 text-blue-100" />
+      <p className="text-3xl font-bold">{stats.total_prompts || 0}</p>
+      <p className="text-base font-medium opacity-90">Prompts</p>
+    </CardContent>
+  </Card>
 
-                  <Card className="bg-purple-500/90 text-white border border-purple-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
-                    <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
-                      <div className="flex flex-col items-center lg:hidden space-y-1">
-                        <Tag className="w-5 h-5 text-purple-100" />
-                        <p className="text-xs font-semibold">
-                          {stats.total_categories || 0}
-                        </p>
-                      </div>
-                      <div className="hidden lg:flex flex-col w-full justify-between">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Categorias</p>
-                          <Tag className="w-7 h-7 text-purple-100" />
-                        </div>
-                        <p className="text-xl font-bold mt-1">
-                          {stats.total_categories || 0}
-                        </p>
-                      </div>
+  <Card className="bg-purple-500/90 text-white border border-purple-400/30 rounded-lg shadow-md hover:shadow-lg transition-all">
+    <CardContent className="p-4 flex flex-col items-center justify-center">
+      <Tag className="w-8 h-8 mb-2 text-purple-100" />
+      <p className="text-3xl font-bold">{stats.total_categories || 0}</p>
+      <p className="text-base font-medium opacity-90">Categorias</p>
+    </CardContent>
+  </Card>
+
+  <Card className="bg-pink-500/90 text-white border border-pink-400/30 rounded-lg shadow-md hover:shadow-lg transition-all">
+    <CardContent className="p-4 flex flex-col items-center justify-center">
+      <Heart className="w-8 h-8 mb-2 text-pink-100" />
+      <p className="text-3xl font-bold">{stats.favorite_prompts || 0}</p>
+      <p className="text-base font-medium opacity-90">Favoritos</p>
+    </CardContent>
+  </Card>
+</div>
+
                     </CardContent>
                   </Card>
 
