@@ -1056,7 +1056,9 @@ const deletePrompt = async (id) => {
                     ))}
                   </CardContent>
                   {/* 🧩 Status compactos abaixo das categorias */}
-<div className="mt-4 flex flex-wrap items-center gap-2 px-3 pb-3 pt-3 bg-gradient-to-t from-slate-50/60 dark:from-slate-800/20">
+{/* 🧩 STATUS: compactos no mobile / cards no desktop */}
+{/* Compactos (mobile e tablet) */}
+<div className="mt-4 flex flex-wrap items-center gap-2 px-3 pb-3 pt-3 lg:hidden">
   <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
     <BookOpen className="w-4 h-4" />
     <span>{stats.total_prompts || 0} Prompts</span>
@@ -1072,6 +1074,34 @@ const deletePrompt = async (id) => {
     <span>{stats.favorite_prompts || 0} Favoritos</span>
   </div>
 </div>
+
+{/* Cards grandes (desktop) */}
+<div className="hidden lg:grid grid-cols-3 gap-3 mt-4 px-3">
+  <Card className="bg-blue-500/90 text-white shadow-md border-0 rounded-xl flex flex-col items-center justify-center py-4">
+    <BookOpen className="w-6 h-6 mb-1 opacity-90" />
+    <p className="text-lg font-semibold leading-tight">
+      {stats.total_prompts || 0}
+    </p>
+    <p className="text-sm opacity-90">Prompts</p>
+  </Card>
+
+  <Card className="bg-purple-500/90 text-white shadow-md border-0 rounded-xl flex flex-col items-center justify-center py-4">
+    <Tag className="w-6 h-6 mb-1 opacity-90" />
+    <p className="text-lg font-semibold leading-tight">
+      {stats.total_categories || 0}
+    </p>
+    <p className="text-sm opacity-90">Categorias</p>
+  </Card>
+
+  <Card className="bg-pink-500/90 text-white shadow-md border-0 rounded-xl flex flex-col items-center justify-center py-4">
+    <Heart className="w-6 h-6 mb-1 opacity-90" />
+    <p className="text-lg font-semibold leading-tight">
+      {stats.favorite_prompts || 0}
+    </p>
+    <p className="text-sm opacity-90">Favoritos</p>
+  </Card>
+</div>
+
 
                 </Card>
               </div>
