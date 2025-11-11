@@ -1587,8 +1587,11 @@ const deletePrompt = async (id) => {
 <DialogContent
   onInteractOutside={(e) => e.preventDefault()}
   className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto 
-             rounded-t-2xl bg-white dark:bg-slate-900 shadow-lg p-0 border-0 mt-0"
+             rounded-t-2xl bg-white dark:bg-slate-900 shadow-lg p-0 border-none !border-0 mt-0 
+             ring-0 outline-none focus-visible:ring-0 focus-visible:outline-none"
+  style={{ border: "none", boxShadow: "0 -2px 12px rgba(0,0,0,0.15)" }}
 >
+
   <DialogHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10 border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
     <DialogTitle className="text-lg font-semibold text-slate-800 dark:text-white">
       Escolha uma categoria
