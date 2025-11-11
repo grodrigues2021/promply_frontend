@@ -1170,8 +1170,9 @@ const deletePrompt = async (id) => {
 
                 </Card>
               </div>
- {/* Rodapé fixo - Mobile */}
-<div className="lg:hidden absolute bottom-0 left-0 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-inner rounded-b-xl">
+ 
+{/* 🔹 Rodapé fixo apenas no mobile */}
+<div className="lg:hidden sticky bottom-0 left-0 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-inner rounded-t-xl">
   <div className="flex flex-col">
     <span className="text-sm font-medium">
       Olá, {user?.name || "Usuário"}
@@ -1193,7 +1194,8 @@ const deletePrompt = async (id) => {
 
             </aside>
 
-            <div className="space-y-6">
+{/* 🔹 Conteúdo com rolagem apenas no mobile */}
+<div className="space-y-6 overflow-y-auto lg:overflow-visible pb-24">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-grow min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
