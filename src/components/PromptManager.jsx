@@ -952,23 +952,8 @@ const deletePrompt = async (id) => {
               </div>
 
               <div className="space-y-6">
-                {/* 🧩 Barra de status compacta */}
-<div className="flex flex-wrap items-center gap-2 mb-4 px-2">
-  <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
-    <BookOpen className="w-4 h-4" />
-    <span>{stats.total_prompts || 0} Prompts</span>
-  </div>
+               
 
-  <div className="flex items-center gap-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
-    <Tag className="w-4 h-4" />
-    <span>{stats.total_categories || 0} Categorias</span>
-  </div>
-
-  <div className="flex items-center gap-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
-    <Heart className="w-4 h-4" />
-    <span>{stats.favorite_prompts || 0} Favoritos</span>
-  </div>
-</div>
 
 
                 <Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] flex flex-col h-full border-0">
@@ -1066,6 +1051,24 @@ const deletePrompt = async (id) => {
                       </div>
                     ))}
                   </CardContent>
+                  {/* 🧩 Status compactos abaixo das categorias */}
+<div className="mt-4 flex flex-wrap items-center gap-2 px-3 pb-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+  <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <BookOpen className="w-4 h-4" />
+    <span>{stats.total_prompts || 0} Prompts</span>
+  </div>
+
+  <div className="flex items-center gap-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <Tag className="w-4 h-4" />
+    <span>{stats.total_categories || 0} Categorias</span>
+  </div>
+
+  <div className="flex items-center gap-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <Heart className="w-4 h-4" />
+    <span>{stats.favorite_prompts || 0} Favoritos</span>
+  </div>
+</div>
+
                 </Card>
               </div>
             </aside>
