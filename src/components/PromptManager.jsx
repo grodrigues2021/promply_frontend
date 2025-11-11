@@ -42,6 +42,7 @@ import {
   Star,
   Plus,
   Download,
+  ChevronDown, 
 } from "lucide-react";
 import PromplyLogo from "../assets/promply-logo.svg";
 import { useAuth } from "../hooks/useAuth";
@@ -51,7 +52,7 @@ import SharePromptModal from "./SharePromptModal";
 import PromptCard from "./PromptCard";
 import PromptGrid from "./PromptGrid";
 import api from "../lib/api";
-import { X, Heart, Tag, BookOpen, ChevronDown } from "lucide-react";
+
 
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
