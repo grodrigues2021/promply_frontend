@@ -948,12 +948,7 @@ const deletePrompt = async (id) => {
             >
               <div className="sidebar-mobile-header lg:hidden">
                 <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
-                <button
-                  onClick={() => setIsMobileSidebarOpen(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                
               </div>
 
               <div className="space-y-6">
