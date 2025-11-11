@@ -1584,38 +1584,47 @@ const deletePrompt = async (id) => {
   </Button>
 
 
-  {/* Modal fullscreen */}
+ 
 {/* Modal fullscreen */}
 <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
   <DialogContent
     onInteractOutside={(e) => e.preventDefault()}
-    className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-slate-900 shadow-lg p-0 mt-0 border-none"
+    className="max-w-full h-[90vh] sm:max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white dark:bg-slate-900 p-0 m-0 border-none shadow-lg"
+    style={{ 
+      position: 'fixed', 
+      bottom: '0', 
+      top: 'auto',
+      transform: 'none',
+      left: '0',
+      right: '0'
+    }}
   >
-    {/* SUBSTITUIR DialogHeader por div simples */}
-    <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 px-4 py-3 flex items-center justify-between border-none">
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-white">
+    {/* HEADER SUPER COMPACTO */}
+    <div className="flex items-center justify-between px-3 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
+      <h2 className="text-base font-semibold text-slate-800 dark:text-white">
         Escolha uma categoria
       </h2>
       <button
         onClick={() => setShowCategoryModal(false)}
-        className="p-1 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="p-1.5 text-slate-500 hover:text-slate-700 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
       >
-        <X className="w-5 h-5" />
+        <X className="w-4 h-4" />
       </button>
     </div>
 
-    {/* Corpo */}
-    <div className="p-4 space-y-3">
+    {/* CORPO SEM ESPAÇAMENTO EXTRA */}
+    <div className="p-3">
       <Input
         placeholder="Buscar categoria..."
         value={categorySearch}
         onChange={(e) => setCategorySearch(e.target.value)}
+        className="mb-2"
       />
 
-      <div className="max-h-[60vh] overflow-y-auto space-y-1">
+      <div className="max-h-[70vh] overflow-y-auto space-y-0.5">
         <Button
           variant="ghost"
-          className="w-full justify-start"
+          className="w-full justify-start py-2 text-sm"
           onClick={() => {
             setPromptForm((prev) => ({ ...prev, category_id: "none" }));
             setShowCategoryModal(false);
@@ -1632,7 +1641,7 @@ const deletePrompt = async (id) => {
             <Button
               key={cat.id}
               variant={promptForm.category_id === cat.id ? "default" : "ghost"}
-              className="w-full justify-start"
+              className="w-full justify-start py-2 text-sm"
               onClick={() => {
                 setPromptForm((prev) => ({ ...prev, category_id: cat.id }));
                 setShowCategoryModal(false);
