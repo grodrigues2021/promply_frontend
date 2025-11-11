@@ -987,12 +987,11 @@ const deletePrompt = async (id) => {
               />
             )}
 
-  <aside
-  className={`promply-sidebar relative flex flex-col min-h-screen ${
+            <aside
+  className={`promply-sidebar relative ${
     isMobileSidebarOpen ? "mobile-open" : ""
   } z-40`}
 >
-
 
               <div className="sidebar-mobile-header lg:hidden">
                 <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
@@ -1000,7 +999,7 @@ const deletePrompt = async (id) => {
               </div>
 
                      <div className="space-y-6">
-<div className="grid grid-cols-3 gap-3 mb-4 lg:grid-cols-1 lg:gap-4 lg:mb-6">
+<div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
 
                   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
                     <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
@@ -1082,7 +1081,6 @@ const deletePrompt = async (id) => {
                       <FolderPlus className="w-4 h-4" />
                     </Button>
                   </CardHeader>
-                  
 
                   <CardContent className="flex-1 overflow-y-auto space-y-2 pr-1">
                     <Button
@@ -1167,13 +1165,28 @@ const deletePrompt = async (id) => {
 
                   </CardContent>
 
+                    {/* 🧩 Chips compactos — visíveis apenas no mobile */}
+<div className="mt-4 flex flex-wrap items-center gap-2 px-3 pb-3 pt-3 lg:hidden">
+  <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <BookOpen className="w-4 h-4" />
+    <span>{stats.total_prompts || 0} </span>
+  </div>
 
+  <div className="flex items-center gap-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <Tag className="w-4 h-4" />
+    <span>{stats.total_categories || 0} </span>
+  </div>
+
+  <div className="flex items-center gap-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
+    <Heart className="w-4 h-4" />
+    <span>{stats.favorite_prompts || 0}</span>
+  </div>
+</div>
 
                 </Card>
               </div>
- 
-{/* 🔹 Rodapé fixo apenas no mobile */}
-<div className="lg:hidden sticky bottom-0 left-0 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-inner rounded-t-xl">
+ {/* Rodapé fixo - Mobile */}
+<div className="lg:hidden absolute bottom-0 left-0 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-inner rounded-b-xl">
   <div className="flex flex-col">
     <span className="text-sm font-medium">
       Olá, {user?.name || "Usuário"}
@@ -1195,8 +1208,7 @@ const deletePrompt = async (id) => {
 
             </aside>
 
-{/* 🔹 Conteúdo com rolagem apenas no mobile */}
-<div className="flex-1 space-y-6 overflow-y-auto lg:overflow-visible pb-28">
+            <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-grow min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
