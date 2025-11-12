@@ -46,7 +46,6 @@ import {
 import PromplyLogo from "../assets/promply-logo.svg";
 import { useAuth } from "../hooks/useAuth";
 import TemplatesPage from "./TemplatesPage.jsx";
-import ChatModal from "./ChatModal";
 import SharePromptModal from "./SharePromptModal";
 import PromptCard from "./PromptCard";
 import PromptGrid from "./PromptGrid";
