@@ -34,22 +34,32 @@ export default function Sidebar({
     };
   }, [isMobileSidebarOpen]);
 
-  return (
-<aside
-  className={`fixed inset-0 lg:relative z-[9999] flex flex-col h-[100dvh] bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out ${
-    isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-  }`}
->
-  {/* Botão de fechar - só no mobile */}
-<div className="lg:hidden flex justify-end px-4 py-2">
-  <button
-    onClick={() => setIsMobileSidebarOpen(false)}
-    className="p-2 rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
-    aria-label="Fechar menu"
-  >
-    ✕
-  </button>
-</div>
+ return (
+    <>
+      {/* Overlay escurecido */}
+      {isMobileSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998] lg:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-0 lg:relative z-[9999] flex flex-col h-[100dvh] bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out ${
+          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        {/* Botão de fechar - só no mobile */}
+        <div className="lg:hidden flex justify-end px-4 py-2">
+          <button
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="p-2 rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+            aria-label="Fechar menu"
+          >
+            ✕
+          </button>
+        </div>
 
   {/* Conteúdo principal da sidebar */}
   <div className="flex-1 overflow-y-auto px-3 py-4">
@@ -203,8 +213,8 @@ export default function Sidebar({
   </div>
 
   {/* Rodapé fixo */}
-  <FooterMobile user={user} handleLogout={handleLogout} />
-</aside>
-
+        <FooterMobile user={user} handleLogout={handleLogout} />
+      </aside>
+    </>
   );
 }
