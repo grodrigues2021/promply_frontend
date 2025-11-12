@@ -55,7 +55,6 @@ import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 
-const [ChatComponent, setChatComponent] = useState(null);
 
 
 
@@ -79,6 +78,8 @@ export default function PromptManager({
 }) {
 
   const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const [ChatComponent, setChatComponent] = useState(null);
+
   const [activeView, setActiveView] = useState(defaultView);
   const [prompts, setPrompts] = useState([]);
   const [myCategories, setMyCategories] = useState([]);
@@ -493,7 +494,7 @@ useEffect(() => {
     import("./ChatModal").then((module) => {
       setChatComponent(() => module.default);
     });
-    
+
   }
 }, [showChatModal]);
 
