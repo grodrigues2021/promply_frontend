@@ -55,8 +55,21 @@ import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 
-const ChatModal = lazy(() => import(/* @vite-ignore */ "./ChatModal"));
-const SharePromptModal = lazy(() => import(/* @vite-ignore */ "./SharePromptModal"));
+// 🔹 Lazy loading com dica de split de chunk
+const ChatModal = lazy(() =>
+  import(
+    /* webpackChunkName: "ChatModal", webpackPrefetch: true */
+    "./ChatModal"
+  )
+);
+
+const SharePromptModal = lazy(() =>
+  import(
+    /* webpackChunkName: "SharePromptModal", webpackPrefetch: true */
+    "./SharePromptModal"
+  )
+);
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export default function PromptManager({
