@@ -54,7 +54,9 @@ import Sidebar from "./layout/Sidebar";
 import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
-
+import { usePromptsQuery } from "../hooks/usePromptsQuery";
+import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 
@@ -78,6 +80,7 @@ export default function PromptManager({
 }) {
 
   const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
   const [ChatComponent, setChatComponent] = useState(null);
 
   const [activeView, setActiveView] = useState(defaultView);
@@ -371,39 +374,8 @@ const [categorySearch, setCategorySearch] = useState("");
     setIsCategoryDialogOpen(true);
   }, []);
 
-  const loadPrompts = async () => {
-    try {
-      const response = await api.get("/prompts");
-      const data = response.data;
-      if (data.success) {
-        setPrompts((prev) => {
-          const newList = Array.isArray(data.data) ? [...data.data] : [];
-          return JSON.stringify(prev) !== JSON.stringify(newList)
-            ? newList
-            : prev;
-        });
-      } else {
-        setPrompts([]);
-      }
-    } catch {
-      setDbConnected(false);
-      setPrompts([]);
-    }
-  };
 
-  const loadCategories = async () => {
-    try {
-      const response = await api.get("/categories");
-      const data = response.data;
-      if (data.success) {
-        setMyCategories(data.categories || []);
-        setTemplateCategories(data.templates || []);
-      }
-    } catch {
-      setMyCategories([]);
-      setTemplateCategories([]);
-    }
-  };
+
 
   const loadStats = async () => {
     try {
@@ -415,25 +387,33 @@ const [categorySearch, setCategorySearch] = useState("");
     }
   };
 
-  const testConnection = useCallback(async () => {
-    try {
-      const response = await api.get("/stats");
-      const data = response.data;
+const testConnection = useCallback(async () => {
+  try {
+    const response = await api.get("/stats");
+    const data = response.data;
 
-      if (data.success) {
-        setDbConnected(true);
-        toast.success("Conexão com o banco estabelecida!");
-        await Promise.all([loadPrompts(), loadCategories(), loadStats()]);
-      } else {
-        setDbConnected(false);
-        toast.error("Erro ao conectar: " + (data.error || "desconhecido"));
-      }
-    } catch (error) {
-      console.error("Erro no teste de conexão:", error);
+    if (data.success) {
+      setDbConnected(true);
+      toast.success("Conexão com o banco estabelecida!");
+
+      // 🔹 Revalida cache de prompts e categorias, e atualiza estatísticas
+      await Promise.all([
+        queryClient.invalidateQueries(["prompts"]),
+        queryClient.invalidateQueries(["categories"]),
+      ]);
+
+      await loadStats();
+    } else {
       setDbConnected(false);
-      toast.error("Erro ao conectar com o banco de dados");
+      toast.error("Falha ao conectar com o banco de dados!");
     }
-  }, []);
+  } catch (error) {
+    setDbConnected(false);
+    toast.error("Erro ao verificar conexão com o banco!");
+    console.error("Erro em testConnection:", error);
+  }
+}, [queryClient]);
+
 
   const handleLogout = useCallback(async () => {
     try {
@@ -444,8 +424,9 @@ const [categorySearch, setCategorySearch] = useState("");
   }, [logout]);
 
   const handlePromptSaved = useCallback(() => {
-    setRefreshKey((prev) => prev + 1);
-    loadPrompts();
+    queryClient.invalidateQueries(["prompts"]);
+    queryClient.invalidateQueries(["categories"]);
+    
     loadStats();
     toast.success("✅ Prompt adicionado com sucesso!");
   }, []);
@@ -461,11 +442,25 @@ const [categorySearch, setCategorySearch] = useState("");
     }
   }, [isChatDetached]);
 
-  useEffect(() => {
-    loadPrompts();
-    loadCategories();
-    loadStats();
-  }, [refreshKey]);
+  // 🔹 Hooks React Query
+const { data: promptsData = [], isFetching: loadingPrompts } = usePromptsQuery();
+const { data: categoriesData, isFetching: loadingCategories } = useCategoriesQuery();
+
+// 🔹 Extrai categorias
+useEffect(() => {
+  if (categoriesData) {
+    setMyCategories(categoriesData.my);
+    setTemplateCategories(categoriesData.templates);
+  }
+}, [categoriesData]);
+
+// 🔹 Extrai prompts
+useEffect(() => {
+  if (Array.isArray(promptsData)) {
+    setPrompts(promptsData);
+  }
+}, [promptsData]);
+
 
   useEffect(() => {
     const channel = new BroadcastChannel("promply-chat-status");
@@ -639,7 +634,10 @@ const savePrompt = async () => {
               )
             );
           } else {
-            setTimeout(() => loadPrompts(), 800);
+            setTimeout(() => {
+  queryClient.invalidateQueries(["prompts"]);
+}, 800);
+
           }
           
           await loadStats();
@@ -747,7 +745,10 @@ const savePrompt = async () => {
               prev.map(p => p.id === serverPrompt.id ? serverPrompt : p)
             );
           } else {
-            setTimeout(() => loadPrompts(), 800);
+            setTimeout(() => {
+  queryClient.invalidateQueries(["prompts"]);
+}, 800);
+
           }
           
           await loadStats();
@@ -776,7 +777,7 @@ const savePrompt = async () => {
         : await api.post("/categories", categoryForm);
       const data = response.data;
       if (data.success) {
-        loadCategories();
+       queryClient.invalidateQueries(["categories"]);
         loadStats();
         resetCategoryForm();
         setIsCategoryDialogOpen(false);
@@ -806,18 +807,18 @@ const deleteCategory = async (id) => {
 
     if (data.success) {
       toast.success("🗑️ Categoria removida com sucesso!");
-      loadCategories();
+     queryClient.invalidateQueries(["categories"]);
       loadStats();
     } else {
       toast.error(data.error || "Erro ao deletar categoria");
       // Recarrega lista caso o backend não tenha atualizado corretamente
-      loadCategories();
+      
     }
   } catch (err) {
     console.error("❌ Erro ao deletar categoria:", err);
     toast.error("Erro ao excluir categoria");
     // Recarrega lista para manter estado consistente
-    loadCategories();
+    
   }
 };
 
@@ -904,7 +905,7 @@ const deletePrompt = async (id) => {
     try {
       await navigator.clipboard.writeText(prompt.content);
       await api.post(`/prompts/${prompt.id}/copy`);
-      loadPrompts();
+      
       toast.success("Prompt copiado!");
     } catch {
       toast.error("Erro ao copiar prompt");
@@ -923,8 +924,8 @@ const deletePrompt = async (id) => {
         user={user}
         onBack={() => {
           setShowTemplates(false);
-          loadPrompts();
-          loadCategories();
+          queryClient.invalidateQueries(["prompts"]);
+          queryClient.invalidateQueries(["categories"]);
           loadStats();
         }}
       />
@@ -1030,7 +1031,7 @@ const deletePrompt = async (id) => {
 
             <PromptGrid
               prompts={filteredPrompts}
-              isLoading={false}
+              isLoading={loadingPrompts || loadingCategories}
               emptyMessage={
                 searchTerm
                   ? `Nenhum resultado para "${searchTerm}"`
@@ -1437,7 +1438,9 @@ const deletePrompt = async (id) => {
         setShowShareModal(false);
         setPromptToShare(null);
         openChatIntelligently();
-        loadPrompts();
+        queryClient.invalidateQueries(["prompts"]);
+        queryClient.invalidateQueries(["categories"]);
+        
       }}
     />
   )}
