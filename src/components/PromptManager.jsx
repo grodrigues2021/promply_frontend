@@ -67,6 +67,7 @@ export default function PromptManager({
   defaultView = "prompts",
   isPopupMode = false,
 }) {
+  
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [activeView, setActiveView] = useState(defaultView);
 
