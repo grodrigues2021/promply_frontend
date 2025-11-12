@@ -16,6 +16,8 @@ export default function Sidebar({
   editCategory,
   deleteCategory,
   isMobileSidebarOpen,
+  user,
+  handleLogout,
 
 }) {
   return (
