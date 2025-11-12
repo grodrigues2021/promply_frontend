@@ -20,11 +20,24 @@ export default function Sidebar({
   handleLogout,
 
 }) {
+
+  // 🔒 Bloqueia rolagem do body quando a sidebar móvel estiver aberta
+  useEffect(() => {
+    if (isMobileSidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileSidebarOpen]);
+
   return (
-  <aside
-  className={`promply-sidebar relative ${
-    isMobileSidebarOpen ? "mobile-open" : ""
-  } z-40 flex flex-col h-[100dvh] bg-white dark:bg-slate-900 overflow-hidden`}
+<aside
+  className={`promply-sidebar fixed inset-0 lg:relative z-50 flex flex-col h-[100dvh] bg-white dark:bg-slate-900 transition-transform duration-300 ${
+    isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+  }`}
 >
   <div className="flex-1 overflow-y-auto px-3 py-4">
       <div className="space-y-6">
@@ -176,9 +189,9 @@ export default function Sidebar({
         </Card>
       </div>
       </div>
-<div className="mt-auto shrink-0 w-full sticky bottom-0">
+
 <FooterMobile user={user} handleLogout={handleLogout} />
-</div>
+
     </aside>
   );
 }
