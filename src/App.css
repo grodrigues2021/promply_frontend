@@ -276,3 +276,7 @@ input[type="search"]::-webkit-search-cancel-button {
   transition: background-color 0.3s ease;
   z-index: 55 !important; /* mantém acima da sidebar */
 }
+
+[data-rqdevtools-toggle="true"] {
+  z-index: 999999 !important;
+}
