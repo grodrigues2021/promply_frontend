@@ -67,7 +67,7 @@ export default function PromptManager({
   defaultView = "prompts",
   isPopupMode = false,
 }) {
-  
+
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [activeView, setActiveView] = useState(defaultView);
 
@@ -1042,6 +1042,64 @@ const deletePrompt = async (id) => {
     >
       <DialogContent className="max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 z-[9999]">
         <DialogHeader>
+          <div className="space-y-4">
+  <div>
+    <Label>Título</Label>
+    <Input
+      value={promptForm.title}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, title: e.target.value })
+      }
+      placeholder="Título do prompt"
+    />
+  </div>
+
+  <div>
+    <Label>Conteúdo</Label>
+    <Textarea
+      value={promptForm.content}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, content: e.target.value })
+      }
+      rows={10}
+      className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
+    />
+  </div>
+
+  <div>
+    <Label>Descrição</Label>
+    <Textarea
+      value={promptForm.description}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, description: e.target.value })
+      }
+    />
+  </div>
+
+  <div>
+    <Label>Tags</Label>
+    <Input
+      value={promptForm.tags}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, tags: e.target.value })
+      }
+      placeholder="tag1, tag2, tag3"
+    />
+  </div>
+
+  <div className="flex justify-end gap-2 pt-4">
+    <Button
+      variant="outline"
+      onClick={() => setIsPromptDialogOpen(false)}
+    >
+      Cancelar
+    </Button>
+    <Button onClick={savePrompt}>
+      {editingPrompt ? "Salvar" : "Criar"}
+    </Button>
+  </div>
+</div>
+
           <DialogTitle>
             {editingCategory ? "Editar Categoria" : "Nova Categoria"}
           </DialogTitle>
