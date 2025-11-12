@@ -13,6 +13,7 @@ export default function Sidebar({
   setIsMobileSidebarOpen,
   editCategory,
   deleteCategory,
+  isMobileSidebarOpen,
 }) {
   return (
     <aside
