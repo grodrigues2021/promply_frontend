@@ -56,11 +56,8 @@ import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 
-
-
-
-
-
+const ChatModal = lazy(() => import(/* @vite-ignore */ "./ChatModal"));
+const SharePromptModal = lazy(() => import(/* @vite-ignore */ "./SharePromptModal"));
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export default function PromptManager({
@@ -73,8 +70,6 @@ export default function PromptManager({
 
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [activeView, setActiveView] = useState(defaultView);
-  const ChatModal = lazy(() => import("./ChatModal"));
-  const SharePromptModal = lazy(() => import("./SharePromptModal"));
   const [prompts, setPrompts] = useState([]);
   const [myCategories, setMyCategories] = useState([]);
   const [templateCategories, setTemplateCategories] = useState([]);
