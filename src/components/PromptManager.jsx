@@ -55,20 +55,18 @@ import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 
-// 🔹 Lazy loading com dica de split de chunk
-const ChatModal = lazy(() =>
-  import(
-    /* webpackChunkName: "ChatModal", webpackPrefetch: true */
-    "./ChatModal"
-  )
+// 🔹 Lazy loading dos modais com split forçado
+const ChatModal = React.lazy(() =>
+  import(/* webpackChunkName: "ChatModal", webpackMode: "lazy" */ "./ChatModal")
 );
 
-const SharePromptModal = lazy(() =>
+const SharePromptModal = React.lazy(() =>
   import(
-    /* webpackChunkName: "SharePromptModal", webpackPrefetch: true */
+    /* webpackChunkName: "SharePromptModal", webpackMode: "lazy" */
     "./SharePromptModal"
   )
 );
+
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
