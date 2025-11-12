@@ -1112,261 +1112,45 @@ const deletePrompt = async (id) => {
 
 
  <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 p-6">
-    <DialogHeader>
-      <DialogTitle>
-        {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
-      </DialogTitle>
-      <DialogDescription>
-        {editingPrompt
-          ? "Edite os detalhes do seu prompt"
-          : "Crie um novo prompt"}
-      </DialogDescription>
-    </DialogHeader>
+<DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700">
+  <DialogHeader>
+    <DialogTitle>{editingPrompt ? "Editar Prompt" : "Novo Prompt"}</DialogTitle>
+    <DialogDescription>
+      {editingPrompt
+        ? "Edite os detalhes do seu prompt"
+        : "Crie um novo prompt"}
+    </DialogDescription>
+  </DialogHeader>
 
-    {/* 🔹 Formulário completo */}
-    <div className="space-y-4">
-      {/* 🏷️ Título */}
-      <div>
-        <Label>Título</Label>
-        <Input
-          value={promptForm.title}
-          onChange={(e) =>
-            setPromptForm({ ...promptForm, title: e.target.value })
-          }
-          placeholder="Título do prompt"
-        />
-      </div>
-
-      {/* 🧾 Conteúdo */}
-      <div>
-        <Label>Conteúdo</Label>
-        <Textarea
-          value={promptForm.content}
-          onChange={(e) =>
-            setPromptForm({ ...promptForm, content: e.target.value })
-          }
-          rows={10}
-          className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
-        />
-      </div>
-
-      {/* 🗒️ Descrição */}
-      <div>
-        <Label>Descrição</Label>
-        <Textarea
-          value={promptForm.description}
-          onChange={(e) =>
-            setPromptForm({ ...promptForm, description: e.target.value })
-          }
-        />
-      </div>
-
-      {/* 🧭 Tipo de mídia */}
-      <div>
-        <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-          Tipo de mídia
-        </Label>
-        <div className="flex flex-wrap gap-2 mt-2">
-          {[
-            { key: "none", label: "Nenhum", icon: "❌" },
-            { key: "imagem", label: "Imagem", icon: "📷" },
-            { key: "video", label: "Vídeo", icon: "🎥" },
-            { key: "youtube", label: "YouTube", icon: "🔗" },
-          ].map(({ key, label, icon }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() =>
-                setPromptForm((prev) => ({
-                  ...prev,
-                  selectedMedia: key,
-                  image_url: "",
-                  video_url: "",
-                  youtube_url: "",
-                  videoFile: null,
-                  imageFile: null,
-                }))
-              }
-              className={`px-3 py-1.5 text-sm rounded-md border transition ${
-                promptForm.selectedMedia === key
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-transparent border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              <span className="mr-1">{icon}</span> {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 🔁 Upload / link conforme tipo selecionado */}
-      {promptForm.selectedMedia === "imagem" && (
-        <div className="mt-4 space-y-2">
-          <Label>Upload de imagem</Label>
-          {promptForm.image_url ? (
-            <div className="relative w-full h-48 rounded-lg overflow-hidden border">
-              <img
-                src={promptForm.image_url}
-                alt="Preview"
-                className="object-contain w-full h-full"
-              />
-              <button
-                type="button"
-                onClick={removeImage}
-                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <label
-              htmlFor="prompt-image-upload"
-              className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800"
-            >
-              <span className="text-sm text-slate-600 dark:text-slate-300">
-                Selecione uma imagem
-              </span>
-              <input
-                id="prompt-image-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </label>
-          )}
-        </div>
-      )}
-
-      {promptForm.selectedMedia === "video" && (
-        <div className="mt-4 space-y-2">
-          <Label>Upload de vídeo</Label>
-          {promptForm.video_url ? (
-            <div className="relative w-full h-56 rounded-lg overflow-hidden border">
-              <video
-                src={promptForm.video_url}
-                controls
-                className="w-full h-full object-cover"
-              />
-              <button
-                type="button"
-                onClick={() =>
-                  setPromptForm((prev) => ({
-                    ...prev,
-                    video_url: "",
-                    videoFile: null,
-                  }))
-                }
-                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <label
-              htmlFor="prompt-video-upload"
-              className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-purple-50 dark:hover:bg-slate-800"
-            >
-              <span className="text-sm text-slate-600 dark:text-slate-300">
-                Selecione um vídeo
-              </span>
-              <input
-                id="prompt-video-upload"
-                type="file"
-                accept="video/mp4,video/webm,video/ogg,video/mov"
-                onChange={handleVideoUpload}
-                className="hidden"
-              />
-            </label>
-          )}
-        </div>
-      )}
-
-      {promptForm.selectedMedia === "youtube" && (
-        <div className="mt-4 space-y-2">
-          <Label>Link do YouTube</Label>
-          <Input
-            type="url"
-            placeholder="https://www.youtube.com/watch?v=..."
-            value={promptForm.youtube_url || ""}
-            onChange={(e) =>
-              setPromptForm((prev) => ({
-                ...prev,
-                youtube_url: e.target.value.trim(),
-                video_url: "",
-                image_url: "",
-                videoFile: null,
-                imageFile: null,
-              }))
-            }
-          />
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Cole o link completo do vídeo (formato válido do YouTube)
-          </p>
-        </div>
-      )}
-
-      {/* 🧩 Categoria */}
-      <div className="mt-4">
-        <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-          Categoria
-        </Label>
-
-        <div className="hidden sm:block">
-          <Select
-            value={promptForm.category_id}
-            onValueChange={(value) =>
-              setPromptForm({ ...promptForm, category_id: value })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecione uma categoria" />
-            </SelectTrigger>
-
-            <SelectContent className="max-h-[220px] overflow-y-auto">
-              <SelectItem value="none">Sem categoria</SelectItem>
-              {myCategories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* ⭐ Favorito */}
-      <div className="flex items-center space-x-2">
-        <input
-          type="checkbox"
-          id="prompt-favorite"
-          checked={promptForm.is_favorite}
-          onChange={(e) =>
-            setPromptForm({
-              ...promptForm,
-              is_favorite: e.target.checked,
-            })
-          }
-          className="form-checkbox h-4 w-4 text-blue-600"
-        />
-        <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
-      </div>
-
-      {/* 🔘 Botões de ação */}
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={() => setIsPromptDialogOpen(false)}
-        >
-          Cancelar
-        </Button>
-        <Button onClick={savePrompt}>
-          {editingPrompt ? "Salvar" : "Criar"}
-        </Button>
-      </div>
+  {/* 🔹 Conteúdo rolável */}
+  <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+    {/* 🏷️ Título */}
+    <div>
+      <Label>Título</Label>
+      <Input
+        value={promptForm.title}
+        onChange={(e) =>
+          setPromptForm({ ...promptForm, title: e.target.value })
+        }
+        placeholder="Título do prompt"
+      />
     </div>
-  </DialogContent>
+
+    {/* (MANTENHA todo o conteúdo original daqui pra baixo até antes dos botões) */}
+    {/* 🧾 Conteúdo, Descrição, Tipo de mídia, Uploads, Categoria, Favorito... */}
+  </div>
+
+  {/* 🔹 Footer fixo */}
+  <div className="sticky bottom-0 left-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-3 flex justify-end gap-2">
+    <Button variant="outline" onClick={() => setIsPromptDialogOpen(false)}>
+      Cancelar
+    </Button>
+    <Button onClick={savePrompt}>
+      {editingPrompt ? "Salvar" : "Criar"}
+    </Button>
+  </div>
+</DialogContent>
+
 </Dialog>
 
 
