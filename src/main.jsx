@@ -44,7 +44,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
           - Em localhost (import.meta.env.DEV)
           - Ou se VITE_SHOW_QUERY_DEVTOOLS=true no Render */}
       {(import.meta.env.DEV || import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === 'true') && (
-        <ReactQueryDevtools initialIsOpen={false} position="bottom-right" />
+      <ReactQueryDevtools
+  initialIsOpen={false}
+  position="bottom-left"
+/>
       )}
     </QueryClientProvider>
   </AuthProvider>
