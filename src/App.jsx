@@ -34,6 +34,12 @@ function App() {
   }, [isAuthenticated, user, isLoading]);
 
   useEffect(() => {
+  console.log("🌐 DevTools flag:", import.meta.env.VITE_SHOW_QUERY_DEVTOOLS);
+}, []);
+
+
+  useEffect(() => {
+
     const params = new URLSearchParams(window.location.search);
     const resetToken = params.get("reset_token");
     if (window.location.pathname === "/reset-password" || resetToken) {
@@ -42,6 +48,8 @@ function App() {
   }, []);
 
   if (isLoading) {
+    
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
