@@ -55,13 +55,9 @@ import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 
-// 🔸 Lazy loading sem prefetch automático
-const ChatModal = React.lazy(() =>
-  import(
-    /* webpackChunkName: "ChatModal", webpackMode: "lazy-once" */
-    "./ChatModal"
-  )
-);
+const [ChatComponent, setChatComponent] = useState(null);
+
+
 
 
 const SharePromptModal = React.lazy(() =>
@@ -491,6 +487,15 @@ const [categorySearch, setCategorySearch] = useState("");
     channel.postMessage({ type: "ping" });
     return () => channel.close();
   }, []);
+
+useEffect(() => {
+  if (showChatModal && !ChatComponent) {
+    import("./ChatModal").then((module) => {
+      setChatComponent(() => module.default);
+    });
+    
+  }
+}, [showChatModal]);
 
   const filteredPrompts = Array.isArray(prompts)
     ? prompts.filter((prompt) => {
@@ -1404,13 +1409,21 @@ const deletePrompt = async (id) => {
     </div>
   }
 >
-  {showChatModal && (
-    <ChatModal
-      isOpen={showChatModal}
-      onClose={() => setShowChatModal(false)}
-      onPromptSaved={handlePromptSaved}
-    />
-  )}
+{showChatModal && (
+  <Suspense fallback={<div>Carregando chat...</div>}>
+    {ChatComponent ? (
+      <ChatComponent
+        isOpen={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        onPromptSaved={handlePromptSaved}
+      />
+    ) : (
+      <div>Carregando chat...</div>
+    )}
+  </Suspense>
+)}
+
+
 
   {showShareModal && promptToShare && (
     <SharePromptModal
