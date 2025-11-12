@@ -131,7 +131,8 @@ export default function Sidebar({
           </Button>
         </CardHeader>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2 px-3 pb-3 pt-3 lg:hidden">
+        <div className="mt-2 mb-3 flex flex-wrap items-center justify-center gap-2 px-3 lg:hidden">
+
   <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
     <BookOpen className="w-4 h-4" />
     <span>{stats.total_prompts || 0} </span>
