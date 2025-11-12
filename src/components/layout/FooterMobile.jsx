@@ -20,4 +20,5 @@ export default function FooterMobile({ user, handleLogout }) {
       </button>
     </div>
   );
+  
 }
