@@ -99,8 +99,13 @@ function App() {
         />
       </Router>
 
-      {/* Ferramenta Devtools (somente em dev) */}
-      <ReactQueryDevtools initialIsOpen={false} />
+           {/* 🧠 Ferramenta React Query DevTools */}
+      {(import.meta.env.DEV || import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === 'true') && (
+        <ReactQueryDevtools
+          initialIsOpen={false}
+          position="bottom-left" // 👈 movido pro canto oposto do chat
+        />
+      )}
     </QueryClientProvider>
   );
 }
