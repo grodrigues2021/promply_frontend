@@ -1,4 +1,5 @@
 // src/components/layout/Sidebar.jsx
+import React, { useEffect } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { BookOpen, Tag, Heart, FolderPlus, Edit3, Trash2 } from "lucide-react";
