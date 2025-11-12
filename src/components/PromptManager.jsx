@@ -87,24 +87,6 @@ export default function PromptManager({
   const [selectedImage, setSelectedImage] = useState(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-// 🧭 Bloqueia o scroll do body quando a sidebar mobile está aberta
-useEffect(() => {
-  if (isMobileSidebarOpen) {
-    document.body.style.overflow = "hidden";
-    document.body.style.height = "100%";
-  } else {
-    document.body.style.overflow = "";
-    document.body.style.height = "";
-  }
-
-  return () => {
-    document.body.style.overflow = "";
-    document.body.style.height = "";
-  };
-}, [isMobileSidebarOpen]);
-
-
-
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isChatDetached, setIsChatDetached] = useState(false);
@@ -924,34 +906,6 @@ const deletePrompt = async (id) => {
       />
     );
   }
-  useEffect(() => {
-    if (isPopupMode && defaultView === "chat") {
-      setShowChatModal(true);
-    }
-  }, [isPopupMode, defaultView]);
-
-  // 🧭 Corrige altura real da viewport no mobile (100vh dinâmico e preciso)
-// 🧭 Corrige altura real da viewport em todos os navegadores
-useEffect(() => {
-  const setRealHeight = () => {
-    // usa a API moderna quando disponível
-    const viewportHeight =
-      window.visualViewport?.height || window.innerHeight;
-    const vh = viewportHeight * 0.01;
-    document.documentElement.style.setProperty("--vh", `${vh}px`);
-  };
-
-  setRealHeight();
-
-  // atualiza em tempo real se o usuário gira o celular, abre teclado etc.
-  window.visualViewport?.addEventListener("resize", setRealHeight);
-  window.addEventListener("resize", setRealHeight);
-
-  return () => {
-    window.visualViewport?.removeEventListener("resize", setRealHeight);
-    window.removeEventListener("resize", setRealHeight);
-  };
-}, []);
 
   return (
     <>
@@ -1033,22 +987,18 @@ useEffect(() => {
               />
             )}
 
-<aside
-  className={`promply-sidebar relative flex flex-col h-[calc(var(--vh,1vh)*100)] lg:h-auto ${
+            <aside
+  className={`promply-sidebar relative ${
     isMobileSidebarOpen ? "mobile-open" : ""
   } z-40`}
 >
 
+              <div className="sidebar-mobile-header lg:hidden">
+                <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
+                
+              </div>
 
-
-
-
-  <div className="sidebar-mobile-header lg:hidden">
-    <h3 className="text-lg font-semibold text-slate-900">Menu</h3>
-  </div>
-
-  <div className="flex-1 overflow-y-auto">
-                    <div className="space-y-6">
+                     <div className="space-y-6">
 <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
 
                   <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
@@ -1232,31 +1182,30 @@ useEffect(() => {
 
                  </Card>
               </div>
-  </div>
-
-  {/* Rodapé fixo - Mobile */}
-  <div className="lg:hidden sticky bottom-0 left-0 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-inner rounded-b-xl mt-auto">
-    <div className="flex flex-col">
-      <span className="text-sm font-medium">
-        Olá, {user?.name || "Usuário"}
+ {/* Rodapé fixo - Mobile */}
+<div className="lg:hidden absolute bottom-0 left-0 w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 flex items-center justify-between shadow-inner rounded-b-xl">
+  <div className="flex flex-col">
+    <span className="text-sm font-medium">
+      Olá, {user?.name || "Usuário"}
+    </span>
+    {(user?.is_admin || user?.role === "admin") && (
+      <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full mt-1 self-start">
+        Admin
       </span>
-      {(user?.is_admin || user?.role === "admin") && (
-        <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full mt-1 self-start">
-          Admin
-        </span>
-      )}
-    </div>
-    <button
-      onClick={handleLogout}
-      className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-md transition-all active:scale-95"
-    >
-      Logout
-    </button>
+    )}
   </div>
-</aside>
+  <button
+    onClick={handleLogout}
+    className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-md transition-all active:scale-95"
+  >
+    Logout
+  </button>
+</div>
 
-            <div className="flex-1 space-y-6 overflow-y-auto lg:overflow-visible pb-28">
 
+            </aside>
+
+            <div className="space-y-6">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="relative flex-grow min-w-[200px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
