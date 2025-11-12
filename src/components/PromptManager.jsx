@@ -55,6 +55,10 @@ import api from "../lib/api";
 import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
 import FooterMobile from "./layout/FooterMobile";
+import useLockBodyScroll from "../hooks/useLockBodyScroll";
+
+
+
 
 
 
@@ -62,6 +66,7 @@ import FooterMobile from "./layout/FooterMobile";
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
 export default function PromptManager({
+  
   setIsAuthenticated,
   setUser,
   defaultView = "prompts",
@@ -109,7 +114,7 @@ export default function PromptManager({
     imageFile: null,
     selectedMedia: "none", 
   });
-
+  useLockBodyScroll(isPromptDialogOpen || isCategoryDialogOpen || isMobileSidebarOpen);
   const [categoryForm, setCategoryForm] = useState({
     name: "",
     description: "",
@@ -1040,7 +1045,7 @@ const deletePrompt = async (id) => {
       open={isCategoryDialogOpen}
       onOpenChange={setIsCategoryDialogOpen}
     >
-      <DialogContent className="max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 z-[9999]">
+<DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 z-[10000]">
         <DialogHeader>
           
           <DialogTitle>
