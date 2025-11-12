@@ -56,7 +56,7 @@ import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
 import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
-
+import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 
 
 
@@ -75,7 +75,8 @@ export default function PromptManager({
 
   const { user, logout, isAuthenticated, isLoading } = useAuth();
   const [activeView, setActiveView] = useState(defaultView);
-
+  const ChatModal = lazy(() => import("./ChatModal"));
+  const SharePromptModal = lazy(() => import("./SharePromptModal"));
   const [prompts, setPrompts] = useState([]);
   const [myCategories, setMyCategories] = useState([]);
   const [templateCategories, setTemplateCategories] = useState([]);
@@ -1383,27 +1384,44 @@ const deletePrompt = async (id) => {
     </Dialog>
 
     {/* 🔹 Chat e compartilhamento */}
+    {/* 🔹 Chat e compartilhamento (lazy loaded) */}
+<Suspense
+  fallback={
+    <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-[10002]">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-6 flex flex-col items-center gap-3 text-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Carregando módulo...
+        </p>
+      </div>
+    </div>
+  }
+>
+  {showChatModal && (
     <ChatModal
       isOpen={showChatModal}
       onClose={() => setShowChatModal(false)}
       onPromptSaved={handlePromptSaved}
     />
+  )}
 
-    {showShareModal && promptToShare && (
-      <SharePromptModal
-        prompt={promptToShare}
-        onClose={() => {
-          setShowShareModal(false);
-          setPromptToShare(null);
-        }}
-        onSuccess={() => {
-          setShowShareModal(false);
-          setPromptToShare(null);
-          openChatIntelligently();
-          loadPrompts();
-        }}
-      />
-    )}
+  {showShareModal && promptToShare && (
+    <SharePromptModal
+      prompt={promptToShare}
+      onClose={() => {
+        setShowShareModal(false);
+        setPromptToShare(null);
+      }}
+      onSuccess={() => {
+        setShowShareModal(false);
+        setPromptToShare(null);
+        openChatIntelligently();
+        loadPrompts();
+      }}
+    />
+  )}
+</Suspense>
+
   </>
 );
 }
