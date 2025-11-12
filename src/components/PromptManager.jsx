@@ -949,10 +949,11 @@ const deletePrompt = async (id) => {
             editCategory={editCategory}
             deleteCategory={deleteCategory}
             isMobileSidebarOpen={isMobileSidebarOpen}
+            user={user}
+            handleLogout={handleLogout}
           />
 
           {/* Rodapé fixo (mobile) */}
-          <FooterMobile user={user} handleLogout={handleLogout} />
 
           {/* Conteúdo principal */}
           <div className="space-y-6">

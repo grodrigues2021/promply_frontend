@@ -2,6 +2,8 @@
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { BookOpen, Tag, Heart, FolderPlus, Edit3, Trash2 } from "lucide-react";
+import FooterMobile from "./FooterMobile";
+
 
 export default function Sidebar({
   stats,
@@ -14,13 +16,14 @@ export default function Sidebar({
   editCategory,
   deleteCategory,
   isMobileSidebarOpen,
+
 }) {
   return (
     <aside
-      className={`promply-sidebar relative ${
-        isMobileSidebarOpen ? "mobile-open" : ""
-      } z-40 h-[calc(100dvh-4rem)] overflow-y-auto`}
-    >
+  className={`promply-sidebar relative ${
+    isMobileSidebarOpen ? "mobile-open" : ""
+  } z-40 h-[calc(100dvh-4rem)] overflow-y-auto flex flex-col justify-between`}
+>
       <div className="space-y-6">
         {/* 🧩 Estatísticas Desktop */}
         <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
@@ -168,6 +171,9 @@ export default function Sidebar({
           </CardContent>
         </Card>
       </div>
+
+<FooterMobile user={user} handleLogout={handleLogout} />
+
     </aside>
   );
 }
