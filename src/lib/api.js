@@ -1,6 +1,6 @@
 // api.js
 // Configuração centralizada do Axios
-import axios from 'axios';
+import axios from "axios";
 
 // =====================================
 // 🌍 Detecta Ambiente e URL
@@ -12,18 +12,19 @@ let ENV = VITE_ENV || MODE;
 
 const API_URLS = {
   development: import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api",
-  staging: import.meta.env.VITE_API_URL_STAGING || "https://promply-backend-staging.onrender.com/api",
-  production: import.meta.env.VITE_API_URL_PROD || "https://promply-backend-prod.onrender.com/api"
+  staging:
+    import.meta.env.VITE_API_URL_STAGING ||
+    "https://promply-backend-staging.onrender.com/api",
+  production:
+    import.meta.env.VITE_API_URL_PROD ||
+    "https://promply-backend-prod.onrender.com/api",
 };
-
 
 const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
 
 console.log("🌐 Axios Configuração:");
 console.log(`   - Ambiente: ${ENV}`);
 console.log(`   - Base URL: ${API_BASE_URL}`);
-
-
 
 // ======================================
 // ⚙️ Configuração dinâmica por ambiente
@@ -32,12 +33,12 @@ const axiosConfig = {
   baseURL: API_BASE_URL,
   timeout: 30000,
   headers: {
-    'Accept': 'application/json'
-  }
+    Accept: "application/json",
+  },
 };
 
 // Em produção → cookies HttpOnly (para JWT nos cookies)
-if (ENV === 'production') {
+if (ENV === "production") {
   axiosConfig.withCredentials = true;
 } else {
   axiosConfig.withCredentials = false;
@@ -53,22 +54,30 @@ export const api = axios.create(axiosConfig);
 // =====================================
 api.interceptors.request.use(
   (config) => {
-    if (ENV === 'development') {
-      console.log(`🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`);
+    if (ENV === "development") {
+      console.log(
+        `🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`
+      );
     }
 
-    // Somente em staging ou dev: injeta o Bearer token no header
-    if (ENV === 'staging' || ENV === 'development') {
-      const token = localStorage.getItem('token');
+    // 🔐 Injeta o Bearer Token, caso exista (aceita variações de nome)
+    if (ENV !== "production") {
+      const token =
+        localStorage.getItem("token") ||
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("authToken");
+
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        console.warn("⚠️ Nenhum token encontrado no localStorage");
       }
     }
 
     return config;
   },
   (error) => {
-    console.error('❌ [API Request Error]', error);
+    console.error("❌ [API Request Error]", error);
     return Promise.reject(error);
   }
 );
@@ -78,8 +87,10 @@ api.interceptors.request.use(
 // =====================================
 api.interceptors.response.use(
   (response) => {
-    if (ENV === 'development') {
-      console.log(`✅ [API Response] ${response.status} ${response.config.url}`);
+    if (ENV === "development") {
+      console.log(
+        `✅ [API Response] ${response.status} ${response.config.url}`
+      );
     }
     return response;
   },
@@ -90,21 +101,21 @@ api.interceptors.response.use(
 
     switch (status) {
       case 401:
-        console.warn('⚠️ Sessão expirada - limpando token e redirecionando');
-        localStorage.removeItem('token');
-        if (ENV !== 'production') window.location.href = '/login';
+        console.warn("⚠️ Sessão expirada - limpando token e redirecionando");
+        localStorage.removeItem("token");
+        if (ENV !== "production") window.location.href = "/login";
         break;
       case 403:
-        console.warn('⚠️ Acesso negado');
+        console.warn("⚠️ Acesso negado");
         break;
       case 404:
-        console.warn('⚠️ Rota não encontrada');
+        console.warn("⚠️ Rota não encontrada");
         break;
       case 500:
-        console.error('❌ Erro interno no servidor');
+        console.error("❌ Erro interno no servidor");
         break;
       default:
-        console.error('❌ Erro desconhecido:', error);
+        console.error("❌ Erro desconhecido:", error);
     }
 
     return Promise.reject(error);
