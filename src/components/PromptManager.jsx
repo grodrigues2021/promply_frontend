@@ -55,10 +55,14 @@ import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 
-// 🔹 Lazy loading dos modais com split forçado
+// 🔸 Lazy loading sem prefetch automático
 const ChatModal = React.lazy(() =>
-  import(/* webpackChunkName: "ChatModal", webpackMode: "lazy" */ "./ChatModal")
+  import(
+    /* webpackChunkName: "ChatModal", webpackMode: "lazy-once" */
+    "./ChatModal"
+  )
 );
+
 
 const SharePromptModal = React.lazy(() =>
   import(
