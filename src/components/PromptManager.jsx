@@ -55,9 +55,6 @@ import api from "../lib/api";
 import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
 import FooterMobile from "./layout/FooterMobile";
-import useLockBodyScroll from "../hooks/useLockBodyScroll";
-useLockBodyScroll(isPromptDialogOpen || isCategoryDialogOpen || isMobileSidebarOpen);
-
 
 
 
@@ -1039,120 +1036,151 @@ const deletePrompt = async (id) => {
     </div>
 
     {/* 🔹 Dialog de categoria */}
- <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
-  <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 z-[10000]">
-    <DialogHeader>
-      <DialogTitle>
-        {editingCategory ? "Editar Categoria" : "Nova Categoria"}
-      </DialogTitle>
-      <DialogDescription>
-        {editingCategory
-          ? "Edite os dados da categoria"
-          : "Crie uma nova categoria pessoal"}
-      </DialogDescription>
-    </DialogHeader>
+    <Dialog
+      open={isCategoryDialogOpen}
+      onOpenChange={setIsCategoryDialogOpen}
+    >
+      <DialogContent className="max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 z-[9999]">
+        <DialogHeader>
+          
+          <DialogTitle>
+            {editingCategory ? "Editar Categoria" : "Nova Categoria"}
+          </DialogTitle>
+          <DialogDescription>
+            {editingCategory
+              ? "Edite os dados da categoria"
+              : "Crie uma nova categoria pessoal"}
+          </DialogDescription>
+        </DialogHeader>
 
-    {/* 🔹 Corpo rolável */}
-    <div className="flex-1 overflow-y-auto space-y-4 px-4 py-3">
-      <div>
-        <Label>Nome</Label>
-        <Input
-          value={categoryForm.name}
-          onChange={(e) =>
-            setCategoryForm({ ...categoryForm, name: e.target.value })
-          }
-        />
-      </div>
-
-      <div>
-        <Label>Descrição</Label>
-        <Textarea
-          value={categoryForm.description}
-          onChange={(e) =>
-            setCategoryForm({
-              ...categoryForm,
-              description: e.target.value,
-            })
-          }
-        />
-      </div>
-
-      <div>
-        <Label>Cor</Label>
-        <div className="flex items-center space-x-2">
-          <input
-            type="color"
-            value={categoryForm.color}
-            onChange={(e) =>
-              setCategoryForm({ ...categoryForm, color: e.target.value })
-            }
-            className="w-12 h-10 rounded border border-slate-300"
-          />
-          <Input
-            value={categoryForm.color}
-            onChange={(e) =>
-              setCategoryForm({ ...categoryForm, color: e.target.value })
-            }
-          />
+        <div className="space-y-4">
+          <div>
+            <Label>Nome</Label>
+            <Input
+              value={categoryForm.name}
+              onChange={(e) =>
+                setCategoryForm({ ...categoryForm, name: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <Label>Descrição</Label>
+            <Textarea
+              value={categoryForm.description}
+              onChange={(e) =>
+                setCategoryForm({
+                  ...categoryForm,
+                  description: e.target.value,
+                })
+              }
+            />
+          </div>
+          <div>
+            <Label>Cor</Label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="color"
+                value={categoryForm.color}
+                onChange={(e) =>
+                  setCategoryForm({ ...categoryForm, color: e.target.value })
+                }
+                className="w-12 h-10 rounded border border-slate-300"
+              />
+              <Input
+                value={categoryForm.color}
+                onChange={(e) =>
+                  setCategoryForm({ ...categoryForm, color: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsCategoryDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={saveCategory}>
+              {editingCategory ? "Salvar" : "Criar"}
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
 
-    {/* 🔹 Footer fixo */}
-    <div className="sticky bottom-0 left-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-3 flex justify-end gap-2">
-      <Button variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
-        Cancelar
-      </Button>
-      <Button onClick={saveCategory}>
-        {editingCategory ? "Salvar" : "Criar"}
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
-
-
- <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-<DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700">
-  <DialogHeader>
-    <DialogTitle>{editingPrompt ? "Editar Prompt" : "Novo Prompt"}</DialogTitle>
-    <DialogDescription>
-      {editingPrompt
-        ? "Edite os detalhes do seu prompt"
-        : "Crie um novo prompt"}
-    </DialogDescription>
-  </DialogHeader>
-
-  {/* 🔹 Conteúdo rolável */}
-  <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-    {/* 🏷️ Título */}
-    <div>
-      <Label>Título</Label>
-      <Input
-        value={promptForm.title}
-        onChange={(e) =>
-          setPromptForm({ ...promptForm, title: e.target.value })
-        }
-        placeholder="Título do prompt"
-      />
-    </div>
-
-    {/* (MANTENHA todo o conteúdo original daqui pra baixo até antes dos botões) */}
-    {/* 🧾 Conteúdo, Descrição, Tipo de mídia, Uploads, Categoria, Favorito... */}
+    {/* 🔹 Dialog de prompt */}
+    <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700">
+        <DialogHeader>
+          <DialogTitle>
+            {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
+          </DialogTitle>
+          <DialogDescription>
+            {editingPrompt
+              ? "Edite os detalhes do seu prompt"
+              : "Crie um novo prompt"}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+  <div>
+    <Label>Título</Label>
+    <Input
+      value={promptForm.title}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, title: e.target.value })
+      }
+      placeholder="Título do prompt"
+    />
   </div>
 
-  {/* 🔹 Footer fixo */}
-  <div className="sticky bottom-0 left-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-3 flex justify-end gap-2">
-    <Button variant="outline" onClick={() => setIsPromptDialogOpen(false)}>
+  <div>
+    <Label>Conteúdo</Label>
+    <Textarea
+      value={promptForm.content}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, content: e.target.value })
+      }
+      rows={10}
+      className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
+    />
+  </div>
+
+  <div>
+    <Label>Descrição</Label>
+    <Textarea
+      value={promptForm.description}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, description: e.target.value })
+      }
+    />
+  </div>
+
+  <div>
+    <Label>Tags</Label>
+    <Input
+      value={promptForm.tags}
+      onChange={(e) =>
+        setPromptForm({ ...promptForm, tags: e.target.value })
+      }
+      placeholder="tag1, tag2, tag3"
+    />
+  </div>
+
+  <div className="flex justify-end gap-2 pt-4">
+    <Button
+      variant="outline"
+      onClick={() => setIsPromptDialogOpen(false)}
+    >
       Cancelar
     </Button>
     <Button onClick={savePrompt}>
       {editingPrompt ? "Salvar" : "Criar"}
     </Button>
   </div>
-</DialogContent>
-
-</Dialog>
-
+</div>
+      </DialogContent>
+    </Dialog>
 
     {/* 🔹 Outros modais */}
     <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
