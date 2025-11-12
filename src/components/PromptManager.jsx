@@ -106,7 +106,6 @@ export default function PromptManager({
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [isChatDetached, setIsChatDetached] = useState(false);
   const [promptForm, setPromptForm] = useState({
     title: "",
