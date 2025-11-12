@@ -24,7 +24,7 @@ export default function Sidebar({
   <aside
   className={`promply-sidebar relative ${
     isMobileSidebarOpen ? "mobile-open" : ""
-  } z-40 flex flex-col min-h-screen h-[100dvh] bg-white dark:bg-slate-900 overflow-hidden`}
+  } z-40 flex flex-col h-[100dvh] bg-white dark:bg-slate-900 overflow-hidden`}
 >
   <div className="flex-1 overflow-y-auto px-3 py-4">
       <div className="space-y-6">
@@ -93,7 +93,7 @@ export default function Sidebar({
             </Button>
           </CardHeader>
 
-          <CardContent className="flex-1 overflow-y-auto space-y-2 pr-1 pb-20">
+          <CardContent className="flex-1 overflow-y-auto space-y-2 pr-1 pb-4">
             <Button
               variant={selectedCategory === null ? "default" : "ghost"}
               className="w-full justify-start font-medium"
