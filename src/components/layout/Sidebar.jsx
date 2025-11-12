@@ -21,11 +21,12 @@ export default function Sidebar({
 
 }) {
   return (
-    <aside
+  <aside
   className={`promply-sidebar relative ${
     isMobileSidebarOpen ? "mobile-open" : ""
-  } z-40 h-[calc(100dvh-4rem)] overflow-y-auto flex flex-col justify-between`}
+  } z-40 h-[100dvh] flex flex-col justify-between bg-white dark:bg-slate-900 overflow-hidden`}
 >
+<div className="flex-1 overflow-y-auto">
       <div className="space-y-6">
         {/* 🧩 Estatísticas Desktop */}
         <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
@@ -172,6 +173,7 @@ export default function Sidebar({
             ))}
           </CardContent>
         </Card>
+      </div>
       </div>
 
 <FooterMobile user={user} handleLogout={handleLogout} />
