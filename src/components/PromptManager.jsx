@@ -442,8 +442,17 @@ const testConnection = useCallback(async () => {
   }, [isChatDetached]);
 
   // 🔹 Hooks React Query
-const { data: promptsData = [], isFetching: loadingPrompts } = usePromptsQuery();
-const { data: categoriesData, isFetching: loadingCategories } = useCategoriesQuery();
+const { 
+  data: promptsData = [], 
+  isLoading: loadingPrompts,  // 👈 MUDANÇA AQUI
+  isFetching: fetchingPrompts  // 👈 OPCIONAL: para indicador discreto
+} = usePromptsQuery();
+
+const { 
+  data: categoriesData, 
+  isLoading: loadingCategories,  // 👈 MUDANÇA AQUI
+  isFetching: fetchingCategories  // 👈 OPCIONAL: para indicador discreto
+} = useCategoriesQuery();
 
 // 🔹 Extrai categorias
 useEffect(() => {
