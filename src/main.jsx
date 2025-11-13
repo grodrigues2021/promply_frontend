@@ -30,9 +30,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </AuthProvider>
 
     {/* Devtools ativado apenas no ambiente dev */}
-    {import.meta.env.DEV && (
-      <ReactQueryDevtools initialIsOpen={false} />
-    )}
+    {(import.meta.env.DEV || import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === "true") && (
+  <ReactQueryDevtools initialIsOpen={false} />
+  )}
+
 
   </QueryClientProvider>
 )
