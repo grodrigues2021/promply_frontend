@@ -10,7 +10,6 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "./lib/react-query-client";
 
-// 🔍 Debug completo
 const hostname = window.location.hostname;
 const envVar = import.meta.env.VITE_SHOW_QUERY_DEVTOOLS;
 const isStaging = hostname.includes("staging");
@@ -22,9 +21,7 @@ console.log("🎯 Inclui 'staging'?", isStaging);
 console.log("✅ DevTools ativo?", envVar === 'true' || isStaging);
 console.log("==================================");
 
-// Mostra DevTools se NÃO for produção
-const isProduction = hostname.includes("meuapp.com"); // substitua pelo seu domínio de produção
-const showDevtools = !isProduction;
+const showDevtools = envVar === 'true' || isStaging;
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <QueryClientProvider client={queryClient}>
@@ -45,35 +42,31 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       />
     </AuthProvider>
 
-    {/* 🔥 DevTools com mais debug */}
-    {showDevtools ? (
-      <>
-        <div style={{
+    {/* ✅ SOLUÇÃO: Sempre renderize o DevTools fora de condicionais */}
+    {showDevtools && (
+      <div 
+        style={{ 
           position: 'fixed',
-          top: 0,
+          bottom: 0,
           right: 0,
-          background: 'green',
-          color: 'white',
-          padding: '4px 8px',
-          fontSize: '12px',
-          zIndex: 999999
-        }}>
-          DevTools ATIVO ✓
-        </div>
-        <ReactQueryDevtools initialIsOpen={false} />
-      </>
-    ) : (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        background: 'red',
-        color: 'white',
-        padding: '4px 8px',
-        fontSize: '12px',
-        zIndex: 999999
-      }}>
-        DevTools INATIVO ✗
+          zIndex: 999999,
+        }}
+      >
+        <ReactQueryDevtools 
+          initialIsOpen={false}
+          buttonPosition="bottom-right"
+          position="bottom"
+          styleNonce={undefined}
+          toggleButtonProps={{
+            style: {
+              position: 'fixed',
+              bottom: '10px',
+              right: '10px',
+              zIndex: 999999,
+              opacity: 1,
+            }
+          }}
+        />
       </div>
     )}
   </QueryClientProvider>
