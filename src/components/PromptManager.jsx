@@ -177,7 +177,7 @@ const [categorySearch, setCategorySearch] = useState("");
       const res = await api.post("/upload", formData);
       console.log("📩 Resposta do backend:", res.data);
 
-      const uploadedUrl = res.data?.url || "";
+const uploadedUrl = res.data?.image_url || res.data?.url || "";
       if (uploadedUrl) {
         setPromptForm((prev) => ({
           ...prev,
