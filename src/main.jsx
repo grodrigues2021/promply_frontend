@@ -13,7 +13,8 @@ import { queryClient } from "./lib/react-query-client";
 // ✅ ATIVA DevTools em DEV e também em staging se variável estiver ativada
 const showDevtools =
   import.meta.env.DEV ||
-  import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === "true";
+  import.meta.env.VITE_ENV === "staging";
+
 
 console.log("🔍 ReactQueryDevtools ativo?", showDevtools);
 
