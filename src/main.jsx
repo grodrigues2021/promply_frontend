@@ -1,4 +1,5 @@
 // src/main.jsx
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
@@ -10,11 +11,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "./lib/react-query-client";
 
-const showDevtools =
-  import.meta.env.DEV ||
-  window.location.hostname.includes("staging");
+// CORREÇÃO: Lê a variável de ambiente do Vite.
+// Variáveis de ambiente são sempre strings, por isso comparamos com 'true'.
+const showDevtools = import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === 'true';
 
-console.log("🔍 ReactQueryDevtools ativo?", showDevtools);
+console.log("🔍 ReactQueryDevtools deve estar ativo?", showDevtools);
 
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -36,7 +37,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       />
     </AuthProvider>
 
-    {/* 🔥 DevTools aqui, corretamente */}
+    {/* DevTools serão exibidos se a variável de ambiente for 'true' */}
     {showDevtools && <ReactQueryDevtools initialIsOpen={false} />}
   </QueryClientProvider>
 );
