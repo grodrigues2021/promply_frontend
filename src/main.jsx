@@ -10,13 +10,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { queryClient } from "./lib/react-query-client";
 
-// ✅ ATIVA DevTools em DEV e também em staging se variável estiver ativada
 const showDevtools =
   import.meta.env.DEV ||
-  import.meta.env.VITE_ENV === "staging";
-
+  window.location.hostname.includes("staging");
 
 console.log("🔍 ReactQueryDevtools ativo?", showDevtools);
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <QueryClientProvider client={queryClient}>
