@@ -9,7 +9,7 @@ import { useAuth } from "./hooks/useAuth.jsx";
 import ChatWorkspace from "./components/ChatWorkspace.jsx";
 import { MessageSquare } from "lucide-react";
 import ChatContainer from "./components/ChatContainer.jsx";
-
+import ReactDOM from "react-dom";
 // 🔹 Criação do client global de cache (5 min de validade)
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -119,9 +119,13 @@ function App() {
            {/* 🧠 React Query DevTools - versão profissional */}
 {Devtools && (
   <Suspense fallback={null}>
-    <Devtools initialIsOpen={false} position="bottom-left" />
+    {ReactDOM.createPortal(
+      <Devtools initialIsOpen={false} position="bottom-left" />,
+      document.body
+    )}
   </Suspense>
 )}
+
 
     </QueryClientProvider>
   );
