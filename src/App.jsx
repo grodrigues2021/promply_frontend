@@ -1,9 +1,7 @@
 // src/App.jsx – com suporte ao React Query
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-
 import AuthPage from "./components/AuthPage.jsx";
 import ResetPasswordPage from "./components/ResetPasswordPage.jsx";
 import PromptManager from "./components/PromptManager.jsx";
@@ -23,6 +21,17 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// 🧠 Carregamento dinâmico profissional do React Query DevTools
+const Devtools =
+  import.meta.env.DEV || import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === "true"
+    ? lazy(() =>
+        import("@tanstack/react-query-devtools").then((mod) => ({
+          default: mod.ReactQueryDevtools,
+        }))
+      )
+    : null;
+
 
 function App() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -107,13 +116,13 @@ function App() {
         />
       </Router>
 
-           {/* 🧠 Ferramenta React Query DevTools */}
-      {(import.meta.env.DEV || import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === 'true') && (
-        <ReactQueryDevtools
-          initialIsOpen={false}
-          position="bottom-left" // 👈 movido pro canto oposto do chat
-        />
-      )}
+           {/* 🧠 React Query DevTools - versão profissional */}
+{Devtools && (
+  <Suspense fallback={null}>
+    <Devtools initialIsOpen={false} position="bottom-left" />
+  </Suspense>
+)}
+
     </QueryClientProvider>
   );
 }
