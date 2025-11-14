@@ -104,7 +104,7 @@ const NewPostForm = ({ onPostCreated }) => {
       alert(error.response?.data?.message || 'Erro ao publicar post');
     } finally {
       setIsSubmitting(false);
-      setUploadProgress(0);
+      setUploadProgress(0)
     }
   };
 

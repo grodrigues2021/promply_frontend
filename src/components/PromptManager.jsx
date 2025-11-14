@@ -1130,7 +1130,7 @@ const deletePrompt = async (id) => {
     </Dialog>
 
  <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 p-6">
+  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-visible rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 p-6">
     <DialogHeader>
       <DialogTitle>
         {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
@@ -1165,7 +1165,7 @@ const deletePrompt = async (id) => {
             setPromptForm({ ...promptForm, content: e.target.value })
           }
           rows={10}
-          className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
+          className="w-full max-h-96 overflow-y-visible resize-y whitespace-pre-wrap break-words"
         />
       </div>
 
@@ -1332,25 +1332,25 @@ const deletePrompt = async (id) => {
         </Label>
 
         <div className="hidden sm:block">
-          <Select
-            value={promptForm.category_id}
-            onValueChange={(value) =>
-              setPromptForm({ ...promptForm, category_id: value })
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecione uma categoria" />
-            </SelectTrigger>
+              <Select onValueChange={setCategoryId} value={categoryId}>
+              <SelectTrigger className="w-full relative z-[60]">
+                <SelectValue placeholder="Selecione uma categoria" />
+              </SelectTrigger>
 
-            <SelectContent className="max-h-[220px] overflow-y-auto">
-              <SelectItem value="none">Sem categoria</SelectItem>
-              {myCategories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <SelectContent
+                position="popper"
+                side="bottom"
+                align="start"
+                className="z-[9999] bg-white border rounded-md shadow-lg"
+              >
+                {categories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
         </div>
       </div>
 
