@@ -1130,7 +1130,7 @@ const deletePrompt = async (id) => {
     </Dialog>
 
  <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
-  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-visible rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 p-6">
+  <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 p-6">
     <DialogHeader>
       <DialogTitle>
         {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
@@ -1165,7 +1165,7 @@ const deletePrompt = async (id) => {
             setPromptForm({ ...promptForm, content: e.target.value })
           }
           rows={10}
-          className="w-full max-h-96 overflow-y-visible resize-y whitespace-pre-wrap break-words"
+          className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
         />
       </div>
 
@@ -1332,100 +1332,26 @@ const deletePrompt = async (id) => {
         </Label>
 
         <div className="hidden sm:block">
-              <Select
-  value={promptForm.category_id}
-  onValueChange={(value) =>
-    setPromptForm((prev) => ({
-      ...prev,
-      category_id: value,
-    }))
-  }
->
-  <SelectTrigger className="w-full relative z-[60]">
-    <SelectValue placeholder="Selecione uma categoria" />
-  </SelectTrigger>
-
-  <SelectContent
-    position="popper"
-    side="bottom"
-    align="start"
-    className="z-[9999] bg-white border rounded-md shadow-lg"
-  >
-    {myCategories.map((cat) => (
-      <SelectItem key={cat.id} value={String(cat.id)}>
-        {cat.name}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
-
-
-        </div>
-
-        {/* 🔹 Categoria — MOBILE */}
-<div className="sm:hidden mt-3">
-  <button
-    type="button"
-    onClick={() => setShowCategoryModal(true)}
-    className="w-full flex items-center justify-between px-4 py-3 bg-slate-100 dark:bg-slate-800 rounded-md border border-slate-300 dark:border-slate-700"
-  >
-    <span className="text-sm text-slate-700 dark:text-slate-200">
-      {promptForm.category_id !== "none"
-        ? myCategories.find((c) => String(c.id) === String(promptForm.category_id))?.name
-        : "Selecione uma categoria"}
-    </span>
-    <ChevronDown className="w-4 h-4 text-slate-500" />
-  </button>
-
-  {/* Modal mobile */}
-  {showCategoryModal && (
-    <div className="fixed inset-0 z-[20000] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-xl w-full max-w-sm max-h-[80vh] overflow-y-auto p-4 shadow-xl">
-
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold">Escolher Categoria</h2>
-          <button onClick={() => setShowCategoryModal(false)}>
-            <X className="w-5 h-5 text-slate-500" />
-          </button>
-        </div>
-
-        <div className="space-y-1">
-          {myCategories.map((cat) => (
-            <div
-              key={cat.id}
-              onClick={() => {
-                setPromptForm((prev) => ({
-                  ...prev,
-                  category_id: String(cat.id),
-                }));
-                setShowCategoryModal(false);
-              }}
-              className="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900 transition"
-            >
-              {cat.name}
-            </div>
-          ))}
-
-          {/* Categoria "nenhuma" */}
-          <div
-            onClick={() => {
-              setPromptForm((prev) => ({
-                ...prev,
-                category_id: "none",
-              }));
-              setShowCategoryModal(false);
-            }}
-            className="p-3 rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition text-red-600"
+          <Select
+            value={promptForm.category_id}
+            onValueChange={(value) =>
+              setPromptForm({ ...promptForm, category_id: value })
+            }
           >
-            Nenhuma categoria
-          </div>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione uma categoria" />
+            </SelectTrigger>
 
+            <SelectContent className="max-h-[220px] overflow-y-auto">
+              <SelectItem value="none">Sem categoria</SelectItem>
+              {myCategories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      </div>
-    </div>
-  )}
-</div>
-
       </div>
 
       {/* ⭐ Favorito */}
