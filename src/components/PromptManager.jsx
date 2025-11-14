@@ -876,7 +876,8 @@ const deletePrompt = async (id) => {
     );
 
     try {
-      const response = await api.post(`/prompts/${prompt.id}/favorite`);
+      const response = await api.post(`/api/prompts/${prompt.id}/favorite`);
+
       const data = response.data;
       if (data.success) {
             refetchStats(); // ← MUDANÇA AQUI
@@ -904,7 +905,8 @@ const deletePrompt = async (id) => {
   const copyToClipboard = async (prompt) => {
     try {
       await navigator.clipboard.writeText(prompt.content);
-      await api.post(`/prompts/${prompt.id}/copy`);
+      await api.post(`/api/prompts/${prompt.id}/copy`);
+
       
       toast.success("Prompt copiado!");
     } catch {
