@@ -826,45 +826,43 @@ const deleteCategory = async (id) => {
 // 🆕 DELETE PROMPT - COM OPTIMISTIC UPDATES E PROTEÇÃO PARA IDs TEMPORÁRIOS
 // ========================================
 const deletePrompt = async (id) => {
-  // 🛡️ PROTEÇÃO: Não permite deletar prompts com ID temporário
-  if (String(id).startsWith('temp-')) {
-    toast.warning('⏳ Aguarde o prompt ser criado antes de deletar!', {
-      duration: 3000,
-    });
+  if (String(id).startsWith("temp-")) {
+    toast.warning("⏳ Aguarde o prompt ser criado antes de deletar!");
     return;
   }
 
   if (!confirm("Tem certeza que deseja deletar este prompt?")) return;
-  
-  // 1. Salva estado anterior (para rollback)
+
+  // Salva estado anterior
   const previousPrompts = [...prompts];
-  
-  // 2. Remove da UI IMEDIATAMENTE
-  setPrompts(prompts.filter(p => p.id !== id));
-  
-  // 3. Feedback instantâneo
-  toast.success('🗑️ Prompt deletado!');
-  
+
+  // Remove da UI imediatamente (FORMA CORRETA)
+  setPrompts((prev) => prev.filter((p) => p.id !== id));
+
+  toast.success("🗑️ Prompt deletado!");
+
   try {
-    // 4. Faz requisição em background
-    const response = await api.delete(`/prompts/${id}`);
-    const data = response.data;
-    
-    if (data.success) {
-      // Atualiza estatísticas
-      refetchStats();
-    } else {
-      // 5. Se falhar, REVERTE
+    const { data } = await api.delete(`/prompts/${id}`);
+
+    if (!data.success) {
+      // Reverte se backend retornar erro
       setPrompts(previousPrompts);
       toast.error(data.error || "Erro ao deletar prompt");
+      return;
     }
-  } catch (error) {
-    // 6. Se erro, REVERTE
-    console.error('❌ Erro ao deletar:', error);
+
+    // Atualiza stats e listas
+    queryClient.invalidateQueries(["prompts"]);
+    queryClient.invalidateQueries(["stats"]);
+
+  } catch (err) {
+    // Reverte se erro de rede ou DELETE 404
     setPrompts(previousPrompts);
     toast.error("Erro ao deletar prompt");
+    console.error(err);
   }
 };
+
   // ========================================
   // ✅ TOGGLE FAVORITE - JÁ ESTAVA PERFEITO!
   // ========================================
