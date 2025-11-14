@@ -1332,24 +1332,33 @@ const deletePrompt = async (id) => {
         </Label>
 
         <div className="hidden sm:block">
-              <Select onValueChange={setCategoryId} value={categoryId}>
-              <SelectTrigger className="w-full relative z-[60]">
-                <SelectValue placeholder="Selecione uma categoria" />
-              </SelectTrigger>
+              <Select
+  value={promptForm.category_id}
+  onValueChange={(value) =>
+    setPromptForm((prev) => ({
+      ...prev,
+      category_id: value,
+    }))
+  }
+>
+  <SelectTrigger className="w-full relative z-[60]">
+    <SelectValue placeholder="Selecione uma categoria" />
+  </SelectTrigger>
 
-              <SelectContent
-                position="popper"
-                side="bottom"
-                align="start"
-                className="z-[9999] bg-white border rounded-md shadow-lg"
-              >
-                {categories?.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </SelectItem>
+  <SelectContent
+    position="popper"
+    side="bottom"
+    align="start"
+    className="z-[9999] bg-white border rounded-md shadow-lg"
+  >
+    {myCategories.map((cat) => (
+      <SelectItem key={cat.id} value={String(cat.id)}>
+        {cat.name}
+      </SelectItem>
     ))}
   </SelectContent>
 </Select>
+
 
         </div>
       </div>
