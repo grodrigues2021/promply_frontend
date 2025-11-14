@@ -852,7 +852,7 @@ const deletePrompt = async (id) => {
     
     if (data.success) {
       // Atualiza estatísticas
-      loadStats();
+      refetchStats();
     } else {
       // 5. Se falhar, REVERTE
       setPrompts(previousPrompts);
@@ -926,7 +926,7 @@ const deletePrompt = async (id) => {
           setShowTemplates(false);
           queryClient.invalidateQueries(["prompts"]);
           queryClient.invalidateQueries(["categories"]);
-          loadStats();
+          refetchStats();
         }}
       />
     );
