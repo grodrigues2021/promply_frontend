@@ -1,4 +1,4 @@
-// api.js
+// api.js - VERSÃO CORRIGIDA
 // Configuração centralizada do Axios
 import axios from "axios";
 
@@ -22,7 +22,7 @@ const API_URLS = {
 
 const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
 
-console.log("🌐 Axios Configuração:");
+console.log("🌍 Axios Configuração:");
 console.log(`   - Ambiente: ${ENV}`);
 console.log(`   - Base URL: ${API_BASE_URL}`);
 
@@ -50,7 +50,7 @@ if (ENV === "production") {
 export const api = axios.create(axiosConfig);
 
 // =====================================
-// 🔐 Interceptores de Requisição
+// 🔒 Interceptores de Requisição
 // =====================================
 api.interceptors.request.use(
   (config) => {
@@ -60,7 +60,7 @@ api.interceptors.request.use(
       );
     }
 
-    // 🔐 Injeta o Bearer Token, caso exista (aceita variações de nome)
+    // 🔑 CORRIGIDO: Sempre adiciona token do localStorage (exceto production que usa cookies)
     if (ENV !== "production") {
       const token =
         localStorage.getItem("token") ||
@@ -69,7 +69,11 @@ api.interceptors.request.use(
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-      } else {
+
+        if (ENV === "development") {
+          console.log("🔑 Token adicionado:", token.slice(0, 20) + "...");
+        }
+      } else if (ENV === "development") {
         console.warn("⚠️ Nenhum token encontrado no localStorage");
       }
     }
@@ -97,23 +101,33 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const url = error.config?.url;
+
     console.error(`❌ [API Error] ${status} ${url}`, error.response?.data);
 
     switch (status) {
       case 401:
         console.warn("⚠️ Sessão expirada - limpando token e redirecionando");
         localStorage.removeItem("token");
-        if (ENV !== "production") window.location.href = "/login";
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("authToken");
+
+        if (ENV !== "production") {
+          window.location.href = "/login";
+        }
         break;
+
       case 403:
         console.warn("⚠️ Acesso negado");
         break;
+
       case 404:
         console.warn("⚠️ Rota não encontrada");
         break;
+
       case 500:
         console.error("❌ Erro interno no servidor");
         break;
+
       default:
         console.error("❌ Erro desconhecido:", error);
     }

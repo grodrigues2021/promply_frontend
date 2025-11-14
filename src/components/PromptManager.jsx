@@ -57,7 +57,7 @@ import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
 import { usePromptsQuery } from "../hooks/usePromptsQuery";
 import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
 import { useQueryClient } from "@tanstack/react-query";
-
+import { useStats } from "../hooks/useStats";
 
 
 
@@ -94,7 +94,7 @@ export default function PromptManager({
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingPrompt, setEditingPrompt] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [stats, setStats] = useState({});
+  const { data: stats = {}, refetch: refetchStats } = useStats();
   const [dbConnected, setDbConnected] = useState(true);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
@@ -376,15 +376,6 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
 
 
 
-  const loadStats = async () => {
-    try {
-      const response = await api.get("/stats");
-      const data = response.data;
-      if (data.success) setStats(data.data || {});
-    } catch {
-      setStats({});
-    }
-  };
 
 const testConnection = useCallback(async () => {
   try {
@@ -395,13 +386,14 @@ const testConnection = useCallback(async () => {
       setDbConnected(true);
       toast.success("Conexão com o banco estabelecida!");
 
-      // 🔹 Revalida cache de prompts e categorias, e atualiza estatísticas
+      // 🔹 Revalida cache
       await Promise.all([
         queryClient.invalidateQueries(["prompts"]),
         queryClient.invalidateQueries(["categories"]),
+        queryClient.invalidateQueries(["stats"]), // ← ADICIONE ESTA LINHA
       ]);
 
-      await loadStats();
+      refetchStats(); // ← MUDANÇA AQUI
     } else {
       setDbConnected(false);
       toast.error("Falha ao conectar com o banco de dados!");
@@ -411,8 +403,7 @@ const testConnection = useCallback(async () => {
     toast.error("Erro ao verificar conexão com o banco!");
     console.error("Erro em testConnection:", error);
   }
-}, [queryClient]);
-
+}, [queryClient, refetchStats]); // ← ADICIONE refetchStats nas dependências
 
   const handleLogout = useCallback(async () => {
     try {
@@ -423,12 +414,12 @@ const testConnection = useCallback(async () => {
   }, [logout]);
 
   const handlePromptSaved = useCallback(() => {
-    queryClient.invalidateQueries(["prompts"]);
-    queryClient.invalidateQueries(["categories"]);
-    
-    loadStats();
-    toast.success("✅ Prompt adicionado com sucesso!");
-  }, []);
+  queryClient.invalidateQueries(["prompts"]);
+  queryClient.invalidateQueries(["categories"]);
+  
+  refetchStats(); // ← MUDANÇA AQUI
+  toast.success("✅ Prompt adicionado com sucesso!");
+}, [refetchStats]); // ← ADICIONE refetchStats nas dependências
 
   const openChatIntelligently = useCallback(() => {
     if (isChatDetached) {
@@ -648,7 +639,7 @@ const savePrompt = async () => {
 
           }
           
-          await loadStats();
+          refetchStats();
         } else {
           // ❌ Remove temporário se falhar
           setPrompts(prev => prev.filter(p => p.id !== tempId));
@@ -759,7 +750,7 @@ const savePrompt = async () => {
 
           }
           
-          await loadStats();
+          refetchStats();
         } else {
           // ❌ Reverte se falhar
           setPrompts(previousPrompts);
@@ -786,7 +777,7 @@ const savePrompt = async () => {
       const data = response.data;
       if (data.success) {
        queryClient.invalidateQueries(["categories"]);
-        loadStats();
+         refetchStats();
         resetCategoryForm();
         setIsCategoryDialogOpen(false);
       } else toast.error(data.error || "Erro ao salvar categoria");
@@ -816,7 +807,7 @@ const deleteCategory = async (id) => {
     if (data.success) {
       toast.success("🗑️ Categoria removida com sucesso!");
      queryClient.invalidateQueries(["categories"]);
-      loadStats();
+      refetchStats(); // ← MUDANÇA AQUI
     } else {
       toast.error(data.error || "Erro ao deletar categoria");
       // Recarrega lista caso o backend não tenha atualizado corretamente
@@ -888,7 +879,8 @@ const deletePrompt = async (id) => {
       const response = await api.post(`/prompts/${prompt.id}/favorite`);
       const data = response.data;
       if (data.success) {
-        loadStats();
+            refetchStats(); // ← MUDANÇA AQUI
+
       }
 
       if (!data.success) {
