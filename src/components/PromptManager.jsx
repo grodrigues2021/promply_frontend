@@ -60,6 +60,9 @@ import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStats } from "../hooks/useStats";
 
+
+const isMobile = window.innerWidth < 768;
+
 const SharePromptModal = React.lazy(() =>
   import(
     /* webpackChunkName: "SharePromptModal", webpackMode: "lazy" */
@@ -416,6 +419,17 @@ export default function PromptManager({
     queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
     toast.success("✅ Prompt adicionado com sucesso!");
   }, [queryClient]); // ✅ Apenas queryClient
+
+  const openChatFromTopButton = () => {
+  if (window.innerWidth < 768) {
+    // 👉 MOBILE → abre ChatMobileView
+    setShowChatModal(true); // ChatContainer vai detectar que é mobile
+  } else {
+    // 👉 DESKTOP → comportamento normal
+    openChatIntelligently();
+  }
+};
+
 
   const openChatIntelligently = useCallback(() => {
     if (isChatDetached) {
@@ -956,7 +970,7 @@ export default function PromptManager({
                 </Button>
 
                 <Button
-                  onClick={openChatIntelligently}
+                  onClick={openChatFromTopButton}
                   className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                   size="sm"
                 >
