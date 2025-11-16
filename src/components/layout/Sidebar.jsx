@@ -129,6 +129,27 @@ export default function Sidebar({
 
           {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
           <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
+            {/* Stats mobile (chips compactos) */}
+<div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 px-2 lg:hidden">
+  <div className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 
+      text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded-full">
+    <BookOpen className="w-3 h-3" />
+    <span>{stats.total_prompts || 0}</span>
+  </div>
+
+  <div className="flex items-center gap-1 bg-purple-100 dark:bg-purple-900/30 
+      text-purple-700 dark:text-purple-300 text-xs px-2 py-1 rounded-full">
+    <Tag className="w-3 h-3" />
+    <span>{stats.total_categories || 0}</span>
+  </div>
+
+  <div className="flex items-center gap-1 bg-pink-100 dark:bg-pink-900/30
+      text-pink-700 dark:text-pink-300 text-xs px-2 py-1 rounded-full">
+    <Heart className="w-3 h-3" />
+    <span>{stats.favorite_prompts || 0}</span>
+  </div>
+</div>
+
   {/* Header minimalista */}
 <div className="flex items-center justify-between mb-3">
   <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
