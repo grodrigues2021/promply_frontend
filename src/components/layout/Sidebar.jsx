@@ -127,9 +127,9 @@ export default function Sidebar({
             </Card>
           </div>
 
-          {/* Card de Categorias - OCUPA TODO O ESPAÇO RESTANTE */}
-          <div className="flex-1 flex flex-col min-h-0 px-3 pb-1.5">
-            <Card className="rounded-xl bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col h-full min-h-0">
+          {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
+          <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
+            <Card className="rounded-xl bg-white dark:bg-slate-900 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col h-full lg:h-auto">
               
               {/* Header */}
               <CardHeader className="pb-1 pt-2 px-3 flex items-center justify-between flex-shrink-0">
@@ -168,8 +168,8 @@ export default function Sidebar({
                 </div>
               </div>
 
-              {/* Conteúdo - FLEX-1 para ocupar todo espaço restante */}
-              <CardContent className="flex-1 flex flex-col space-y-1.5 pb-1.5 px-3 min-h-0">
+              {/* Conteúdo - MOBILE: flex-1 | DESKTOP: auto */}
+              <CardContent className="flex-1 lg:flex-none flex flex-col space-y-1.5 pb-1.5 px-3 min-h-0">
                 
                 {/* Botão "Todas as categorias" - FIXO */}
                 <Button
@@ -209,9 +209,9 @@ export default function Sidebar({
                   )}
                 </button>
 
-                {/* Lista de categorias - OCUPA TODO ESPAÇO RESTANTE */}
+                {/* Lista de categorias - CRESCIMENTO DINÂMICO */}
                 {isCategoriesOpen && (
-                  <div className="flex-1 min-h-0 overflow-hidden animate-in slide-in-from-top-2 duration-300 flex flex-col space-y-1">
+                  <div className="flex-1 lg:flex-none min-h-0 overflow-hidden animate-in slide-in-from-top-2 duration-300 flex flex-col space-y-1">
                     
                     {/* Barra de busca e ordenação - só aparece se houver mais de 5 categorias */}
                     {myCategories.length > 5 && (
@@ -251,7 +251,7 @@ export default function Sidebar({
 
                     {/* Lista de categorias ou Empty State */}
                     {filteredAndSortedCategories.length === 0 ? (
-                      <div className="flex-1 flex items-center justify-center py-8">
+                      <div className="flex items-center justify-center py-8">
                         <div className="text-center text-slate-400 dark:text-slate-500">
                           {searchQuery ? (
                             <>
@@ -269,7 +269,7 @@ export default function Sidebar({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
+                      <div className="flex-1 lg:flex-none min-h-0 lg:max-h-[600px] overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
                         {filteredAndSortedCategories.map((category) => (
                           <div
                             key={category.id}
@@ -364,7 +364,7 @@ export default function Sidebar({
                     )}
 
                     {/* Indicador visual de mais conteúdo abaixo */}
-                    {filteredAndSortedCategories.length > 12 && (
+                    {filteredAndSortedCategories.length > 15 && (
                       <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white dark:from-slate-900 to-transparent pointer-events-none" />
                     )}
                   </div>
@@ -374,8 +374,10 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Rodapé fixo */}
-        <FooterMobile user={user} handleLogout={handleLogout} />
+        {/* Rodapé fixo - APENAS NO MOBILE */}
+        <div className="lg:hidden">
+          <FooterMobile user={user} handleLogout={handleLogout} />
+        </div>
       </aside>
     </>
   );
