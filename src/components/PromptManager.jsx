@@ -309,7 +309,7 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
     return tags;
   }, []);
 
-  const resetPromptForm = useCallback(() => {
+ const resetPromptForm = useCallback(() => {
   setPromptForm({
     title: "",
     content: "",
@@ -322,7 +322,7 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
     youtube_url: "",
     videoFile: null,
     imageFile: null,
-    selectedMedia: "none", // ✅ ADICIONE ESTA LINHA
+    selectedMedia: "none", // ✅ Campo que estava faltando
   });
   setEditingPrompt(null);
 }, []);
