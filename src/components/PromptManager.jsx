@@ -1355,18 +1355,25 @@ const deletePrompt = async (id) => {
         </div>
 
         {/* 📱 Versão Mobile - Botão que abre modal */}
-        <div className="block sm:hidden">
+        <div className="block sm:hidden relative z-10">
           <button
             type="button"
-            onClick={() => setShowCategoryModal(true)}
-            className="w-full px-4 py-2.5 text-left bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center justify-between"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log("🔘 Botão categoria clicado! Estado atual:", showCategoryModal);
+              setShowCategoryModal(true);
+              console.log("✅ Modal aberto:", true);
+            }}
+            className="w-full px-4 py-2.5 text-left bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600 transition flex items-center justify-between touch-manipulation cursor-pointer"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <span className="text-sm text-slate-700 dark:text-slate-200">
+            <span className="text-sm text-slate-700 dark:text-slate-200 pointer-events-none">
               {promptForm.category_id === "none" || !promptForm.category_id
                 ? "Selecione uma categoria"
                 : myCategories.find(c => String(c.id) === String(promptForm.category_id))?.name || "Sem categoria"}
             </span>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
+            <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none" />
           </button>
         </div>
       </div>
