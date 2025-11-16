@@ -21,10 +21,8 @@ export default function Sidebar({
   handleLogout,
 }) {
 
-  // 🆕 Estado para controlar se as categorias estão abertas/fechadas
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
 
-  // 🔒 Bloqueia rolagem do body quando a sidebar móvel estiver aberta
   useEffect(() => {
     if (isMobileSidebarOpen) {
       document.body.style.overflow = "hidden";
@@ -63,7 +61,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Conteúdo principal da sidebar */}
+        {/* ✅ MUDANÇA: Conteúdo com APENAS 1 SCROLL (da sidebar toda) */}
         <div className="flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-6">
             {/* 🧩 Estatísticas Desktop */}
@@ -112,9 +110,9 @@ export default function Sidebar({
             </div>
 
             {/* 🧩 Categorias */}
-            <Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] flex flex-col h-full border-0">
+            <Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] border-0">
               <CardHeader className="pb-3 flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-slate-800">
+                <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-200">
                   Minhas Categorias
                 </CardTitle>
                 <Button
@@ -135,12 +133,12 @@ export default function Sidebar({
               <div className="mt-2 mb-3 flex flex-wrap items-center justify-center gap-2 px-3 lg:hidden">
                 <div className="flex items-center gap-1.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
                   <BookOpen className="w-4 h-4" />
-                  <span>{stats.total_prompts || 0} </span>
+                  <span>{stats.total_prompts || 0}</span>
                 </div>
 
                 <div className="flex items-center gap-1.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
                   <Tag className="w-4 h-4" />
-                  <span>{stats.total_categories || 0} </span>
+                  <span>{stats.total_categories || 0}</span>
                 </div>
 
                 <div className="flex items-center gap-1.5 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 text-sm px-3 py-1.5 rounded-full shadow-sm">
@@ -149,7 +147,7 @@ export default function Sidebar({
                 </div>
               </div>
 
-              <CardContent className="flex-1 flex flex-col space-y-2 pb-4 px-3">
+              <CardContent className="space-y-2 pb-4 px-3">
                 {/* Botão "Todas" - sempre visível */}
                 <Button
                   variant={selectedCategory === null ? "default" : "ghost"}
@@ -162,7 +160,7 @@ export default function Sidebar({
                   Todas as categorias
                 </Button>
 
-                {/* 🆕 Header clicável para expandir/colapsar */}
+                {/* Header clicável para expandir/colapsar */}
                 <button
                   onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
                   className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
@@ -178,20 +176,21 @@ export default function Sidebar({
                   )}
                 </button>
 
-                {/* 🆕 Lista de categorias colapsável com scroll */}
+                {/* ✅ MUDANÇA: Removido overflow-y-auto e max-height interno */}
+                {/* Agora a lista se expande naturalmente com o scroll geral da sidebar */}
                 <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isCategoriesOpen ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
+                    isCategoriesOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
-                  <div className="overflow-y-auto max-h-[400px] space-y-2 pr-1">
+                  <div className="space-y-2 pt-1">
                     {myCategories.map((category) => (
                       <div
                         key={category.id}
                         className={`flex items-center justify-between rounded-md transition group ${
                           selectedCategory === category.id
                             ? "bg-blue-600 text-white"
-                            : "hover:bg-gray-50 text-slate-700"
+                            : "hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                         }`}
                       >
                         <div
@@ -211,7 +210,7 @@ export default function Sidebar({
                             className={`truncate text-sm font-medium leading-snug ${
                               selectedCategory === category.id
                                 ? "text-white"
-                                : "text-slate-800"
+                                : "text-slate-800 dark:text-slate-200"
                             }`}
                             title={category.name}
                           >
@@ -226,7 +225,7 @@ export default function Sidebar({
                             className={`h-6 w-6 ${
                               selectedCategory === category.id
                                 ? "text-white hover:text-blue-100"
-                                : "text-slate-500 hover:text-blue-600"
+                                : "text-slate-500 hover:text-blue-600 dark:text-slate-400"
                             }`}
                             onClick={() => {
                               setIsMobileSidebarOpen(false);
@@ -242,7 +241,7 @@ export default function Sidebar({
                             className={`h-6 w-6 ${
                               selectedCategory === category.id
                                 ? "text-white hover:text-blue-100"
-                                : "text-slate-500 hover:text-red-600"
+                                : "text-slate-500 hover:text-red-600 dark:text-slate-400"
                             }`}
                             onClick={() => deleteCategory(category.id)}
                           >
