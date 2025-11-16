@@ -297,29 +297,31 @@ export default function Sidebar({
                                 }}
                               ></span>
                               
-                              <div className="flex-1 min-w-0">
-                                <span
-                                  className={`block truncate text-sm font-medium ${
-                                    selectedCategory === category.id
-                                      ? "text-white"
-                                      : "text-slate-800 dark:text-slate-200"
-                                  }`}
-                                  title={category.name}
-                                >
-                                  {category.name}
-                                </span>
-                                {category.prompt_count !== undefined && (
-                                  <span
-                                    className={`text-xs ${
-                                      selectedCategory === category.id
-                                        ? "text-blue-100"
-                                        : "text-slate-500 dark:text-slate-400"
-                                    }`}
-                                  >
-                                    {category.prompt_count} {category.prompt_count === 1 ? "prompt" : "prompts"}
-                                  </span>
-                                )}
-                              </div>
+                              <div className="flex-1 min-w-0 flex items-center gap-1">
+  <span
+    className={`truncate text-sm font-medium ${
+      selectedCategory === category.id
+        ? "text-white"
+        : "text-slate-800 dark:text-slate-200"
+    }`}
+    title={category.name}
+  >
+    {category.name}
+  </span>
+
+  {category.prompt_count !== undefined && (
+    <span
+      className={`text-xs ${
+        selectedCategory === category.id
+          ? "text-blue-100"
+          : "text-slate-500 dark:text-slate-400"
+      }`}
+    >
+      ({category.prompt_count})
+    </span>
+  )}
+</div>
+
                             </div>
 
                             <div className="flex items-center gap-0.5 flex-shrink-0 pr-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
