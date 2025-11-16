@@ -61,7 +61,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* ✅ MUDANÇA: Conteúdo SEM scroll geral (overflow-hidden) */}
+        {/* Conteúdo SEM scroll geral */}
         <div className="flex-1 overflow-hidden px-3 py-4 flex flex-col">
           <div className="space-y-6">
             {/* 🧩 Estatísticas Desktop - FIXAS */}
@@ -167,7 +167,7 @@ export default function Sidebar({
                 >
                   <span className="flex items-center gap-2">
                     <Tag className="w-4 h-4" />
-                    Lista de Categorias
+                    Lista de Categorias ({myCategories.length})
                   </span>
                   {isCategoriesOpen ? (
                     <ChevronDown className="w-4 h-4" />
@@ -176,13 +176,14 @@ export default function Sidebar({
                   )}
                 </button>
 
-                {/* ✅ MUDANÇA: Lista com scroll INTERNO (max-height + overflow-y-auto) */}
+                {/* ✅ Lista com scroll INTERNO - max 20 categorias visíveis (42px cada = 840px) */}
                 <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                    isCategoriesOpen ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
+                    isCategoriesOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
                   }`}
                 >
-                  <div className="overflow-y-auto max-h-[400px] space-y-2 pt-1 pr-1">
+                  {/* ✅ MUDANÇA: max-h-[840px] = ~20 categorias × 42px */}
+                  <div className="overflow-y-auto max-h-[840px] space-y-2 pt-1 pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent">
                     {myCategories.map((category) => (
                       <div
                         key={category.id}
