@@ -77,16 +77,7 @@ function App() {
       <Route path="/chat-workspace" element={<ChatWorkspace />} />
     </Routes>
 
-    {/* 🟢 BOTÃO FLUTUANTE DO CHAT */}
-    {isAuthenticated && (
-      <button
-        onClick={() => setIsChatOpen(true)}
-        className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2 hover:opacity-90 active:scale-95 transition"
-      >
-        <MessageSquare className="w-5 h-5" />
-        <span className="hidden sm:block">Chat da Comunidade</span>
-      </button>
-    )}
+   
 
     {/* 🟣 CONTAINER DO CHAT */}
     <ChatContainer
