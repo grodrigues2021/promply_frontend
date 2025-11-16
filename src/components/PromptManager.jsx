@@ -490,12 +490,13 @@ export default function PromptManager({
   }, []);
 
   useEffect(() => {
-    if (showChatModal && !ChatComponent) {
-      import("./ChatModal").then((module) => {
-        setChatComponent(() => module.default);
-      });
-    }
-  }, [showChatModal]);
+  if (showChatModal && !ChatComponent) {
+import("./ChatContainer.jsx").then((module) => {
+      setChatComponent(() => module.default);
+    });
+  }
+}, [showChatModal]);
+
 
   const filteredPrompts = Array.isArray(prompts)
     ? prompts.filter((prompt) => {
