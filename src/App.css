@@ -294,3 +294,12 @@ input[type="search"]::-webkit-search-cancel-button {
   font-size: 13px !important;
 }
 
+/* Ocultar badge do React DevTools */
+iframe[style*="position: fixed"][style*="bottom: 0"][style*="right: 0"] {
+  display: none !important;
+}
+
+/* Ou tente esta alternativa */
+[data-react-devtools-portal] {
+  display: none !important;
+}
