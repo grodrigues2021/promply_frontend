@@ -350,6 +350,12 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
         ? String(prompt.category_id)
         : "none";
 
+      // 🎯 Determina o tipo de mídia para pré-selecionar
+      let mediaType = "none";
+      if (prompt.youtube_url) mediaType = "youtube";
+      else if (prompt.video_url) mediaType = "video";
+      else if (prompt.image_url) mediaType = "imagem";
+
       setPromptForm({
         title: prompt.title || "",
         content: prompt.content || "",
@@ -362,6 +368,7 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
         youtube_url: prompt.youtube_url || "",
         imageFile: null,
         videoFile: null,
+        selectedMedia: mediaType, // ✅ Adiciona o campo que faltava
       });
 
       setIsPromptDialogOpen(true);
@@ -369,7 +376,6 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
   },
   [normalizeTags]
 );
-
 
   const editCategory = useCallback((category) => {
     setCategoryForm({
