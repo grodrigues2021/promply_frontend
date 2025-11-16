@@ -1363,9 +1363,9 @@ const deletePrompt = async (id) => {
           <Select
             value={promptForm.category_id}
             onValueChange={(value) =>
-              setPromptForm({ ...promptForm, category_id: value })
+              setPromptForm(prev => ({ ...prev, category_id: value }))
             }
-          >
+                      >
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Selecione uma categoria" />
             </SelectTrigger>
