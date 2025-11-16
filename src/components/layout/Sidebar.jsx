@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { BookOpen, Tag, Heart, FolderPlus, Edit3, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import FooterMobile from "./FooterMobile";
 
-
 export default function Sidebar({
   stats,
   myCategories,
@@ -20,11 +19,10 @@ export default function Sidebar({
   user,
   handleLogout,
 }) {
-
-  // 🆕 Estado para controlar se as categorias estão abertas/fechadas (padrão: fechado)
+  // Estado para controlar se as categorias estão abertas/fechadas (padrão: fechado)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
 
-  // 🔒 Bloqueia rolagem do body quando a sidebar móvel estiver aberta
+  // Bloqueia rolagem do body quando a sidebar móvel estiver aberta
   useEffect(() => {
     if (isMobileSidebarOpen) {
       document.body.style.overflow = "hidden";
@@ -63,11 +61,12 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* ✅ Conteúdo SEM scroll geral */}
+        {/* Conteúdo principal */}
         <div className="flex-1 overflow-hidden px-3 py-4 flex flex-col">
           <div className="space-y-6 flex-1 flex flex-col">
-            {/* 🧩 Estatísticas Desktop - FIXAS */}
-            <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
+            
+            {/* Estatísticas Desktop - FIXAS */}
+            <div className="hidden lg:grid grid-cols-1 gap-4 mb-6 flex-shrink-0">
               <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
                 <CardContent className="p-2 sm:p-3 flex flex-col items-center justify-center lg:items-start lg:justify-between">
                   <div className="hidden lg:flex flex-col w-full justify-between">
@@ -111,7 +110,7 @@ export default function Sidebar({
               </Card>
             </div>
 
-            {/* 🧩 Categorias */}
+            {/* Card de Categorias */}
             <Card className="rounded-xl bg-white/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_2px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_2px_10px_rgba(0,0,0,0.4)] border-0 flex flex-col flex-1 min-h-0">
               <CardHeader className="pb-3 flex items-center justify-between flex-shrink-0">
                 <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-200">
@@ -149,11 +148,11 @@ export default function Sidebar({
                 </div>
               </div>
 
-              <CardContent className="space-y-2 pb-4 px-3 flex-shrink-0">
-                {/* Botão "Todas" - FIXO */}
+              <CardContent className="space-y-3 pb-4 px-3 flex-shrink-0">
+                {/* Botão "Todas as categorias" - FIXO */}
                 <Button
                   variant={selectedCategory === null ? "default" : "ghost"}
-                  className="w-full justify-start font-medium"
+                  className="w-full justify-start font-medium h-9"
                   onClick={() => {
                     setSelectedCategory(null);
                     setIsMobileSidebarOpen(false);
@@ -162,100 +161,105 @@ export default function Sidebar({
                   Todas as categorias
                 </Button>
 
-                {/* Header clicável - FIXO */}
+                {/* Header clicável para expandir/recolher - FIXO */}
                 <button
                   onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-                  className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+                  className="flex items-center justify-between w-full px-3 py-2.5 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-slate-200 dark:border-slate-700"
                 >
                   <span className="flex items-center gap-2">
                     <Tag className="w-4 h-4" />
-                    Lista de Categorias ({myCategories.length})
+                    <span>Categorias</span>
+                    <span className="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full font-medium">
+                      {myCategories.length}
+                    </span>
                   </span>
                   {isCategoriesOpen ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
                     <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
                   )}
                 </button>
 
-                {/* ✅ Lista com scroll INTERNO - mais categorias visíveis */}
-                <div
-                  className={`transition-all duration-300 ease-in-out ${
-                    isCategoriesOpen 
-                      ? "max-h-none opacity-100" 
-                      : "max-h-0 opacity-0 overflow-hidden"
-                  }`}
-                >
-                  {/* ✅ Container com scroll - altura adaptativa para desktop e mobile */}
-                  <div className="space-y-2 pt-1 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-38rem)] pr-2 scrollbar-thin scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600 scrollbar-track-slate-200 dark:scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500 dark:hover:scrollbar-thumb-slate-500">
-                    {myCategories.map((category) => (
-                      <div
-                        key={category.id}
-                        className={`flex items-center justify-between rounded-md transition group ${
-                          selectedCategory === category.id
-                            ? "bg-blue-600 text-white"
-                            : "hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-                        }`}
-                      >
+                {/* Lista de categorias com transição suave */}
+                {isCategoriesOpen && (
+                  <div className="overflow-hidden animate-in slide-in-from-top-2 duration-300">
+                    {/* Container com scroll - ~15 categorias visíveis (660px) */}
+                    <div className="space-y-1 overflow-y-auto max-h-[660px] pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
+                      {myCategories.map((category) => (
                         <div
-                          onClick={() => {
-                            setSelectedCategory(category.id);
-                            setIsMobileSidebarOpen(false);
-                          }}
-                          className="flex items-center gap-2 flex-1 text-left cursor-pointer overflow-hidden px-3 py-2 rounded-md"
+                          key={category.id}
+                          className={`flex items-center justify-between rounded-lg transition-all group ${
+                            selectedCategory === category.id
+                              ? "bg-blue-600 text-white shadow-sm"
+                              : "hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                          }`}
                         >
-                          <span
-                            className="w-3 h-3 rounded-full flex-shrink-0"
-                            style={{
-                              backgroundColor: category.color || "#3B82F6",
-                            }}
-                          ></span>
-                          <span
-                            className={`truncate text-sm font-medium leading-snug ${
-                              selectedCategory === category.id
-                                ? "text-white"
-                                : "text-slate-800 dark:text-slate-200"
-                            }`}
-                            title={category.name}
-                          >
-                            {category.name}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1 flex-shrink-0 pr-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-6 w-6 ${
-                              selectedCategory === category.id
-                                ? "text-white hover:text-blue-100"
-                                : "text-slate-500 hover:text-blue-600 dark:text-slate-400"
-                            }`}
+                          <div
                             onClick={() => {
+                              setSelectedCategory(category.id);
                               setIsMobileSidebarOpen(false);
-                              editCategory(category);
                             }}
+                            className="flex items-center gap-2.5 flex-1 text-left cursor-pointer overflow-hidden px-3 py-2.5 rounded-lg"
                           >
-                            <Edit3 className="h-4 w-4" />
-                          </Button>
+                            <span
+                              className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-white/20"
+                              style={{
+                                backgroundColor: category.color || "#3B82F6",
+                              }}
+                            ></span>
+                            <span
+                              className={`truncate text-sm font-medium ${
+                                selectedCategory === category.id
+                                  ? "text-white"
+                                  : "text-slate-800 dark:text-slate-200"
+                              }`}
+                              title={category.name}
+                            >
+                              {category.name}
+                            </span>
+                          </div>
 
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-6 w-6 ${
-                              selectedCategory === category.id
-                                ? "text-white hover:text-blue-100"
-                                : "text-slate-500 hover:text-red-600 dark:text-slate-400"
-                            }`}
-                            onClick={() => deleteCategory(category.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-0.5 flex-shrink-0 pr-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`h-7 w-7 rounded-md ${
+                                selectedCategory === category.id
+                                  ? "text-white hover:bg-blue-700"
+                                  : "text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:text-slate-400 dark:hover:bg-blue-900/20"
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setIsMobileSidebarOpen(false);
+                                editCategory(category);
+                              }}
+                              title="Editar categoria"
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`h-7 w-7 rounded-md ${
+                                selectedCategory === category.id
+                                  ? "text-white hover:bg-blue-700"
+                                  : "text-slate-500 hover:text-red-600 hover:bg-red-50 dark:text-slate-400 dark:hover:bg-red-900/20"
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteCategory(category.id);
+                              }}
+                              title="Deletar categoria"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
