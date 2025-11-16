@@ -66,8 +66,7 @@ export default function Sidebar({
         {/* ✅ Conteúdo SEM scroll geral (overflow-hidden) */}
 <div
   className="space-y-2 pt-1 pr-1 flex-1 min-h-0 max-h-[400px] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent"
->
-          <div className="space-y-6">
+>          <div className="space-y-6">
             {/* 🧩 Estatísticas Desktop - FIXAS */}
             <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
               <Card className="bg-blue-500/90 text-white border border-blue-400/30 rounded-lg shadow-sm hover:shadow-md transition-all">
