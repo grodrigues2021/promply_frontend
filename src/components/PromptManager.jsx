@@ -310,21 +310,22 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
   }, []);
 
   const resetPromptForm = useCallback(() => {
-    setPromptForm({
-      title: "",
-      content: "",
-      description: "",
-      tags: "",
-      category_id: "none",
-      is_favorite: false,
-      image_url: "",
-      video_url: "",
-      youtube_url: "",
-      videoFile: null,
-      imageFile: null,
-    });
-    setEditingPrompt(null);
-  }, []);
+  setPromptForm({
+    title: "",
+    content: "",
+    description: "",
+    tags: "",
+    category_id: "none",
+    is_favorite: false,
+    image_url: "",
+    video_url: "",
+    youtube_url: "",
+    videoFile: null,
+    imageFile: null,
+    selectedMedia: "none", // ✅ ADICIONE ESTA LINHA
+  });
+  setEditingPrompt(null);
+}, []);
 
   const resetCategoryForm = useCallback(() => {
     setCategoryForm({
@@ -1528,9 +1529,10 @@ const deletePrompt = async (id) => {
           <button
             className="w-full text-left px-3 py-2 rounded-md border"
             onClick={() => {
-              setPromptForm({ ...promptForm, category_id: "none" });
-              setShowCategoryModal(false);
-            }}
+            setPromptForm(prev => ({ ...prev, category_id: "none" }));
+            setShowCategoryModal(false);
+            setCategorySearch(""); // ✅ Opcional: limpa busca
+          }}
           >
             Sem categoria
           </button>
