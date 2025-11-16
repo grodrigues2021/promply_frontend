@@ -547,17 +547,17 @@ const savePrompt = async () => {
     const endpoint = isEditing ? `/prompts/${editingPrompt.id}` : `/prompts`;
 
     // ========================================
-    // CRIAR PROMPT - OPTIMISTIC UPDATE COM FLAGS DE MÍDIA
+    // CRIAR PROMPT - OPTIMISTIC UPDATE
     // ========================================
     if (!isEditing) {
       const tempId = `temp-${Date.now()}`;
       
       const optimisticPrompt = {
         id: tempId,
-        _tempId: tempId, // 🎯 Mantém o ID temp como key estável
-        _skipAnimation: true, // 🎯 Flag para não animar este item
-        _hasLocalVideo: !!promptForm.videoFile, // 🎯 Flag para detectar vídeo MP4
-        _hasYouTube: !!promptForm.youtube_url, // 🎯 Flag para detectar YouTube
+        _tempId: tempId,
+        _skipAnimation: true,
+        _hasLocalVideo: !!promptForm.videoFile,
+        _hasYouTube: !!promptForm.youtube_url,
         title: promptForm.title,
         content: promptForm.content,
         description: promptForm.description,
@@ -578,26 +578,11 @@ const savePrompt = async () => {
       // ✅ Adiciona IMEDIATAMENTE na UI
       setPrompts([optimisticPrompt, ...prompts]);
       
-      // ✅ Fecha dialog e limpa formulário ANTES da requisição
-      // NÃO FECHA ANTES – deixa a requisição terminar
-      toast.loading("Salvando...");
-
-      const response = await api.put(endpoint, body, { headers });
-
-      toast.dismiss();
-
-     // Fecha o modal DEPOIS que a requisição termina
-      setTimeout(() => {
-        setIsPromptDialogOpen(false);
-        resetPromptForm();
-      }, 150);
-
-
-      
       // ✅ Feedback instantâneo
       toast.success('✅ Prompt criado!');
 
       try {
+        // 🔧 PREPARA body e headers ANTES de usar
         let body;
         let headers = {};
         
@@ -641,20 +626,20 @@ const savePrompt = async () => {
           });
         }
 
-        // 🔄 Requisição em background
+        // 📡 Requisição em background
         const response = await api.post(endpoint, body, { headers });
         const data = response.data;
 
         if (data.success) {
           const serverPrompt = data.data || data.prompt || data.updated || null;
           
-          // ✅ Substitui temporário pelo real MANTENDO _tempId e _skipAnimation
+          // ✅ Substitui temporário pelo real
           if (serverPrompt) {
             setPrompts(prev => 
               prev.map(p => p.id === tempId 
                 ? { 
                     ...serverPrompt, 
-                    _tempId: tempId, // Mantém o ID temp como key estável
+                    _tempId: tempId,
                     _skipAnimation: true 
                   }
                 : p
@@ -662,12 +647,17 @@ const savePrompt = async () => {
             );
           } else {
             setTimeout(() => {
-  queryClient.invalidateQueries(["prompts"]);
-}, 800);
-
+              queryClient.invalidateQueries(["prompts"]);
+            }, 800);
           }
           
           refetchStats();
+          
+          // ✅ Fecha modal DEPOIS da requisição
+          setTimeout(() => {
+            setIsPromptDialogOpen(false);
+            resetPromptForm();
+          }, 150);
         } else {
           // ❌ Remove temporário se falhar
           setPrompts(prev => prev.filter(p => p.id !== tempId));
@@ -708,14 +698,11 @@ const savePrompt = async () => {
         prev.map(p => p.id === editingPrompt.id ? updatedPrompt : p)
       );
       
-      // ✅ Fecha dialog e limpa formulário ANTES da requisição
-      setIsPromptDialogOpen(false);
-      resetPromptForm();
-      
       // ✅ Feedback instantâneo
       toast.success('✏️ Prompt atualizado!');
 
       try {
+        // 🔧 PREPARA body e headers ANTES de usar
         let body;
         let headers = {};
         
@@ -759,7 +746,7 @@ const savePrompt = async () => {
           });
         }
 
-        // 🔄 Requisição em background
+        // 📡 Requisição em background
         const response = await api.put(endpoint, body, { headers });
         const data = response.data;
 
@@ -773,12 +760,17 @@ const savePrompt = async () => {
             );
           } else {
             setTimeout(() => {
-  queryClient.invalidateQueries(["prompts"]);
-}, 800);
-
+              queryClient.invalidateQueries(["prompts"]);
+            }, 800);
           }
           
           refetchStats();
+          
+          // ✅ Fecha modal DEPOIS da requisição
+          setTimeout(() => {
+            setIsPromptDialogOpen(false);
+            resetPromptForm();
+          }, 150);
         } else {
           // ❌ Reverte se falhar
           setPrompts(previousPrompts);
