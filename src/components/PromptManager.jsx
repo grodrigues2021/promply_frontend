@@ -54,6 +54,7 @@ import Sidebar from "./layout/Sidebar";
 import FooterMobile from "./layout/FooterMobile";
 import useLockBodyScroll from "../hooks/useLockBodyScroll";
 import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { usePromptsQuery } from "../hooks/usePromptsQuery";
 import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
 import { useQueryClient } from "@tanstack/react-query";
