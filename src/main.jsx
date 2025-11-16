@@ -12,10 +12,10 @@ import { queryClient } from "./lib/react-query-client";
 // ✅ Para staging: use o import de produção
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools/production";
 
-
-const showDevtools =
-  import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === 'true' ||
-  window.location.hostname.includes("staging");
+const showDevtools = false;
+//const showDevtools =
+  //import.meta.env.VITE_SHOW_QUERY_DEVTOOLS === 'true' ||
+ // window.location.hostname.includes("staging");
 
 console.log("🔍 ReactQueryDevtools ativo?", showDevtools);
 
