@@ -176,7 +176,7 @@ export default function Sidebar({
                 {isCategoriesOpen && (
                   <div className="flex-1 min-h-0 overflow-hidden animate-in slide-in-from-top-2 duration-300">
                     {/* Container com scroll - USA TODO O ESPAÇO DISPONÍVEL */}
-                    <div className="h-full overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
+                    <div className="h-full overflow-y-auto space-y-1.5 pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
                       {myCategories.map((category) => (
                         <div
                           key={category.id}
@@ -191,16 +191,16 @@ export default function Sidebar({
                               setSelectedCategory(category.id);
                               setIsMobileSidebarOpen(false);
                             }}
-                            className="flex items-center gap-2 flex-1 text-left cursor-pointer overflow-hidden px-2.5 py-2 rounded-lg"
+                            className="flex items-center gap-2.5 flex-1 text-left cursor-pointer overflow-hidden px-3 py-2.5 rounded-lg"
                           >
                             <span
-                              className="w-2.5 h-2.5 rounded-full flex-shrink-0 ring-2 ring-white/20"
+                              className="w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-white/20"
                               style={{
                                 backgroundColor: category.color || "#3B82F6",
                               }}
                             ></span>
                             <span
-                              className={`truncate text-sm font-medium ${
+                              className={`truncate text-sm font-medium leading-relaxed ${
                                 selectedCategory === category.id
                                   ? "text-white"
                                   : "text-slate-800 dark:text-slate-200"
@@ -211,11 +211,11 @@ export default function Sidebar({
                             </span>
                           </div>
 
-                          <div className="flex items-center gap-0.5 flex-shrink-0 pr-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-0.5 flex-shrink-0 pr-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className={`h-6 w-6 rounded-md ${
+                              className={`h-7 w-7 rounded-md ${
                                 selectedCategory === category.id
                                   ? "text-white hover:bg-blue-700"
                                   : "text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:text-slate-400 dark:hover:bg-blue-900/20"
@@ -227,13 +227,13 @@ export default function Sidebar({
                               }}
                               title="Editar categoria"
                             >
-                              <Edit3 className="h-3 w-3" />
+                              <Edit3 className="h-3.5 w-3.5" />
                             </Button>
 
                             <Button
                               variant="ghost"
                               size="icon"
-                              className={`h-6 w-6 rounded-md ${
+                              className={`h-7 w-7 rounded-md ${
                                 selectedCategory === category.id
                                   ? "text-white hover:bg-blue-700"
                                   : "text-slate-500 hover:text-red-600 hover:bg-red-50 dark:text-slate-400 dark:hover:bg-red-900/20"
@@ -244,7 +244,7 @@ export default function Sidebar({
                               }}
                               title="Deletar categoria"
                             >
-                              <Trash2 className="h-3 w-3" />
+                              <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         </div>
