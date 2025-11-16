@@ -64,7 +64,7 @@ export default function Sidebar({
         </div>
 
         {/* ✅ Conteúdo SEM scroll geral (overflow-hidden) */}
-        <div className="flex-1 overflow-hidden px-3 py-4 flex flex-col">
+<div className="flex-1 px-3 py-4 flex flex-col min-h-0">
           <div className="space-y-6">
             {/* 🧩 Estatísticas Desktop - FIXAS */}
             <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
