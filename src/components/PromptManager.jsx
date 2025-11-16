@@ -1331,6 +1331,7 @@ const deletePrompt = async (id) => {
           Categoria
         </Label>
 
+        {/* 🖥️ Versão Desktop - Select normal */}
         <div className="hidden sm:block">
           <Select
             value={promptForm.category_id}
@@ -1345,13 +1346,28 @@ const deletePrompt = async (id) => {
             <SelectContent className="max-h-[220px] overflow-y-auto">
               <SelectItem value="none">Sem categoria</SelectItem>
               {myCategories.map((cat) => (
-                <SelectItem key={cat.id} value={cat.id}>
+                <SelectItem key={cat.id} value={String(cat.id)}>
                   {cat.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
+        </div>
+
+        {/* 📱 Versão Mobile - Botão que abre modal */}
+        <div className="block sm:hidden">
+          <button
+            type="button"
+            onClick={() => setShowCategoryModal(true)}
+            className="w-full px-4 py-2.5 text-left bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center justify-between"
+          >
+            <span className="text-sm text-slate-700 dark:text-slate-200">
+              {promptForm.category_id === "none" || !promptForm.category_id
+                ? "Selecione uma categoria"
+                : myCategories.find(c => String(c.id) === String(promptForm.category_id))?.name || "Sem categoria"}
+            </span>
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          </button>
         </div>
       </div>
 
