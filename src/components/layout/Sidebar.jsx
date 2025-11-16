@@ -153,7 +153,7 @@ export default function Sidebar({
   {/* Header minimalista */}
 <div className="flex items-center justify-between mb-3">
   <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-    Categorias ({myCategories.length})
+    Categorias 
   </h2>
 
   <Button
@@ -167,7 +167,7 @@ export default function Sidebar({
     className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs flex items-center gap-1"
   >
     <FolderPlus className="w-4 h-4" />
-    Categoria
+    Adicionar
   </Button>
 </div>
 
