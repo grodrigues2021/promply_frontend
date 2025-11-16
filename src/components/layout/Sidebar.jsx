@@ -143,13 +143,14 @@ export default function Sidebar({
       setIsCategoryDialogOpen(true);
       setIsMobileSidebarOpen(false);
     }}
-    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs"
+    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs flex items-center gap-1"
   >
-    + Categoria
+    <FolderPlus className="w-4 h-4" />
+    Categoria
   </Button>
 </div>
 
-{/* Lista minimalista */}
+{/* Lista minimalista + color bullets */}
 <ul className="space-y-2 pl-2">
   {filteredAndSortedCategories.map((category) => (
     <li
@@ -166,14 +167,23 @@ export default function Sidebar({
         setIsMobileSidebarOpen(false);
       }}
     >
-      <span className="text-xs">•</span>
 
+      {/* Bolinha colorida personalizada */}
+      <span
+        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+        style={{
+          backgroundColor: category.color || "#3B82F6",
+        }}
+      ></span>
+
+      {/* Nome + contador */}
       <span className="truncate text-sm">
         {category.name} ({category.prompt_count})
       </span>
     </li>
   ))}
 </ul>
+
 
           </div>
         </div>
