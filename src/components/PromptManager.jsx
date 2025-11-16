@@ -566,8 +566,17 @@ const savePrompt = async () => {
       setPrompts([optimisticPrompt, ...prompts]);
       
       // ✅ Fecha dialog e limpa formulário ANTES da requisição
+      // NÃO FECHA ANTES – deixa a requisição terminar
+      toast.loading("Salvando...");
+
+      const response = await api.put(endpoint, body, { headers });
+
+      toast.dismiss();
+
+      // só fecha agora:
       setIsPromptDialogOpen(false);
       resetPromptForm();
+
       
       // ✅ Feedback instantâneo
       toast.success('✅ Prompt criado!');
