@@ -209,7 +209,10 @@ export default function Sidebar({
       </div>
 
       {/* Ações (EDITAR / APAGAR) — apenas no hover */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 
+  opacity-100 lg:opacity-0 lg:group-hover:opacity-100 
+  transition-opacity">
+
         <button
           onClick={(e) => {
             e.stopPropagation();
