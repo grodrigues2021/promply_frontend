@@ -94,26 +94,35 @@ export default function Sidebar({
         {/* Conteúdo principal - SEM overflow geral, deixa cada seção controlar seu scroll */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           
-          {/* Estatísticas Desktop - HORIZONTAL COMPACTA */}
-          <div className="hidden lg:flex gap-1.5 px-3 mb-2 flex-shrink-0">
-            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 rounded-md shadow-sm flex-1">
-              <CardContent className="p-1.5 flex flex-col items-center justify-center">
-                <BookOpen className="w-4 h-4 opacity-80 mb-0.5" />
-                <p className="text-xs font-bold">{stats.total_prompts || 0}</p>
+          {/* Estatísticas Desktop - COMPACTAS */}
+          <div className="hidden lg:grid grid-cols-1 gap-2 px-3 mb-2 flex-shrink-0">
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 rounded-lg shadow-sm hover:shadow-md transition-all">
+              <CardContent className="p-2 flex items-center justify-between">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium opacity-90">Prompts</p>
+                  <p className="text-base font-bold">{stats.total_prompts || 0}</p>
+                </div>
+                <BookOpen className="w-5 h-5 opacity-80" />
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 rounded-md shadow-sm flex-1">
-              <CardContent className="p-1.5 flex flex-col items-center justify-center">
-                <Tag className="w-4 h-4 opacity-80 mb-0.5" />
-                <p className="text-xs font-bold">{stats.total_categories || 0}</p>
+            <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 rounded-lg shadow-sm hover:shadow-md transition-all">
+              <CardContent className="p-2 flex items-center justify-between">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium opacity-90">Categorias</p>
+                  <p className="text-base font-bold">{stats.total_categories || 0}</p>
+                </div>
+                <Tag className="w-5 h-5 opacity-80" />
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-pink-500 to-pink-600 text-white border-0 rounded-md shadow-sm flex-1">
-              <CardContent className="p-1.5 flex flex-col items-center justify-center">
-                <Heart className="w-4 h-4 opacity-80 mb-0.5" />
-                <p className="text-xs font-bold">{stats.favorite_prompts || 0}</p>
+            <Card className="bg-gradient-to-br from-pink-500 to-pink-600 text-white border-0 rounded-lg shadow-sm hover:shadow-md transition-all">
+              <CardContent className="p-2 flex items-center justify-between">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium opacity-90">Favoritos</p>
+                  <p className="text-base font-bold">{stats.favorite_prompts || 0}</p>
+                </div>
+                <Heart className="w-5 h-5 opacity-80" />
               </CardContent>
             </Card>
           </div>
