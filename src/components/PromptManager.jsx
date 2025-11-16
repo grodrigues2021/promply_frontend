@@ -1479,7 +1479,7 @@ const deletePrompt = async (id) => {
   <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
     <DialogContent
       className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 
-                 max-h-[80vh] overflow-hidden flex flex-col"
+                 max-h-[80vh] flex flex-col overflow-hidden"
     >
       <DialogHeader>
         <DialogTitle>Selecionar Categoria</DialogTitle>
@@ -1492,7 +1492,14 @@ const deletePrompt = async (id) => {
         className="mb-3"
       />
 
-      <ScrollArea className="flex-1 pr-2">
+      {/* 🔥 Área rolável garantida no mobile */}
+      <div
+        className="flex-1 overflow-y-auto pr-2"
+        style={{
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "contain",
+        }}
+      >
         <div className="space-y-2 pb-4">
           <button
             className="w-full text-left px-3 py-2 rounded-md border"
@@ -1524,7 +1531,7 @@ const deletePrompt = async (id) => {
               </button>
             ))}
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="flex justify-end mt-3">
         <Button variant="outline" onClick={() => setShowCategoryModal(false)}>
@@ -1535,7 +1542,6 @@ const deletePrompt = async (id) => {
   </Dialog>,
   document.getElementById("category-modal-root")
 )}
-
 
   </>
 );
