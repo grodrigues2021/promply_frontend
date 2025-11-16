@@ -1361,10 +1361,14 @@ const deletePrompt = async (id) => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              console.log("🔘 Botão MOBILE clicado! Abrindo modal...");
               setShowCategoryModal(true);
             }}
             className="w-full px-4 py-2.5 text-left bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600 transition flex items-center justify-between touch-manipulation cursor-pointer"
-            style={{ WebkitTapHighlightColor: 'transparent' }}
+            style={{ 
+              WebkitTapHighlightColor: 'transparent',
+              cursor: 'pointer'
+            }}
           >
             <span className="text-sm text-slate-700 dark:text-slate-200 pointer-events-none">
               {promptForm.category_id === "none" || !promptForm.category_id
