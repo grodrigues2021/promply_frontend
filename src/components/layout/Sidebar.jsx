@@ -76,7 +76,7 @@ export default function Sidebar({
 
       {/* Sidebar */}
       <aside
-  className={`fixed top-0 left-0 h-[100dvh] lg:h-auto lg:max-h-[120vh] w-[80%] max-w-sm lg:w-[260px] lg:relative z-[9999] lg:z-[30] flex flex-col bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out lg:transform-none ${
+  className={`fixed top-0 left-0 h-[100dvh]  w-[80%] max-w-sm lg:w-[260px] lg:relative z-[9999] lg:z-[30] flex flex-col bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out lg:transform-none ${
     isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
   }`}
 >
@@ -269,8 +269,7 @@ export default function Sidebar({
                         </div>
                       </div>
                     ) : (
-                      <div className="flex-1 lg:flex-none min-h-0 lg:max-h-[600px] overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
-                        {filteredAndSortedCategories.map((category) => (
+<div className="flex-1 lg:flex-none min-h-0 lg:max-h-[calc(100vh-280px)] overflow-y-auto space-y-0.5 pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">                        {filteredAndSortedCategories.map((category) => (
                           <div
                             key={category.id}
                             className={`flex items-center justify-between rounded-lg transition-all duration-200 group ${
