@@ -575,14 +575,18 @@ const savePrompt = async () => {
         _isOptimistic: true,
       };
 
-      // ✅ Adiciona IMEDIATAMENTE na UI
+      // ✅ 1. Adiciona IMEDIATAMENTE na UI
       setPrompts([optimisticPrompt, ...prompts]);
       
-      // ✅ Feedback instantâneo
+      // ✅ 2. Fecha modal IMEDIATAMENTE
+      setIsPromptDialogOpen(false);
+      resetPromptForm();
+      
+      // ✅ 3. Feedback instantâneo
       toast.success('✅ Prompt criado!');
 
+      // 🔄 4. Requisição em BACKGROUND
       try {
-        // 🔧 PREPARA body e headers ANTES de usar
         let body;
         let headers = {};
         
@@ -626,14 +630,22 @@ const savePrompt = async () => {
           });
         }
 
+        // 🎯 Timeout dinâmico: 5min para vídeo, 2min para outros
+        const hasVideo = !!promptForm.videoFile;
+        const timeoutDuration = hasVideo ? 300000 : 120000;
+
         // 📡 Requisição em background
-        const response = await api.post(endpoint, body, { headers });
+        const response = await api.post(endpoint, body, { 
+          headers,
+          timeout: timeoutDuration
+        });
+        
         const data = response.data;
 
         if (data.success) {
           const serverPrompt = data.data || data.prompt || data.updated || null;
           
-          // ✅ Substitui temporário pelo real
+          // ✅ Substitui temporário pelo real do servidor
           if (serverPrompt) {
             setPrompts(prev => 
               prev.map(p => p.id === tempId 
@@ -646,28 +658,36 @@ const savePrompt = async () => {
               )
             );
           } else {
+            // Recarrega se servidor não retornou o prompt
             setTimeout(() => {
               queryClient.invalidateQueries(["prompts"]);
             }, 800);
           }
           
-          refetchStats();
+          // Atualiza stats em background
+          queryClient.invalidateQueries(["stats"]);
           
-          // ✅ Fecha modal DEPOIS da requisição
-          setTimeout(() => {
-            setIsPromptDialogOpen(false);
-            resetPromptForm();
-          }, 150);
         } else {
-          // ❌ Remove temporário se falhar
+          // ❌ Remove temporário e mostra erro
           setPrompts(prev => prev.filter(p => p.id !== tempId));
           toast.error(data.error || "Erro ao criar prompt");
         }
       } catch (err) {
         console.error("❌ ERRO AO CRIAR PROMPT:", err);
-        // ❌ Remove temporário se erro
+        
+        // ❌ Remove temporário
         setPrompts(prev => prev.filter(p => p.id !== tempId));
-        toast.error("Erro ao criar prompt. Verifique o console.");
+        
+        // Mensagem de erro específica
+        if (err.code === 'ECONNABORTED') {
+          toast.error("⏱️ Tempo esgotado ao enviar. Tente com arquivo menor.", {
+            duration: 5000
+          });
+        } else if (err.response?.status === 413) {
+          toast.error("📁 Arquivo muito grande! Máx 50MB para vídeo.");
+        } else {
+          toast.error("❌ Erro ao salvar. Tente novamente.");
+        }
       }
     } 
     // ========================================
@@ -693,16 +713,20 @@ const savePrompt = async () => {
         updated_at: new Date().toISOString(),
       };
 
-      // ✅ Atualiza UI IMEDIATAMENTE
+      // ✅ 1. Atualiza UI IMEDIATAMENTE
       setPrompts(prev => 
         prev.map(p => p.id === editingPrompt.id ? updatedPrompt : p)
       );
       
-      // ✅ Feedback instantâneo
+      // ✅ 2. Fecha modal IMEDIATAMENTE
+      setIsPromptDialogOpen(false);
+      resetPromptForm();
+      
+      // ✅ 3. Feedback instantâneo
       toast.success('✏️ Prompt atualizado!');
 
+      // 🔄 4. Requisição em BACKGROUND
       try {
-        // 🔧 PREPARA body e headers ANTES de usar
         let body;
         let headers = {};
         
@@ -746,8 +770,16 @@ const savePrompt = async () => {
           });
         }
 
+        // 🎯 Timeout dinâmico
+        const hasVideo = !!promptForm.videoFile;
+        const timeoutDuration = hasVideo ? 300000 : 120000;
+
         // 📡 Requisição em background
-        const response = await api.put(endpoint, body, { headers });
+        const response = await api.put(endpoint, body, { 
+          headers,
+          timeout: timeoutDuration
+        });
+        
         const data = response.data;
 
         if (data.success) {
@@ -764,13 +796,9 @@ const savePrompt = async () => {
             }, 800);
           }
           
-          refetchStats();
+          // Atualiza stats
+          queryClient.invalidateQueries(["stats"]);
           
-          // ✅ Fecha modal DEPOIS da requisição
-          setTimeout(() => {
-            setIsPromptDialogOpen(false);
-            resetPromptForm();
-          }, 150);
         } else {
           // ❌ Reverte se falhar
           setPrompts(previousPrompts);
@@ -778,9 +806,15 @@ const savePrompt = async () => {
         }
       } catch (err) {
         console.error("❌ ERRO AO EDITAR PROMPT:", err);
+        
         // ❌ Reverte se erro
         setPrompts(previousPrompts);
-        toast.error("Erro ao atualizar prompt. Verifique o console.");
+        
+        if (err.code === 'ECONNABORTED') {
+          toast.error("⏱️ Tempo esgotado. Tente novamente.", { duration: 5000 });
+        } else {
+          toast.error("❌ Erro ao atualizar.");
+        }
       }
     }
   } catch (err) {
