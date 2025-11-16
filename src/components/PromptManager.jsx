@@ -62,6 +62,8 @@ import { useStats } from "../hooks/useStats";
 
 
 
+
+
 const SharePromptModal = React.lazy(() =>
   import(
     /* webpackChunkName: "SharePromptModal", webpackMode: "lazy" */
@@ -1424,68 +1426,6 @@ const deletePrompt = async (id) => {
       {/* Conteúdo do video modal */}
     </Dialog>
 
-
-{/* 📱 Modal de seleção de categoria (MOBILE) */}
-<Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
-  <DialogContent
-    className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 
-               max-h-[80vh] overflow-hidden flex flex-col"
-  >
-    <DialogHeader>
-      <DialogTitle>Selecionar Categoria</DialogTitle>
-    </DialogHeader>
-
-    <Input
-      placeholder="Buscar categoria..."
-      value={categorySearch}
-      onChange={(e) => setCategorySearch(e.target.value)}
-      className="mb-3"
-    />
-
-    {/* 🔥 Scroll responsivo e real */}
-    <ScrollArea className="flex-1 pr-2">
-      <div className="space-y-2 pb-4">
-        <button
-          className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          onClick={() => {
-            setPromptForm({ ...promptForm, category_id: "none" });
-            setShowCategoryModal(false);
-          }}
-        >
-          Sem categoria
-        </button>
-
-        {myCategories
-          .filter((cat) =>
-            cat.name.toLowerCase().includes(categorySearch.toLowerCase())
-          )
-          .map((cat) => (
-            <button
-              key={cat.id}
-              className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              onClick={() => {
-                setPromptForm({ ...promptForm, category_id: String(cat.id) });
-                setShowCategoryModal(false);
-              }}
-            >
-              {cat.name}
-            </button>
-          ))}
-      </div>
-    </ScrollArea>
-
-    <div className="flex justify-end mt-3">
-      <Button variant="outline" onClick={() => setShowCategoryModal(false)}>
-        Fechar
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
-
-
-
-
-
     {/* 🔹 Chat e compartilhamento */}
    
 <Suspense
@@ -1534,6 +1474,68 @@ const deletePrompt = async (id) => {
     />
   )}
 </Suspense>
+
+{createPortal(
+  <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
+    <DialogContent
+      className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 
+                 max-h-[80vh] overflow-hidden flex flex-col"
+    >
+      <DialogHeader>
+        <DialogTitle>Selecionar Categoria</DialogTitle>
+      </DialogHeader>
+
+      <Input
+        placeholder="Buscar categoria..."
+        value={categorySearch}
+        onChange={(e) => setCategorySearch(e.target.value)}
+        className="mb-3"
+      />
+
+      <ScrollArea className="flex-1 pr-2">
+        <div className="space-y-2 pb-4">
+          <button
+            className="w-full text-left px-3 py-2 rounded-md border"
+            onClick={() => {
+              setPromptForm({ ...promptForm, category_id: "none" });
+              setShowCategoryModal(false);
+            }}
+          >
+            Sem categoria
+          </button>
+
+          {myCategories
+            .filter((cat) =>
+              cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+            )
+            .map((cat) => (
+              <button
+                key={cat.id}
+                className="w-full text-left px-3 py-2 rounded-md border"
+                onClick={() => {
+                  setPromptForm({
+                    ...promptForm,
+                    category_id: String(cat.id),
+                  });
+                  setShowCategoryModal(false);
+                }}
+              >
+                {cat.name}
+              </button>
+            ))}
+        </div>
+      </ScrollArea>
+
+      <div className="flex justify-end mt-3">
+        <Button variant="outline" onClick={() => setShowCategoryModal(false)}>
+          Fechar
+        </Button>
+      </div>
+    </DialogContent>
+  </Dialog>,
+  document.getElementById("category-modal-root")
+)}
+
 
   </>
 );
