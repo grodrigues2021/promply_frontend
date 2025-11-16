@@ -1428,7 +1428,8 @@ const deletePrompt = async (id) => {
 {/* 📱 Modal de seleção de categoria (MOBILE) */}
 <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
   <DialogContent
-    className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 overflow-y-auto"
+    className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 
+               max-h-[80vh] overflow-hidden flex flex-col"
   >
     <DialogHeader>
       <DialogTitle>Selecionar Categoria</DialogTitle>
@@ -1441,8 +1442,8 @@ const deletePrompt = async (id) => {
       className="mb-3"
     />
 
-    {/* 🔥 Scroll FORTIFICADO para mobile */}
-    <ScrollArea className="h-[300px] pr-2">
+    {/* 🔥 Scroll responsivo e real */}
+    <ScrollArea className="flex-1 pr-2">
       <div className="space-y-2 pb-4">
         <button
           className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-100 dark:hover:bg-slate-800 transition"
@@ -1463,10 +1464,7 @@ const deletePrompt = async (id) => {
               key={cat.id}
               className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               onClick={() => {
-                setPromptForm({
-                  ...promptForm,
-                  category_id: String(cat.id),
-                });
+                setPromptForm({ ...promptForm, category_id: String(cat.id) });
                 setShowCategoryModal(false);
               }}
             >
@@ -1477,12 +1475,13 @@ const deletePrompt = async (id) => {
     </ScrollArea>
 
     <div className="flex justify-end mt-3">
-      <Button onClick={() => setShowCategoryModal(false)} variant="outline">
+      <Button variant="outline" onClick={() => setShowCategoryModal(false)}>
         Fechar
       </Button>
     </div>
   </DialogContent>
 </Dialog>
+
 
 
 
