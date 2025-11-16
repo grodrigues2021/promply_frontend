@@ -130,6 +130,27 @@ export default function Sidebar({
           {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
           <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
   {/* Header minimalista */}
+<div className="flex items-center justify-between mb-3">
+  <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+    Categorias ({myCategories.length})
+  </h2>
+
+  <Button
+    size="sm"
+    variant="ghost"
+    onClick={() => {
+      resetCategoryForm();
+      setIsCategoryDialogOpen(true);
+      setIsMobileSidebarOpen(false);
+    }}
+    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs flex items-center gap-1"
+  >
+    <FolderPlus className="w-4 h-4" />
+    Categoria
+  </Button>
+</div>
+
+{/* Lista minimalista + color bullets */}
 <ul className="space-y-2 pl-2">
   {filteredAndSortedCategories.map((category) => (
     <li
