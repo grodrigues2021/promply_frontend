@@ -187,13 +187,10 @@ export default function Sidebar({
                   }`}
                 >
                   {/* ✅ Container interno com scroll condicional (>20 categorias) */}
-                  <div 
-                    className={`space-y-2 pt-1 pr-1 ${
-                      myCategories.length > 20 
-                        ? "overflow-y-auto max-h-[920px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent" 
-                        : ""
-                    }`}
-                  >
+                  <div
+  className={`space-y-2 pt-1 pr-1 overflow-y-auto max-h-[calc(100dvh-300px)] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent`}
+>
+
                     {myCategories.map((category) => (
                       <div
                         key={category.id}
