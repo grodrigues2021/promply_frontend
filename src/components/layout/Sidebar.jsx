@@ -130,59 +130,71 @@ export default function Sidebar({
           {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
           <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
   {/* Header minimalista */}
-<div className="flex items-center justify-between mb-3">
-  <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-    Categorias ({myCategories.length})
-  </h2>
-
-  <Button
-    size="sm"
-    variant="ghost"
-    onClick={() => {
-      resetCategoryForm();
-      setIsCategoryDialogOpen(true);
-      setIsMobileSidebarOpen(false);
-    }}
-    className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs flex items-center gap-1"
-  >
-    <FolderPlus className="w-4 h-4" />
-    Categoria
-  </Button>
-</div>
-
-{/* Lista minimalista + color bullets */}
 <ul className="space-y-2 pl-2">
   {filteredAndSortedCategories.map((category) => (
     <li
       key={category.id}
-      className={`flex items-center gap-2 cursor-pointer transition-colors 
+      className={`
+        group flex items-center justify-between gap-2 cursor-pointer 
+        transition-colors
         ${
           selectedCategory === category.id
             ? "text-blue-600 dark:text-blue-400 font-medium"
             : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
         }
       `}
-      onClick={() => {
-        setSelectedCategory(category.id);
-        setIsMobileSidebarOpen(false);
-      }}
     >
-
-      {/* Bolinha colorida personalizada */}
-      <span
-        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-        style={{
-          backgroundColor: category.color || "#3B82F6",
+      {/* Clique para selecionar categoria */}
+      <div
+        className="flex items-center gap-2 flex-1 min-w-0"
+        onClick={() => {
+          setSelectedCategory(category.id);
+          setIsMobileSidebarOpen(false);
         }}
-      ></span>
+      >
+        {/* bolinha colorida */}
+        <span
+          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+          style={{
+            backgroundColor: category.color || "#3B82F6",
+          }}
+        ></span>
 
-      {/* Nome + contador */}
-      <span className="truncate text-sm">
-        {category.name} ({category.prompt_count})
-      </span>
+        {/* nome + contador */}
+        <span className="truncate text-sm">
+          {category.name} ({category.prompt_count})
+        </span>
+      </div>
+
+      {/* Ações (EDITAR / APAGAR) — apenas no hover */}
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            editCategory(category);
+            setIsMobileSidebarOpen(false);
+          }}
+          className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+          title="Editar categoria"
+        >
+          <Edit3 className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            deleteCategory(category.id);
+          }}
+          className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+          title="Apagar categoria"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     </li>
   ))}
 </ul>
+
 
 
           </div>
