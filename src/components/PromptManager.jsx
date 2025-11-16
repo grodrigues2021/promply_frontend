@@ -1427,13 +1427,13 @@ const deletePrompt = async (id) => {
 
 {/* 📱 Modal de seleção de categoria (MOBILE) */}
 <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
-  <DialogContent className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900">
-
+  <DialogContent
+    className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 overflow-y-auto"
+  >
     <DialogHeader>
       <DialogTitle>Selecionar Categoria</DialogTitle>
     </DialogHeader>
 
-    {/* Campo de busca no modal */}
     <Input
       placeholder="Buscar categoria..."
       value={categorySearch}
@@ -1441,8 +1441,9 @@ const deletePrompt = async (id) => {
       className="mb-3"
     />
 
-    <ScrollArea className="max-h-64 pr-2">
-      <div className="space-y-2">
+    {/* 🔥 Scroll FORTIFICADO para mobile */}
+    <ScrollArea className="h-[300px] pr-2">
+      <div className="space-y-2 pb-4">
         <button
           className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-100 dark:hover:bg-slate-800 transition"
           onClick={() => {
@@ -1462,7 +1463,10 @@ const deletePrompt = async (id) => {
               key={cat.id}
               className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-100 dark:hover:bg-slate-800 transition"
               onClick={() => {
-                setPromptForm({ ...promptForm, category_id: String(cat.id) });
+                setPromptForm({
+                  ...promptForm,
+                  category_id: String(cat.id),
+                });
                 setShowCategoryModal(false);
               }}
             >
@@ -1477,9 +1481,9 @@ const deletePrompt = async (id) => {
         Fechar
       </Button>
     </div>
-
   </DialogContent>
 </Dialog>
+
 
 
 
