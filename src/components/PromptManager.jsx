@@ -337,8 +337,13 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
   }, []);
 
   const editPrompt = useCallback(
-    (prompt) => {
-      console.log("✏️ Editando prompt:", prompt);
+  (prompt) => {
+    console.log("✏️ Editando prompt:", prompt);
+
+    setEditingPrompt(prompt); // 👉 1. Primeiro definimos o prompt em edição
+
+    requestAnimationFrame(() => { 
+      // 👉 2. Só depois preenchemos o formulário
       const categoryId = prompt.category?.id
         ? String(prompt.category.id)
         : prompt.category_id
@@ -359,11 +364,12 @@ const uploadedUrl = res.data?.image_url || res.data?.url || "";
         videoFile: null,
       });
 
-      setEditingPrompt(prompt);
       setIsPromptDialogOpen(true);
-    },
-    [normalizeTags]
-  );
+    });
+  },
+  [normalizeTags]
+);
+
 
   const editCategory = useCallback((category) => {
     setCategoryForm({
@@ -573,9 +579,12 @@ const savePrompt = async () => {
 
       toast.dismiss();
 
-      // só fecha agora:
-      setIsPromptDialogOpen(false);
-      resetPromptForm();
+     // Fecha o modal DEPOIS que a requisição termina
+      setTimeout(() => {
+        setIsPromptDialogOpen(false);
+        resetPromptForm();
+      }, 150);
+
 
       
       // ✅ Feedback instantâneo
@@ -1529,12 +1538,13 @@ const deletePrompt = async (id) => {
                 key={cat.id}
                 className="w-full text-left px-3 py-2 rounded-md border"
                 onClick={() => {
-                  setPromptForm({
-                    ...promptForm,
-                    category_id: String(cat.id),
-                  });
-                  setShowCategoryModal(false);
-                }}
+                setPromptForm((prev) => ({
+                  ...prev,
+                  category_id: String(cat.id),
+                }));
+                setShowCategoryModal(false);
+              }}
+
               >
                 {cat.name}
               </button>
