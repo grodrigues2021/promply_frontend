@@ -190,7 +190,7 @@ export default function Sidebar({
                   <div 
                     className={`space-y-2 pt-1 ${
                       myCategories.length > 15 
-                        ? "overflow-y-auto max-h-[460px] pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600" 
+                        ? "overflow-y-auto max-h-[calc(100vh-28rem)] lg:max-h-[calc(100vh-32rem)] pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600" 
                         : "pr-1"
                     }`}
                   >
