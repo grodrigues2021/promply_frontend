@@ -76,7 +76,7 @@ export default function Sidebar({
 
       {/* Sidebar */}
       <aside
-className={`fixed top-0 left-0 h-[100dvh] lg:h-auto lg:min-h-screen w-[80%] max-w-sm lg:w-[260px]
+        className={`fixed top-0 left-0 h-[100dvh] w-[80%] max-w-sm lg:w-[260px] lg:relative z-[9999] lg:z-[30] flex flex-col bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out lg:transform-none ${
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
