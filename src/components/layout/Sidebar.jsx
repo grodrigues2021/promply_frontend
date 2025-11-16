@@ -63,8 +63,8 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* ✅ Conteúdo com flex e overflow adequado */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 flex flex-col">
+        {/* ✅ Conteúdo SEM scroll geral */}
+        <div className="flex-1 overflow-hidden px-3 py-4 flex flex-col">
           <div className="space-y-6 flex-1 flex flex-col">
             {/* 🧩 Estatísticas Desktop - FIXAS */}
             <div className="hidden lg:grid grid-cols-1 gap-4 mb-6">
@@ -149,7 +149,7 @@ export default function Sidebar({
                 </div>
               </div>
 
-              <CardContent className="space-y-2 pb-4 px-3 flex-shrink-0 flex-1 overflow-y-auto min-h-0">
+              <CardContent className="space-y-2 pb-4 px-3 flex-shrink-0">
                 {/* Botão "Todas" - FIXO */}
                 <Button
                   variant={selectedCategory === null ? "default" : "ghost"}
@@ -178,7 +178,7 @@ export default function Sidebar({
                   )}
                 </button>
 
-                {/* ✅ Lista com scroll INTERNO - max 15 categorias visíveis antes do scroll */}
+                {/* ✅ Lista com scroll INTERNO - mais categorias visíveis */}
                 <div
                   className={`transition-all duration-300 ease-in-out ${
                     isCategoriesOpen 
@@ -186,8 +186,8 @@ export default function Sidebar({
                       : "max-h-0 opacity-0 overflow-hidden"
                   }`}
                 >
-                  {/* ✅ Container interno - sempre com scroll se necessário */}
-                  <div className="space-y-2 pt-1 pr-2">
+                  {/* ✅ Container com scroll quando necessário - mostra ~12-15 categorias */}
+                  <div className="space-y-2 pt-1 overflow-y-auto max-h-[500px] pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600">
                     {myCategories.map((category) => (
                       <div
                         key={category.id}
