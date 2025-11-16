@@ -1325,7 +1325,7 @@ const deletePrompt = async (id) => {
         </div>
       )}
 
-      {/* 🧩 Categoria */}
+  {/* 🧩 Categoria */}
       <div className="mt-4">
         <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
           Categoria
@@ -1361,9 +1361,7 @@ const deletePrompt = async (id) => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              console.log("🔘 Botão categoria clicado! Estado atual:", showCategoryModal);
               setShowCategoryModal(true);
-              console.log("✅ Modal aberto:", true);
             }}
             className="w-full px-4 py-2.5 text-left bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600 transition flex items-center justify-between touch-manipulation cursor-pointer"
             style={{ WebkitTapHighlightColor: 'transparent' }}
