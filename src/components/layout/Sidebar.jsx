@@ -178,7 +178,7 @@ export default function Sidebar({
                   )}
                 </button>
 
-                {/* ✅ Lista com scroll INTERNO - max 20 categorias visíveis antes do scroll */}
+                {/* ✅ Lista com scroll INTERNO - max 15 categorias visíveis antes do scroll */}
                 <div
                   className={`transition-all duration-300 ease-in-out ${
                     isCategoriesOpen 
@@ -186,11 +186,11 @@ export default function Sidebar({
                       : "max-h-0 opacity-0 overflow-hidden"
                   }`}
                 >
-                  {/* ✅ Container interno com scroll condicional (>20 categorias) */}
+                  {/* ✅ Container interno com scroll condicional (>15 categorias) */}
                   <div 
                     className={`space-y-2 pt-1 pr-1 ${
-                      myCategories.length > 20 
-                        ? "overflow-y-auto max-h-[920px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent" 
+                      myCategories.length > 15 
+                        ? "overflow-y-auto max-h-[460px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600" 
                         : ""
                     }`}
                   >
