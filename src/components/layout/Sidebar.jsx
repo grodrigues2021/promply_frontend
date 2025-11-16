@@ -183,8 +183,8 @@ export default function Sidebar({
                 {/* Lista de categorias com transição suave */}
                 {isCategoriesOpen && (
                   <div className="overflow-hidden animate-in slide-in-from-top-2 duration-300">
-                    {/* Container com scroll - altura adaptativa */}
-                    <div className="space-y-1 overflow-y-auto max-h-[50vh] lg:max-h-[calc(100vh-28rem)] pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
+                    {/* Container com scroll - ~15 categorias visíveis */}
+                    <div className="space-y-1 overflow-y-auto min-h-[400px] max-h-[70vh] lg:max-h-[calc(100vh-24rem)] pr-1 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 scroll-smooth">
                       {myCategories.map((category) => (
                         <div
                           key={category.id}
