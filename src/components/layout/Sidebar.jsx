@@ -186,8 +186,8 @@ export default function Sidebar({
                       : "max-h-0 opacity-0 overflow-hidden"
                   }`}
                 >
-                  {/* ✅ Container com scroll SEMPRE visível quando há muitas categorias */}
-                  <div className="space-y-2 pt-1 overflow-y-auto max-h-[calc(100vh-32rem)] min-h-[400px] pr-2 scrollbar-thin scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600 scrollbar-track-slate-200 dark:scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500 dark:hover:scrollbar-thumb-slate-500">
+                  {/* ✅ Container com scroll - altura adaptativa para desktop e mobile */}
+                  <div className="space-y-2 pt-1 overflow-y-auto max-h-[500px] lg:max-h-[calc(100vh-38rem)] pr-2 scrollbar-thin scrollbar-thumb-slate-400 dark:scrollbar-thumb-slate-600 scrollbar-track-slate-200 dark:scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500 dark:hover:scrollbar-thumb-slate-500">
                     {myCategories.map((category) => (
                       <div
                         key={category.id}
