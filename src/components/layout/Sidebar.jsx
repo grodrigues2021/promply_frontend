@@ -75,18 +75,11 @@ export default function Sidebar({
       )}
 
       {/* Sidebar */}
-     <aside
-  className={`
-    fixed top-0 left-0 
-    w-[80%] max-w-sm lg:w-[260px]
-    bg-white dark:bg-slate-900
-    z-[9999]
-    transform transition-transform
-    h-[100dvh] lg:h-[120vh]
-    ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
-  `}
->
-
+      <aside
+        className={`fixed top-0 left-0 h-[100dvh] w-[80%] max-w-sm lg:w-[260px] lg:relative z-[9999] lg:z-[30] flex flex-col bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out lg:transform-none ${
+          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
         {/* Botão de fechar - só no mobile */}
         <div className="lg:hidden flex justify-end px-4 py-1.5 flex-shrink-0">
           <button
