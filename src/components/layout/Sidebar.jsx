@@ -186,12 +186,12 @@ export default function Sidebar({
                       : "max-h-0 opacity-0 overflow-hidden"
                   }`}
                 >
-                  {/* ✅ Container interno com scroll condicional (>15 categorias) */}
+                  {/* ✅ Container interno com scroll condicional (>15 categorias) + padding extra para scrollbar */}
                   <div 
-                    className={`space-y-2 pt-1 pr-1 ${
+                    className={`space-y-2 pt-1 ${
                       myCategories.length > 15 
-                        ? "overflow-y-auto max-h-[460px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600" 
-                        : ""
+                        ? "overflow-y-auto max-h-[460px] pr-2 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600" 
+                        : "pr-1"
                     }`}
                   >
                     {myCategories.map((category) => (
