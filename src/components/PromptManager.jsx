@@ -1204,7 +1204,8 @@ const deletePrompt = async (id) => {
         <Input
           value={promptForm.title}
           onChange={(e) =>
-            setPromptForm({ ...promptForm, title: e.target.value })
+              setPromptForm(prev => ({ ...prev, title: e.target.value }))
+
           }
           placeholder="Título do prompt"
         />
@@ -1216,7 +1217,7 @@ const deletePrompt = async (id) => {
         <Textarea
           value={promptForm.content}
           onChange={(e) =>
-            setPromptForm({ ...promptForm, content: e.target.value })
+  setPromptForm(prev => ({ ...prev, content: e.target.value }))
           }
           rows={10}
           className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
@@ -1229,7 +1230,7 @@ const deletePrompt = async (id) => {
         <Textarea
           value={promptForm.description}
           onChange={(e) =>
-            setPromptForm({ ...promptForm, description: e.target.value })
+  setPromptForm(prev => ({ ...prev, description: e.target.value }))
           }
         />
       </div>
@@ -1388,11 +1389,12 @@ const deletePrompt = async (id) => {
         {/* 🖥️ Versão Desktop - Select normal */}
         <div className="hidden sm:block">
           <Select
-            value={promptForm.category_id}
-            onValueChange={(value) =>
-              setPromptForm(prev => ({ ...prev, category_id: value }))
-            }
-                      >
+          value={promptForm.category_id}
+              onValueChange={(value) =>
+                setPromptForm(prev => ({ ...prev, category_id: value }))
+              }
+            >
+                      
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Selecione uma categoria" />
             </SelectTrigger>
@@ -1440,12 +1442,12 @@ const deletePrompt = async (id) => {
           type="checkbox"
           id="prompt-favorite"
           checked={promptForm.is_favorite}
-          onChange={(e) =>
-            setPromptForm({
-              ...promptForm,
-              is_favorite: e.target.checked,
-            })
-          }
+onChange={(e) =>
+  setPromptForm(prev => ({
+    ...prev,
+    is_favorite: e.target.checked,
+  }))
+}
           className="form-checkbox h-4 w-4 text-blue-600"
         />
         <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
