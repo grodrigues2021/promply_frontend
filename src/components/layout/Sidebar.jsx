@@ -21,8 +21,10 @@ export default function Sidebar({
   handleLogout,
 }) {
 
+  // 🆕 Estado para controlar se as categorias estão abertas/fechadas (padrão: fechado)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
 
+  // 🔒 Bloqueia rolagem do body quando a sidebar móvel estiver aberta
   useEffect(() => {
     if (isMobileSidebarOpen) {
       document.body.style.overflow = "hidden";
@@ -61,7 +63,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Conteúdo SEM scroll geral */}
+        {/* ✅ Conteúdo SEM scroll geral (overflow-hidden) */}
         <div className="flex-1 overflow-hidden px-3 py-4 flex flex-col">
           <div className="space-y-6">
             {/* 🧩 Estatísticas Desktop - FIXAS */}
@@ -176,89 +178,90 @@ export default function Sidebar({
                   )}
                 </button>
 
-                {/* ✅ Lista com scroll INTERNO - max 20 categorias visíveis (42px cada = 840px) */}
-               {/* ✅ Lista com scroll INTERNO - SÓ aparece após 20 categorias */}
-<div
-  className={`overflow-hidden transition-all duration-300 ease-in-out ${
-    isCategoriesOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
-  }`}
->
-  {/* ✅ MUDANÇA: Calcula dinamicamente se precisa scroll */}
-  <div 
-    className={`space-y-2 pt-1 pr-1 ${
-      myCategories.length > 20 
-        ? "overflow-y-auto max-h-[920px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent" 
-        : "overflow-visible"
-    }`}
-  >
-    {myCategories.map((category) => (
-      <div
-        key={category.id}
-        className={`flex items-center justify-between rounded-md transition group ${
-          selectedCategory === category.id
-            ? "bg-blue-600 text-white"
-            : "hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-        }`}
-      >
-        <div
-          onClick={() => {
-            setSelectedCategory(category.id);
-            setIsMobileSidebarOpen(false);
-          }}
-          className="flex items-center gap-2 flex-1 text-left cursor-pointer overflow-hidden px-3 py-2 rounded-md"
-        >
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{
-              backgroundColor: category.color || "#3B82F6",
-            }}
-          ></span>
-          <span
-            className={`truncate text-sm font-medium leading-snug ${
-              selectedCategory === category.id
-                ? "text-white"
-                : "text-slate-800 dark:text-slate-200"
-            }`}
-            title={category.name}
-          >
-            {category.name}
-          </span>
-        </div>
+                {/* ✅ Lista com scroll INTERNO - max 20 categorias visíveis antes do scroll */}
+                <div
+                  className={`transition-all duration-300 ease-in-out ${
+                    isCategoriesOpen 
+                      ? "max-h-none opacity-100" 
+                      : "max-h-0 opacity-0 overflow-hidden"
+                  }`}
+                >
+                  {/* ✅ Container interno com scroll condicional (>20 categorias) */}
+                  <div 
+                    className={`space-y-2 pt-1 pr-1 ${
+                      myCategories.length > 20 
+                        ? "overflow-y-auto max-h-[920px] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent" 
+                        : ""
+                    }`}
+                  >
+                    {myCategories.map((category) => (
+                      <div
+                        key={category.id}
+                        className={`flex items-center justify-between rounded-md transition group ${
+                          selectedCategory === category.id
+                            ? "bg-blue-600 text-white"
+                            : "hover:bg-gray-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
+                        }`}
+                      >
+                        <div
+                          onClick={() => {
+                            setSelectedCategory(category.id);
+                            setIsMobileSidebarOpen(false);
+                          }}
+                          className="flex items-center gap-2 flex-1 text-left cursor-pointer overflow-hidden px-3 py-2 rounded-md"
+                        >
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{
+                              backgroundColor: category.color || "#3B82F6",
+                            }}
+                          ></span>
+                          <span
+                            className={`truncate text-sm font-medium leading-snug ${
+                              selectedCategory === category.id
+                                ? "text-white"
+                                : "text-slate-800 dark:text-slate-200"
+                            }`}
+                            title={category.name}
+                          >
+                            {category.name}
+                          </span>
+                        </div>
 
-        <div className="flex items-center gap-1 flex-shrink-0 pr-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`h-6 w-6 ${
-              selectedCategory === category.id
-                ? "text-white hover:text-blue-100"
-                : "text-slate-500 hover:text-blue-600 dark:text-slate-400"
-            }`}
-            onClick={() => {
-              setIsMobileSidebarOpen(false);
-              editCategory(category);
-            }}
-          >
-            <Edit3 className="h-4 w-4" />
-          </Button>
+                        <div className="flex items-center gap-1 flex-shrink-0 pr-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${
+                              selectedCategory === category.id
+                                ? "text-white hover:text-blue-100"
+                                : "text-slate-500 hover:text-blue-600 dark:text-slate-400"
+                            }`}
+                            onClick={() => {
+                              setIsMobileSidebarOpen(false);
+                              editCategory(category);
+                            }}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`h-6 w-6 ${
-              selectedCategory === category.id
-                ? "text-white hover:text-blue-100"
-                : "text-slate-500 hover:text-red-600 dark:text-slate-400"
-            }`}
-            onClick={() => deleteCategory(category.id)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    ))}
-  </div>
-</div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-6 w-6 ${
+                              selectedCategory === category.id
+                                ? "text-white hover:text-blue-100"
+                                : "text-slate-500 hover:text-red-600 dark:text-slate-400"
+                            }`}
+                            onClick={() => deleteCategory(category.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
