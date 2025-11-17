@@ -293,7 +293,7 @@ const ChatInput = ({ onMessageSent, hasNewMessages, onScrollToBottom, onTyping }
                 value={message}
                 onChange={handleTextareaChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Digite uma mensagem... (Shift+Enter para nova linha)"
+                placeholder="Digite uma mensagem..."
                 rows={1}
                 maxLength={MAX_LENGTH}
                 disabled={isSubmitting || uploadingImage}
@@ -324,18 +324,7 @@ const ChatInput = ({ onMessageSent, hasNewMessages, onScrollToBottom, onTyping }
                     id="chat-image-upload"
                     disabled={isSubmitting || uploadingImage}
                   />
-                  <label
-                    htmlFor="chat-image-upload"
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-lg cursor-pointer transition ${
-                      uploadingImage || isSubmitting
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <ImageIcon className="w-4 h-4" />
-                    <span className="text-xs">Imagem</span>
-                  </label>
-
+                  
                   {/* Contador de caracteres */}
                   <p className={`text-xs ${getCounterColor()}`}>
                     {charCount} / {MAX_LENGTH}
