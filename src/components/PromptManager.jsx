@@ -970,34 +970,71 @@ import("./ChatContainer.jsx").then((module) => {
                   <span className="hidden sm:inline">Favoritos</span>
                 </Button>
 
-                <Button
-                  onClick={openChatFromTopButton}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                  size="sm"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  <span className="hidden sm:inline">Chat</span>
-                </Button>
+               <div className="hidden sm:flex items-center gap-3">
 
-                <Button
-                  onClick={() => setShowTemplates(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  size="sm"
-                >
-                  <BookText className="w-4 h-4" />
-                  <span className="hidden sm:inline">Templates</span>
-                </Button>
+  <Button
+    onClick={openChatFromTopButton}
+    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+    size="sm"
+  >
+    <MessageSquare className="w-4 h-4" />
+    Chat
+  </Button>
 
-                <Button
-                  onClick={() => {
-                    resetPromptForm();
-                    setIsPromptDialogOpen(true);
-                  }}
-                  size="sm"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  <span className="hidden sm:inline">Novo</span>
-                </Button>
+  <Button
+    onClick={() => setShowTemplates(true)}
+    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+    size="sm"
+  >
+    <BookText className="w-4 h-4" />
+    Templates
+  </Button>
+
+  <Button
+    onClick={() => {
+      resetPromptForm();
+      setIsPromptDialogOpen(true);
+    }}
+    size="sm"
+  >
+    <Plus className="w-4 h-4 mr-2" />
+    Novo
+  </Button>
+
+</div>
+<div className="hidden sm:flex items-center gap-3">
+
+  <Button
+    onClick={openChatFromTopButton}
+    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+    size="sm"
+  >
+    <MessageSquare className="w-4 h-4" />
+    Chat
+  </Button>
+
+  <Button
+    onClick={() => setShowTemplates(true)}
+    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+    size="sm"
+  >
+    <BookText className="w-4 h-4" />
+    Templates
+  </Button>
+
+  <Button
+    onClick={() => {
+      resetPromptForm();
+      setIsPromptDialogOpen(true);
+    }}
+    size="sm"
+  >
+    <Plus className="w-4 h-4 mr-2" />
+    Novo
+  </Button>
+
+</div>
+
               </div>
 
               <PromptGrid

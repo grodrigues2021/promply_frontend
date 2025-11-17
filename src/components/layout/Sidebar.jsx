@@ -129,6 +129,49 @@ export default function Sidebar({
 
           {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
           <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
+{/* --- BOTÕES PRINCIPAIS DO MOBILE --- */}
+<div className="flex lg:hidden flex-col px-3 gap-2 mb-3">
+
+  {/* Novo Prompt */}
+  <Button
+    onClick={() => {
+      resetCategoryForm();
+      setIsPromptDialogOpen(true);
+      setIsMobileSidebarOpen(false);
+    }}
+    className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+  >
+    <Plus className="w-4 h-4" />
+    Novo Prompt
+  </Button>
+
+  {/* Templates */}
+  <Button
+    onClick={() => {
+      setShowTemplates(true);
+      setIsMobileSidebarOpen(false);
+    }}
+    className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700"
+  >
+    <BookText className="w-4 h-4" />
+    Templates
+  </Button>
+
+  {/* Chat da Comunidade */}
+  <Button
+    onClick={() => {
+      openChatFromTopButton();
+      setIsMobileSidebarOpen(false);
+    }}
+    className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700"
+  >
+    <MessageSquare className="w-4 h-4" />
+    Chat da Comunidade
+  </Button>
+</div>
+
+
+
             {/* Stats mobile (chips compactos) */}
 <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 px-2 lg:hidden">
   <div className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 
