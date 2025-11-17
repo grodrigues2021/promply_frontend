@@ -285,85 +285,41 @@ const ChatInput = ({ onMessageSent, hasNewMessages, onScrollToBottom, onTyping }
             </div>
           )}
 
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              {/* Textarea */}
-              <textarea
-                ref={textareaRef}
-                value={message}
-                onChange={handleTextareaChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Digite uma mensagem..."
-                rows={1}
-                maxLength={MAX_LENGTH}
-                disabled={isSubmitting || uploadingImage}
-                autoFocus
-                className={`w-full px-4 py-3 bg-white border border-blue-500 rounded-xl !outline-none focus:!outline-none focus-visible:!outline-none resize-none max-h-[200px] overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed transition ${
-                  validationError 
-                    ? 'border-red-400' 
-                    : ''
-                }`}
-                style={{ 
-                  minHeight: '48px', 
-                  boxShadow: 'none', 
-                  outline: 'none',
-                  outlineOffset: '0px'
-                }}
-              />
-              
-              {/* Informações e erro */}
-              <div className="flex items-center justify-between mt-2 px-1">
-                <div className="flex items-center gap-3">
-                  {/* Botão de adicionar imagem */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    className="hidden"
-                    id="chat-image-upload"
-                    disabled={isSubmitting || uploadingImage}
-                  />
-                  
-                  {/* Contador de caracteres */}
-                  <p className={`text-xs ${getCounterColor()}`}>
-                    {charCount} / {MAX_LENGTH}
-                  </p>
-                  
-                  {/* Mensagem de erro */}
-                  {validationError && (
-                    <div className="flex items-center gap-1 text-red-600">
-                      <AlertCircle className="w-3 h-3" />
-                      <span className="text-xs">{validationError}</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Dica de uso */}
-                <p className="text-xs text-gray-400 hidden sm:block">
-                  Enter • Shift+Enter
-                </p>
-              </div>
-            </div>
-            
-            {/* Botão de enviar */}
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className={`flex items-center justify-center w-12 h-12 rounded-full transition shadow-lg ${
-                canSubmit
-                  ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:opacity-90 hover:shadow-xl'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-md'
-              }`}
-              title={canSubmit ? 'Enviar mensagem' : 'Digite uma mensagem ou selecione uma imagem'}
-            >
-              {isSubmitting || uploadingImage ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Send className="w-5 h-5" />
-              )}
-            </button>
-          </div>
+         <textarea
+  ref={textareaRef}
+  value={message}
+  onChange={handleTextareaChange}
+  onKeyDown={handleKeyDown}
+  placeholder="Mensagem..."
+  rows={1}
+  maxLength={MAX_LENGTH}
+  disabled={isSubmitting || uploadingImage}
+  autoFocus
+  className={`
+    w-full 
+    px-5 py-3 
+    bg-white 
+    rounded-full 
+    border border-slate-300 
+    text-sm 
+    placeholder:text-slate-400 
+    focus:ring-2 focus:ring-blue-500 
+    focus:border-blue-500 
+    focus:outline-none 
+    resize-none 
+    max-h-[200px] 
+    overflow-y-auto 
+    disabled:opacity-50 
+    disabled:cursor-not-allowed 
+    transition
+    ${validationError ? 'border-red-400 focus:ring-red-400' : ''}
+  `}
+  style={{
+    minHeight: "48px",
+    boxShadow: "none",
+  }}
+/>
+
         </form>
       </div>
     </div>
