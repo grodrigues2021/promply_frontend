@@ -237,7 +237,20 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
       <div
         ref={modalRef}
         style={modalStyle}
-        className="bg-white rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden border border-gray-200"
+        className="
+        bg-white 
+        rounded-xl 
+        shadow-2xl 
+        z-50 
+        flex 
+        flex-col 
+        overflow-hidden 
+        border border-gray-200
+        max-w-[700px]
+        w-full
+        mx-auto
+      "
+
       >
         {/* HEADER */}
         <div
