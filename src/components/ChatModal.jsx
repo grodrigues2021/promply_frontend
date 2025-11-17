@@ -231,8 +231,9 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
   if (!isOpen) return null;
 
   /** 📐 Layout inalterado */
-  
+
   return (
+    
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
       <div
