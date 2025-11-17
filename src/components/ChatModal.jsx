@@ -65,7 +65,7 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
     handleMouseDownDrag,
     handleMouseDownResize,
     toggleMaximize,
-  } = useDragResize({ x: 100, y: 100 }, { width: 1400, height: 700 });
+  } = useDragResize({ x: 100, y: 100 }, { width: 1400, height: 500 });
 
   /** 🔧 Scroll inteligente */
   const scrollChatToBottom = useCallback(() => {
