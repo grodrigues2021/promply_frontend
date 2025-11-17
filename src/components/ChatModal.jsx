@@ -246,7 +246,7 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
         flex-col 
         overflow-hidden 
         border border-gray-200
-        max-w-[800px]
+        max-w-[900px]
         w-full
         mx-auto
       "
