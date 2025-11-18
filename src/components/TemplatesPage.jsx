@@ -557,6 +557,7 @@ export default function TemplatesPage({ onBack }) {
 
 </div>
 
+          </div>
 
           <div className="flex items-center gap-3">
             {user?.is_admin && (
