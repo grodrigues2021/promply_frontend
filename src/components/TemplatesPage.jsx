@@ -540,7 +540,7 @@ export default function TemplatesPage({ onBack }) {
             <div className="flex items-center gap-2">
               <BookOpenText className="w-5 h-5 text-green-600" />
               <span className="text-lg font-semibold text-gray-900 tracking-tight">
-                Templates
+                Biblioteca de Templates
               </span>
             </div>
           </div>
