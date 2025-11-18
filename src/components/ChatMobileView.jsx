@@ -1,7 +1,6 @@
 // src/components/ChatMobileView.jsx - TELA CHEIA MOBILE ESTILO WHATSAPP
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, MessageSquare, Columns2, Loader2 } from "lucide-react";
-
+import { X, Menu, MessageSquare, Columns2, Loader2 } from "lucide-react";
 import ChatFeed from "./ChatFeed";
 import ChatInput from "./ChatInput";
 import PromptCard from "./PromptCard";
@@ -16,7 +15,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import MessageShare from "@/components/icons/MessageShare";
+
 
 
 const isDev = import.meta.env.MODE === "development";
@@ -209,13 +208,12 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
 
           {/* Botão Menu (Prompts) */}
           <button
-  onClick={() => setIsSidebarOpen(true)}
-  className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
-  aria-label="Ver prompts compartilhados"
->
-  <MessageShare className="w-6 h-6" />
-</button>
-
+            onClick={() => setIsSidebarOpen(true)}
+            className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
+            aria-label="Ver prompts compartilhados"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
         </div>
 
         {/* Feed de Mensagens */}
