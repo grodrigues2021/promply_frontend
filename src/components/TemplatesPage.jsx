@@ -26,6 +26,7 @@ import TemplateCard from "./TemplateCard";
 import PromptGrid from "./PromptGrid";
 import { BookOpenText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { BookText } from "lucide-react";
 
 // ===== CONSTANTES =====
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -537,13 +538,25 @@ export default function TemplatesPage({ onBack }) {
               <span className="text-sm font-medium text-gray-700">Voltar</span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <BookOpenText className="w-5 h-5 text-green-600" />
-              <span className="text-lg font-semibold text-gray-900 tracking-tight">
-                Templates
-              </span>
-            </div>
-          </div>
+            {/* TÍTULO — VERSÃO RESPONSIVA */}
+<div className="flex items-center gap-2">
+
+  {/* MOBILE: versão curta */}
+  <div className="flex items-center gap-2 lg:hidden">
+    <BookText className="w-5 h-5 text-green-600" />
+    <span className="text-lg font-semibold text-gray-900">Templates</span>
+  </div>
+
+  {/* DESKTOP: versão completa */}
+  <div className="hidden lg:flex items-center gap-2">
+    <BookText className="w-6 h-6 text-green-600" />
+    <span className="text-xl font-semibold text-gray-900">
+      Biblioteca de Templates
+    </span>
+  </div>
+
+</div>
+
 
           <div className="flex items-center gap-3">
             {user?.is_admin && (
