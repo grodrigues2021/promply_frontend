@@ -193,7 +193,7 @@ export default function Sidebar({
 
 
             {/* Stats mobile (chips compactos) */}
-<div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 px-2 lg:hidden">
+<div className="mt-3 mb-4 flex flex-wrap items-center justify-center gap-3 px-2 lg:hidden">
   <div className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 
       text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded-full">
     <BookOpen className="w-3 h-3" />
