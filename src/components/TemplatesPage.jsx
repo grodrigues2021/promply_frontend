@@ -509,49 +509,52 @@ const handleVideoUpload = (e) => {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
-  <div className="max-w-[1800px] mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
+      <header className="bg-white border-b shadow-sm sticky top-0 z-50">
+  <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
 
-    {/* Botão Voltar */}
+    {/* Esquerda — Título (desktop + mobile) */}
+    <div className="flex items-center gap-3">
+      <BookOpenText className="w-6 h-6 text-green-600" />
+      <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
+        Templates
+      </h1>
+    </div>
+
+    {/* Centro — botão voltar (somente mobile) */}
     <button
       onClick={() => (onBack ? onBack() : window.history.back())}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition active:scale-95"
+      className="lg:hidden px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition active:scale-95 flex items-center gap-2 absolute left-4"
     >
       <ArrowLeft className="w-4 h-4 text-gray-700" />
       <span className="text-sm font-medium text-gray-700">Voltar</span>
     </button>
 
-    {/* Título */}
-    <div className="flex items-center gap-3 text-center">
-      <div className="flex items-center gap-2">
-        <BookOpenText className="w-6 h-6 text-green-600" />
-        <span className="font-bold text-xl text-gray-900">
-          Biblioteca de Templates
-        </span>
-      </div>
-    </div>
+    {/* Direita — Ações */}
+    <div className="flex items-center gap-3">
+      
+      {/* Botão Novo Template (apenas admin e desktop) */}
+      {user?.is_admin && (
+        <Button
+          onClick={openTemplateDialog}
+          className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg transition px-4 py-2 rounded-lg"
+        >
+          <Plus className="w-4 h-4" />
+          Novo Template
+        </Button>
+      )}
 
-    {/* Botão Novo Template (desktop) */}
-    {user?.is_admin && (
-      <Button
-        onClick={openTemplateDialog}
-        className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-lg hover:-translate-y-0.5 transition"
+      {/* Botão menu mobile */}
+      <button
+        onClick={() => setIsMobileSidebarOpen(true)}
+        className="p-2 rounded-lg hover:bg-gray-100 transition active:scale-95 lg:hidden"
       >
-        <Plus className="w-4 h-4" />
-        Novo Template
-      </Button>
-    )}
+        <Menu className="w-6 h-6 text-gray-600" />
+      </button>
 
-    {/* Menu Mobile */}
-    <button
-      onClick={() => setIsMobileSidebarOpen(true)}
-      className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition active:scale-95"
-    >
-      <Menu className="w-6 h-6 text-gray-600" />
-    </button>
-
+    </div>
   </div>
 </header>
+
 
 
       {/* Overlay para fechar sidebar no mobile */}
