@@ -233,27 +233,26 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
   /** 📐 Layout inalterado */
 
   return (
-    
+
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-      <div
-        ref={modalRef}
-        style={modalStyle}
-        className="
-        bg-white 
-        rounded-xl 
-        shadow-2xl 
-        z-50 
-        flex 
-        flex-col 
-        overflow-hidden 
-        border border-gray-200
-        max-w-[900px]
-        w-full
-        mx-auto
-      "
+    <div
+  ref={modalRef}
+  style={modalStyle}
+  className={`
+    bg-white
+    z-50
+    flex
+    flex-col
+    overflow-hidden
+    shadow-2xl
+    ${isMaximized
+      ? "fixed inset-0 w-screen h-screen border-none rounded-none mx-0"
+      : "max-w-[900px] w-full mx-auto border border-gray-200 rounded-xl"
+    }
+  `}
+>
 
-      >
         {/* HEADER */}
         <div
           onMouseDown={handleMouseDownDrag}
