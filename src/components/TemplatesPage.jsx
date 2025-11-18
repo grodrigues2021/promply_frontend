@@ -28,6 +28,8 @@ import { BookOpenText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTemplatesQuery } from "@/queries/useTemplatesQuery";
 import { BookText } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+
 
 // ===== CONSTANTES =====
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -143,6 +145,7 @@ async function captureVideoThumbnail(file) {
 // ===== COMPONENTE PRINCIPAL =====
 export default function TemplatesPage({ onBack }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   // Estados principais
   const { data: templates = [], isLoading: loading } = useTemplatesQuery();
@@ -421,7 +424,7 @@ export default function TemplatesPage({ onBack }) {
       console.error("Erro ao salvar template:", error);
       toast.error("Erro ao salvar template");
     }
-  }, [templateForm, editingTemplate, loadTemplates]);
+  }, [templateForm, editingTemplate]);
 
   const deleteTemplate = useCallback(async (id) => {
     if (!window.confirm("Tem certeza que deseja excluir este template?")) return;
@@ -439,7 +442,7 @@ export default function TemplatesPage({ onBack }) {
       console.error("Erro ao excluir template:", error);
       toast.error("Erro ao excluir template");
     }
-  }, [loadTemplates]);
+  }, []);
 
   // ===== USE TEMPLATE =====
   const openUseTemplateDialog = useCallback((template) => {
