@@ -59,7 +59,7 @@ import { usePromptsQuery } from "../hooks/usePromptsQuery";
 import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStats } from "../hooks/useStats";
-import DebugUser from './components/DebugUser';
+
 
 
 const isMobile = window.innerWidth < 768;
