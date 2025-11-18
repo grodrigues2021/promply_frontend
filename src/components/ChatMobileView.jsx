@@ -1,6 +1,7 @@
 // src/components/ChatMobileView.jsx - TELA CHEIA MOBILE ESTILO WHATSAPP
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Menu, MessageSquare, Columns2, Loader2 } from "lucide-react";
+import { X, MessageSquare, Columns2, Loader2 } from "lucide-react";
+
 import ChatFeed from "./ChatFeed";
 import ChatInput from "./ChatInput";
 import PromptCard from "./PromptCard";
