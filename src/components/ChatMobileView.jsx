@@ -15,6 +15,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import MessageShare from "@/components/icons/MessageShare";
+
 
 const isDev = import.meta.env.MODE === "development";
 
@@ -206,12 +208,13 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
 
           {/* Botão Menu (Prompts) */}
           <button
-            onClick={() => setIsSidebarOpen(true)}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
-            aria-label="Ver prompts compartilhados"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+  onClick={() => setIsSidebarOpen(true)}
+  className="p-2 hover:bg-white/20 rounded-lg transition-colors active:scale-95"
+  aria-label="Ver prompts compartilhados"
+>
+  <MessageShare className="w-6 h-6" />
+</button>
+
         </div>
 
         {/* Feed de Mensagens */}
