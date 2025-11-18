@@ -529,6 +529,7 @@ const handleVideoUpload = (e) => {
   <LibraryBig className="w-6 h-6 text-purple-600" />
   Biblioteca de Templates
 </h1>
+          </div>
 
           {user?.is_admin && (
             <Button
