@@ -137,7 +137,7 @@ export default function Sidebar({
           {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
           <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
 {/* --- BOTÕES PRINCIPAIS DO MOBILE --- */}
-<<div className="flex lg:hidden flex-col px-3 gap-2 mb-3">
+<div className="flex lg:hidden flex-col px-3 gap-2 mb-3">
 
   {/* Novo Prompt */}
   <Button
