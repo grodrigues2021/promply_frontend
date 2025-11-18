@@ -1,8 +1,23 @@
 // src/components/layout/Sidebar.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { BookOpen, Tag, Heart, FolderPlus, Edit3, Trash2, ChevronUp, ChevronDown, Search, X, ArrowUpDown } from "lucide-react";
+import { Card, CardContent } from "../ui/card";
+import {
+  BookOpen,
+  Tag,
+  Heart,
+  FolderPlus,
+  Edit3,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  Search,
+  X,
+  ArrowUpDown,
+  Plus,
+  BookText,
+  MessageSquare
+} from "lucide-react";
 import FooterMobile from "./FooterMobile";
 
 export default function Sidebar({
@@ -18,14 +33,12 @@ export default function Sidebar({
   isMobileSidebarOpen,
   user,
   handleLogout,
-  Plus,
-  BookText,           // ← NECESSÁRIO PARA O BOTÃO 'Templates'
-  MessageSquare,
 
-  openNewPromptModal,   // ✔ ADICIONAR
-  openTemplates,        // ✔ ADICIONAR
-  openChat              // ✔ ADICIONAR
+  openNewPromptModal,
+  openTemplates,
+  openChat
 }) {
+
   // Estado para controlar se as categorias estão abertas/fechadas (padrão: ABERTO)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
