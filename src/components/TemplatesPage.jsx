@@ -510,29 +510,34 @@ const handleVideoUpload = (e) => {
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Header */}
 <header className="bg-white border-b shadow-sm sticky top-0 z-50">
-  <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between relative">
+  <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
 
-    {/* BOTÃO VOLTAR — DESKTOP + MOBILE */}
-    <button
-      onClick={() => (onBack ? onBack() : window.history.back())}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
-    >
-      <ArrowLeft className="w-4 h-4 text-gray-700" />
-      <span className="text-sm font-medium text-gray-700">Voltar</span>
-    </button>
+    {/* ESQUERDA — Voltar + Título */}
+    <div className="flex items-center gap-4">
 
-    {/* TÍTULO CENTRALIZADO */}
-    <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
-      <BookOpenText className="w-5 h-5 text-green-600" />
-      <span className="text-lg font-semibold text-gray-900 tracking-tight">
-        Templates
-      </span>
+      {/* Botão Voltar (desktop + mobile) */}
+      <button
+        onClick={() => (onBack ? onBack() : window.history.back())}
+        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
+      >
+        <ArrowLeft className="w-4 h-4 text-gray-700" />
+        <span className="text-sm font-medium text-gray-700">Voltar</span>
+      </button>
+
+      {/* Título */}
+      <div className="flex items-center gap-2">
+        <BookOpenText className="w-5 h-5 text-green-600" />
+        <span className="text-lg font-semibold text-gray-900 tracking-tight">
+          Templates
+        </span>
+      </div>
+
     </div>
 
-    {/* AÇÕES (DESKTOP) */}
+    {/* DIREITA — Novo Template (desktop) + Menu (mobile) */}
     <div className="flex items-center gap-3">
 
-      {/* BOTÃO NOVO TEMPLATE — APENAS ADMIN E APENAS DESKTOP */}
+      {/* Botão Novo Template — somente admin e somente desktop */}
       {user?.is_admin && (
         <Button
           onClick={openTemplateDialog}
@@ -543,7 +548,7 @@ const handleVideoUpload = (e) => {
         </Button>
       )}
 
-      {/* MENU MOBILE */}
+      {/* Menu Mobile */}
       <button
         onClick={() => setIsMobileSidebarOpen(true)}
         className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition active:scale-95"
@@ -552,8 +557,10 @@ const handleVideoUpload = (e) => {
       </button>
 
     </div>
+
   </div>
 </header>
+
 
 
 
