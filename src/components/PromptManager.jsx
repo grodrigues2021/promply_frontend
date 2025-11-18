@@ -1,16 +1,20 @@
+// src/components/PromptManager.jsx
+import React, { lazy, Suspense, useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+
+// UI Components
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import { Badge } from "./ui/badge";
 import { Textarea } from "./ui/textarea";
+import { Label } from "./ui/label";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogOverlay,
 } from "./ui/dialog";
 import {
   Select,
@@ -19,210 +23,96 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { ScrollArea } from "./ui/scroll-area";
-import { Label } from "./ui/label";
+
+// Icons
 import {
   Search,
-  Copy,
-  Edit,
-  Edit3,
-  Trash2,
-  StarOff,
-  Database,
-  FolderPlus,
-  Tag,
-  BookOpen,
-  Heart,
-  Share2,
   X,
-  Menu,
+  Star,
   BookText,
   MessageSquare,
-  Star,
   Plus,
-  Download,
-  ChevronDown, 
+  ChevronDown,
 } from "lucide-react";
-import PromplyLogo from "../assets/promply-logo.svg";
-import { useAuth } from "../hooks/useAuth";
-import TemplatesPage from "./TemplatesPage.jsx";
-import PromptCard from "./PromptCard";
-import PromptGrid from "./PromptGrid";
-import api from "../lib/api";
+
+// Custom Components
 import Header from "./layout/Header";
 import Sidebar from "./layout/Sidebar";
-import FooterMobile from "./layout/FooterMobile";
-import useLockBodyScroll from "../hooks/useLockBodyScroll";
-import React, { lazy, Suspense, useState, useEffect, useCallback } from "react";
-import { createPortal } from "react-dom";
+import PromptGrid from "./PromptGrid";
+import TemplatesPage from "./TemplatesPage.jsx";
+import DebugUser from "./DebugUser";
+
+// Hooks & Utils
+import { useAuth } from "../hooks/useAuth";
 import { usePromptsQuery } from "../hooks/usePromptsQuery";
 import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
-import { useQueryClient } from "@tanstack/react-query";
 import { useStats } from "../hooks/useStats";
+import useLockBodyScroll from "../hooks/useLockBodyScroll";
+import api from "../lib/api";
 
+// ===== CONSTANTES =====
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const VIDEO_UPLOAD_TIMEOUT = 300000; // 5 minutos
+const DEFAULT_UPLOAD_TIMEOUT = 120000; // 2 minutos
 
-const isMobile = window.innerWidth < 768;
+const INITIAL_PROMPT_FORM = {
+  title: "",
+  content: "",
+  description: "",
+  tags: "",
+  category_id: "none",
+  is_favorite: false,
+  image_url: "",
+  video_url: "",
+  youtube_url: "",
+  videoFile: null,
+  imageFile: null,
+  selectedMedia: "none",
+};
 
-const SharePromptModal = React.lazy(() =>
-  import(
-    /* webpackChunkName: "SharePromptModal", webpackMode: "lazy" */
-    "./SharePromptModal"
-  )
-);
+const INITIAL_CATEGORY_FORM = {
+  name: "",
+  description: "",
+  color: "#3B82F6",
+  is_template: false,
+};
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+// Lazy loads
+const SharePromptModal = lazy(() => import("./SharePromptModal"));
 
-export default function PromptManager({
-  setIsAuthenticated,
-  setUser,
-  defaultView = "prompts",
-  isPopupMode = false,
-}) {
+// ===== HELPER FUNCTIONS =====
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
 
-  const { user, logout, isAuthenticated, isLoading } = useAuth();
-  const queryClient = useQueryClient();
-  const [ChatComponent, setChatComponent] = useState(null);
+function normalizeTags(tags) {
+  if (!tags) return "";
+  if (Array.isArray(tags)) return tags.join(", ");
+  return tags;
+}
 
-  const [activeView, setActiveView] = useState(defaultView);
-  const [prompts, setPrompts] = useState([]);
-  const [myCategories, setMyCategories] = useState([]);
-  const [templateCategories, setTemplateCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
-  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
-  const [editingPrompt, setEditingPrompt] = useState(null);
-  const [editingCategory, setEditingCategory] = useState(null);
-  const { data: stats = {} } = useStats(); // ✅ Removido refetchStats
-  const [dbConnected, setDbConnected] = useState(true);
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [showChatModal, setShowChatModal] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [promptToShare, setPromptToShare] = useState(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [showVideoModal, setShowVideoModal] = useState(false);
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
-  const [isChatDetached, setIsChatDetached] = useState(false);
-  const [promptForm, setPromptForm] = useState({
-    title: "",
-    content: "",
-    description: "",
-    tags: "",
-    category_id: "none",
-    is_favorite: false,
-    image_url: "",
-    video_url: "",
-    youtube_url: "",
-    videoFile: null,
-    imageFile: null,
-    selectedMedia: "none", 
-  });
-  useLockBodyScroll(isPromptDialogOpen || isCategoryDialogOpen || isMobileSidebarOpen);
-  const [categoryForm, setCategoryForm] = useState({
-    name: "",
-    description: "",
-    color: "#3B82F6",
-    is_template: false,
-  });
-
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [categorySearch, setCategorySearch] = useState("");
-
-  const handleImageUpload = async (e) => {
-    try {
-      const file = e.target.files?.[0];
-      console.log("📁 Arquivo selecionado:", file);
-      console.log("📋 Tipo:", file?.type, "Tamanho:", file?.size);
-      if (!file) {
-        console.warn("⚠️ Nenhum arquivo selecionado!");
-        toast.warning("Selecione um arquivo antes de enviar.");
-        return;
-      }
-
-      if (!file.type.startsWith("image/")) {
-        toast.error("Selecione uma imagem válida (JPG, PNG, SVG).");
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Imagem muito grande! Máx. 5MB.");
-        return;
-      }
-
-      console.log(
-        `📤 Iniciando upload: ${file.name} (${file.type}), ${(
-          file.size / 1024
-        ).toFixed(1)}KB`
-      );
-
-      setUploadingImage(true);
-      toast.loading("Enviando imagem...");
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      console.log("🧾 FormData antes do envio:", [...formData.entries()]);
-      console.log(
-        "🔑 Header Authorization:",
-        api.defaults.headers?.Authorization
-      );
-
-      const res = await api.post("/upload", formData);
-      console.log("📩 Resposta do backend:", res.data);
-
-      const uploadedUrl = res.data?.image_url || res.data?.url || "";
-      if (uploadedUrl) {
-        setPromptForm((prev) => ({
-          ...prev,
-          imageFile: file,
-          image_url: uploadedUrl,
-        }));
-        toast.dismiss();
-        toast.success("✅ Upload concluído!");
-      } else {
-        toast.error("Erro: servidor não retornou URL da imagem.");
-      }
-    } catch (err) {
-      console.error("❌ Erro no upload:", err);
-      toast.dismiss();
-      toast.error("Falha ao enviar imagem.");
-    } finally {
-      setUploadingImage(false);
-      if (e.target) e.target.value = "";
-    }
-  };
-
-  const removeImage = useCallback(() => {
-    setPromptForm((prev) => ({ ...prev, image_url: "" }));
-    toast.success("Imagem removida");
-  }, []);
-
-  const handleVideoUpload = useCallback((e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("video/")) {
-      toast.error("Selecione um vídeo válido");
-      return;
-    }
-
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("Vídeo muito grande! Máx. 50MB");
-      return;
-    }
-
-    setUploadingImage(true);
-    toast.info("🎬 Processando vídeo...");
-
+async function captureVideoThumbnail(file) {
+  return new Promise((resolve, reject) => {
     const videoURL = URL.createObjectURL(file);
     const video = document.createElement("video");
     video.preload = "metadata";
     video.muted = true;
     video.playsInline = true;
+
+    const cleanup = () => {
+      URL.revokeObjectURL(videoURL);
+      video.remove();
+    };
 
     video.onloadeddata = () => {
       video.currentTime = Math.min(1, video.duration / 2);
@@ -242,21 +132,9 @@ export default function PromptManager({
           const thumbnailFile = new File([blob], "video-thumbnail.jpg", {
             type: "image/jpeg",
           });
-
-          setPromptForm((prev) => ({
-            ...prev,
-            videoFile: file,
-            video_url: "",
-            image_url: prev.image_url || thumbnailBase64,
-            imageFile: prev.imageFile || thumbnailFile,
-            youtube_url: "",
-          }));
-          
-          setUploadingImage(false);
-
-          URL.revokeObjectURL(videoURL);
-          video.remove();
           canvas.remove();
+          cleanup();
+          resolve({ thumbnailFile, thumbnailBase64 });
         },
         "image/jpeg",
         0.8
@@ -264,110 +142,255 @@ export default function PromptManager({
     };
 
     video.onerror = () => {
-      toast.error("Erro ao processar vídeo");
-      setUploadingImage(false);
-      URL.revokeObjectURL(videoURL);
-      video.remove();
+      cleanup();
+      reject(new Error("Erro ao processar vídeo"));
     };
 
     video.src = videoURL;
-  }, []);
+  });
+}
 
-  const openVideoModal = useCallback((url) => {
-    setCurrentVideoUrl(url);
-    setShowVideoModal(true);
-  }, []);
+// ===== COMPONENTE PRINCIPAL =====
+export default function PromptManager({
+  setIsAuthenticated,
+  setUser,
+  defaultView = "prompts",
+  isPopupMode = false,
+}) {
+  const { user, logout } = useAuth();
+  const queryClient = useQueryClient();
 
-  const openImageModal = useCallback((imageBase64, title) => {
-    setSelectedImage({ url: imageBase64, title });
-    setIsImageModalOpen(true);
-  }, []);
+  // Estados principais
+  const [prompts, setPrompts] = useState([]);
+  const [myCategories, setMyCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  const extractYouTubeId = useCallback((url) => {
-    if (!url) return null;
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /^([a-zA-Z0-9_-]{11})$/,
-    ];
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match && match[1]) return match[1];
+  // Modais
+  const [isPromptDialogOpen, setIsPromptDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Estados de edição
+  const [editingPrompt, setEditingPrompt] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [promptToShare, setPromptToShare] = useState(null);
+
+  // Estados de upload
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Estados de chat
+  const [ChatComponent, setChatComponent] = useState(null);
+  const [isChatDetached, setIsChatDetached] = useState(false);
+
+  // Formulários
+  const [promptForm, setPromptForm] = useState(INITIAL_PROMPT_FORM);
+  const [categoryForm, setCategoryForm] = useState(INITIAL_CATEGORY_FORM);
+  const [categorySearch, setCategorySearch] = useState("");
+
+  // Queries
+  const { data: stats = {} } = useStats();
+  const { data: promptsData = [], isLoading: loadingPrompts } = usePromptsQuery();
+  const { data: categoriesData, isLoading: loadingCategories } = useCategoriesQuery();
+
+  // Lock scroll quando modais estão abertos
+  useLockBodyScroll(isPromptDialogOpen || isCategoryDialogOpen || isMobileSidebarOpen);
+
+  // ===== EFFECTS =====
+  useEffect(() => {
+    if (categoriesData) {
+      setMyCategories(categoriesData.my || []);
     }
-    return null;
+  }, [categoriesData]);
+
+  useEffect(() => {
+    if (Array.isArray(promptsData)) {
+      setPrompts(promptsData);
+    }
+  }, [promptsData]);
+
+  useEffect(() => {
+    if (isPopupMode && defaultView === "chat") {
+      setShowChatModal(true);
+    }
+  }, [isPopupMode, defaultView]);
+
+  useEffect(() => {
+    if (showChatModal && !ChatComponent) {
+      import("./ChatContainer.jsx").then((module) => {
+        setChatComponent(() => module.default);
+      });
+    }
+  }, [showChatModal, ChatComponent]);
+
+  // Chat detached listener
+  useEffect(() => {
+    const channel = new BroadcastChannel("promply-chat-status");
+
+    channel.onmessage = (event) => {
+      switch (event.data.type) {
+        case "chat-detached":
+          setIsChatDetached(true);
+          setShowChatModal(false);
+          break;
+        case "chat-closed":
+          setIsChatDetached(false);
+          break;
+        case "pong":
+          setIsChatDetached(true);
+          setShowChatModal(false);
+          break;
+        default:
+          break;
+      }
+    };
+
+    channel.postMessage({ type: "ping" });
+    return () => channel.close();
   }, []);
 
-  const normalizeTags = useCallback((tags) => {
-    if (!tags) return "";
-    if (Array.isArray(tags)) return tags.join(", ");
-    return tags;
-  }, []);
-
+  // ===== FORM HANDLERS =====
   const resetPromptForm = useCallback(() => {
-    setPromptForm({
-      title: "",
-      content: "",
-      description: "",
-      tags: "",
-      category_id: "none",
-      is_favorite: false,
-      image_url: "",
-      video_url: "",
-      youtube_url: "",
-      videoFile: null,
-      imageFile: null,
-      selectedMedia: "none",
-    });
+    setPromptForm(INITIAL_PROMPT_FORM);
     setEditingPrompt(null);
   }, []);
 
   const resetCategoryForm = useCallback(() => {
-    setCategoryForm({
-      name: "",
-      description: "",
-      color: "#3B82F6",
-      is_template: false,
-    });
+    setCategoryForm(INITIAL_CATEGORY_FORM);
     setEditingCategory(null);
   }, []);
 
-  const editPrompt = useCallback(
-    (prompt) => {
-      console.log("✏️ Editando prompt:", prompt);
+  // ===== UPLOAD HANDLERS =====
+  const handleImageUpload = useCallback(async (e) => {
+    try {
+      const file = e.target.files?.[0];
+      if (!file) {
+        toast.warning("Selecione um arquivo antes de enviar.");
+        return;
+      }
 
-      setEditingPrompt(prompt);
+      if (!file.type.startsWith("image/")) {
+        toast.error("Selecione uma imagem válida (JPG, PNG, SVG).");
+        return;
+      }
 
-      requestAnimationFrame(() => { 
-        const categoryId = prompt.category?.id
-          ? String(prompt.category.id)
-          : prompt.category_id
-          ? String(prompt.category_id)
-          : "none";
+      if (file.size > MAX_IMAGE_SIZE) {
+        toast.error("Imagem muito grande! Máx. 5MB.");
+        return;
+      }
 
-        let mediaType = "none";
-        if (prompt.youtube_url) mediaType = "youtube";
-        else if (prompt.video_url) mediaType = "video";
-        else if (prompt.image_url) mediaType = "imagem";
+      setUploadingImage(true);
+      toast.loading("Enviando imagem...");
 
-        setPromptForm({
-          title: prompt.title || "",
-          content: prompt.content || "",
-          description: prompt.description || "",
-          tags: normalizeTags(prompt.tags),
-          category_id: categoryId,
-          is_favorite: prompt.is_favorite || false,
-          image_url: prompt.image_url || "",
-          video_url: prompt.video_url || "",
-          youtube_url: prompt.youtube_url || "",
-          imageFile: null,
-          videoFile: null,
-          selectedMedia: mediaType,
-        });
+      const formData = new FormData();
+      formData.append("file", file);
 
-        setIsPromptDialogOpen(true);
+      const res = await api.post("/upload", formData);
+      const uploadedUrl = res.data?.image_url || res.data?.url || "";
+
+      if (uploadedUrl) {
+        setPromptForm((prev) => ({
+          ...prev,
+          imageFile: file,
+          image_url: uploadedUrl,
+        }));
+        toast.dismiss();
+        toast.success("✅ Upload concluído!");
+      } else {
+        toast.error("Erro: servidor não retornou URL da imagem.");
+      }
+    } catch (err) {
+      console.error("❌ Erro no upload:", err);
+      toast.dismiss();
+      toast.error("Falha ao enviar imagem.");
+    } finally {
+      setUploadingImage(false);
+      if (e.target) e.target.value = "";
+    }
+  }, []);
+
+  const handleVideoUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Selecione um vídeo válido");
+      return;
+    }
+
+    if (file.size > MAX_VIDEO_SIZE) {
+      toast.error("Vídeo muito grande! Máx. 50MB");
+      return;
+    }
+
+    setUploadingImage(true);
+    toast.info("🎬 Processando vídeo...");
+
+    try {
+      const { thumbnailFile, thumbnailBase64 } = await captureVideoThumbnail(file);
+
+      setPromptForm((prev) => ({
+        ...prev,
+        videoFile: file,
+        video_url: "",
+        image_url: prev.image_url || thumbnailBase64,
+        imageFile: prev.imageFile || thumbnailFile,
+        youtube_url: "",
+      }));
+
+      toast.success("Vídeo processado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao processar vídeo:", error);
+      toast.error("Erro ao processar vídeo");
+    } finally {
+      setUploadingImage(false);
+    }
+  }, []);
+
+  const removeImage = useCallback(() => {
+    setPromptForm((prev) => ({ ...prev, image_url: "", imageFile: null }));
+    toast.success("Imagem removida");
+  }, []);
+
+  // ===== EDIT HANDLERS =====
+  const editPrompt = useCallback((prompt) => {
+    setEditingPrompt(prompt);
+
+    requestAnimationFrame(() => {
+      const categoryId = prompt.category?.id
+        ? String(prompt.category.id)
+        : prompt.category_id
+        ? String(prompt.category_id)
+        : "none";
+
+      let mediaType = "none";
+      if (prompt.youtube_url) mediaType = "youtube";
+      else if (prompt.video_url) mediaType = "video";
+      else if (prompt.image_url) mediaType = "imagem";
+
+      setPromptForm({
+        title: prompt.title || "",
+        content: prompt.content || "",
+        description: prompt.description || "",
+        tags: normalizeTags(prompt.tags),
+        category_id: categoryId,
+        is_favorite: prompt.is_favorite || false,
+        image_url: prompt.image_url || "",
+        video_url: prompt.video_url || "",
+        youtube_url: prompt.youtube_url || "",
+        imageFile: null,
+        videoFile: null,
+        selectedMedia: mediaType,
       });
-    },
-    [normalizeTags]
-  );
+
+      setIsPromptDialogOpen(true);
+    });
+  }, []);
 
   const editCategory = useCallback((category) => {
     setCategoryForm({
@@ -380,143 +403,8 @@ export default function PromptManager({
     setIsCategoryDialogOpen(true);
   }, []);
 
-  const testConnection = useCallback(async () => {
-    try {
-      const response = await api.get("/stats");
-      const data = response.data;
-
-      if (data.success) {
-        setDbConnected(true);
-        toast.success("Conexão com o banco estabelecida!");
-
-        await Promise.all([
-          queryClient.invalidateQueries(["prompts"]),
-          queryClient.invalidateQueries(["categories"]),
-          queryClient.invalidateQueries(["stats"]), // ✅ Apenas invalida
-        ]);
-      } else {
-        setDbConnected(false);
-        toast.error("Falha ao conectar com o banco de dados!");
-      }
-    } catch (error) {
-      setDbConnected(false);
-      toast.error("Erro ao verificar conexão com o banco!");
-      console.error("Erro em testConnection:", error);
-    }
-  }, [queryClient]); // ✅ Apenas queryClient
-
-  const handleLogout = useCallback(async () => {
-    try {
-      await logout();
-    } catch {
-      window.location.href = "/";
-    }
-  }, [logout]);
-
-  const handlePromptSaved = useCallback(() => {
-    queryClient.invalidateQueries(["prompts"]);
-    queryClient.invalidateQueries(["categories"]);
-    queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
-    toast.success("✅ Prompt adicionado com sucesso!");
-  }, [queryClient]); // ✅ Apenas queryClient
-
-  const openChatFromTopButton = () => {
-  if (window.innerWidth < 768) {
-    // 👉 MOBILE → abre ChatMobileView
-    setShowChatModal(true); // ChatContainer vai detectar que é mobile
-  } else {
-    // 👉 DESKTOP → comportamento normal
-    openChatIntelligently();
-  }
-};
-
-
-  const openChatIntelligently = useCallback(() => {
-    if (isChatDetached) {
-      const channel = new BroadcastChannel("promply-chat-status");
-      channel.postMessage({ type: "focus-chat" });
-      channel.close();
-      toast.success("💬 Chat destacado atualizado!");
-    } else {
-      setShowChatModal(true);
-    }
-  }, [isChatDetached]);
-
-  const { 
-    data: promptsData = [], 
-    isLoading: loadingPrompts,
-    isFetching: fetchingPrompts
-  } = usePromptsQuery();
-
-  const { 
-    data: categoriesData, 
-    isLoading: loadingCategories,
-    isFetching: fetchingCategories
-  } = useCategoriesQuery();
-
-  useEffect(() => {
-    if (categoriesData) {
-      setMyCategories(categoriesData.my);
-      setTemplateCategories(categoriesData.templates);
-    }
-  }, [categoriesData]);
-
-  useEffect(() => {
-    if (Array.isArray(promptsData)) {
-      setPrompts(promptsData);
-    }
-  }, [promptsData]);
-
-  useEffect(() => {
-    const channel = new BroadcastChannel("promply-chat-status");
-
-    channel.onmessage = (event) => {
-      if (event.data.type === "chat-detached") {
-        setIsChatDetached(true);
-        setShowChatModal(false);
-        console.log("✅ Chat destacado detectado");
-      } else if (event.data.type === "chat-closed") {
-        setIsChatDetached(false);
-        console.log("❌ Chat destacado fechado");
-      } else if (event.data.type === "pong") {
-        setIsChatDetached(true);
-        setShowChatModal(false);
-        console.log("✅ Chat destacado já estava aberto");
-      }
-    };
-
-    channel.postMessage({ type: "ping" });
-    return () => channel.close();
-  }, []);
-
-  useEffect(() => {
-  if (showChatModal && !ChatComponent) {
-import("./ChatContainer.jsx").then((module) => {
-      setChatComponent(() => module.default);
-    });
-  }
-}, [showChatModal]);
-
-
-  const filteredPrompts = Array.isArray(prompts)
-    ? prompts.filter((prompt) => {
-        const matchesSearch =
-          prompt.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          prompt.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (prompt.tags &&
-            (Array.isArray(prompt.tags)
-              ? prompt.tags.some((tag) =>
-                  tag.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-              : prompt.tags.toLowerCase().includes(searchTerm.toLowerCase())));
-        const matchesCategory =
-          !selectedCategory || prompt.category_id === selectedCategory;
-        const matchesFavorites = !showFavoritesOnly || prompt.is_favorite;
-        return matchesSearch && matchesCategory && matchesFavorites;
-      })
-    : [];
-
-  const savePrompt = async () => {
+  // ===== SAVE HANDLERS =====
+  const savePrompt = useCallback(async () => {
     try {
       if (uploadingImage) {
         toast.warning("Aguarde o envio da imagem antes de salvar.");
@@ -531,103 +419,112 @@ import("./ChatContainer.jsx").then((module) => {
       const isEditing = !!editingPrompt;
       const endpoint = isEditing ? `/prompts/${editingPrompt.id}` : `/prompts`;
 
+      // Preparar body
+      let body;
+      let headers = {};
+
+      const shouldUseFormData =
+        (promptForm.videoFile && !promptForm.video_url) ||
+        (promptForm.imageFile && !promptForm.image_url);
+
+      if (shouldUseFormData) {
+        body = new FormData();
+        body.append("title", promptForm.title);
+        body.append("content", promptForm.content);
+        body.append("description", promptForm.description);
+        body.append(
+          "tags",
+          Array.isArray(promptForm.tags)
+            ? promptForm.tags.join(",")
+            : promptForm.tags
+        );
+
+        const categoryValue =
+          !promptForm.category_id || promptForm.category_id === "none"
+            ? ""
+            : String(promptForm.category_id);
+        body.append("category_id", categoryValue);
+        body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
+
+        if (promptForm.image_url) body.append("image_url", promptForm.image_url);
+        if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
+        if (promptForm.videoFile) body.append("video", promptForm.videoFile);
+        if (promptForm.imageFile) body.append("file", promptForm.imageFile);
+      } else {
+        headers["Content-Type"] = "application/json";
+        body = JSON.stringify({
+          title: promptForm.title,
+          content: promptForm.content,
+          description: promptForm.description,
+          tags:
+            typeof promptForm.tags === "string"
+              ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+              : promptForm.tags,
+          category_id:
+            !promptForm.category_id || promptForm.category_id === "none"
+              ? null
+              : Number(promptForm.category_id),
+          is_favorite: promptForm.is_favorite,
+          image_url: promptForm.image_url || "",
+          video_url: promptForm.video_url || "",
+          youtube_url: promptForm.youtube_url || "",
+        });
+      }
+
+      const timeoutDuration = promptForm.videoFile
+        ? VIDEO_UPLOAD_TIMEOUT
+        : DEFAULT_UPLOAD_TIMEOUT;
+
       if (!isEditing) {
+        // Criar novo prompt com UI otimista
         const tempId = `temp-${Date.now()}`;
-        
+
         const optimisticPrompt = {
           id: tempId,
           _tempId: tempId,
           _skipAnimation: true,
-          _hasLocalVideo: !!promptForm.videoFile,
-          _hasYouTube: !!promptForm.youtube_url,
           title: promptForm.title,
           content: promptForm.content,
           description: promptForm.description,
           tags: promptForm.tags,
-          category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
-          category: promptForm.category_id !== "none" 
-            ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
-            : null,
+          category_id:
+            promptForm.category_id === "none"
+              ? null
+              : Number(promptForm.category_id),
+          category:
+            promptForm.category_id !== "none"
+              ? myCategories.find(
+                  (c) => String(c.id) === String(promptForm.category_id)
+                )
+              : null,
           is_favorite: promptForm.is_favorite,
           image_url: promptForm.image_url || "",
           video_url: promptForm.video_url || "",
           youtube_url: promptForm.youtube_url || "",
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
           _isOptimistic: true,
         };
 
         setPrompts([optimisticPrompt, ...prompts]);
         setIsPromptDialogOpen(false);
         resetPromptForm();
-        toast.success('✅ Prompt criado!');
+        toast.success("✅ Prompt criado!");
 
         try {
-          let body;
-          let headers = {};
-          
-          const shouldUseFormData =
-            (promptForm.videoFile && !promptForm.video_url) ||
-            (promptForm.imageFile && !promptForm.image_url);
-
-          if (shouldUseFormData) {
-            body = new FormData();
-            body.append("title", promptForm.title);
-            body.append("content", promptForm.content);
-            body.append("description", promptForm.description);
-            body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
-            
-            const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
-              ? ""
-              : String(promptForm.category_id);
-            body.append("category_id", categoryValue);
-            body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
-            
-            if (promptForm.image_url) body.append("image_url", promptForm.image_url);
-            if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
-            if (promptForm.videoFile) body.append("video", promptForm.videoFile);
-            if (promptForm.imageFile) body.append("file", promptForm.imageFile);
-          } else {
-            headers["Content-Type"] = "application/json";
-            body = JSON.stringify({
-              title: promptForm.title,
-              content: promptForm.content,
-              description: promptForm.description,
-              tags: typeof promptForm.tags === "string"
-                ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-                : promptForm.tags,
-              category_id: !promptForm.category_id || promptForm.category_id === "none"
-                ? null
-                : Number(promptForm.category_id),
-              is_favorite: promptForm.is_favorite,
-              image_url: promptForm.image_url || "",
-              video_url: promptForm.video_url || "",
-              youtube_url: promptForm.youtube_url || "",
-            });
-          }
-
-          const hasVideo = !!promptForm.videoFile;
-          const timeoutDuration = hasVideo ? 300000 : 120000;
-
-          const response = await api.post(endpoint, body, { 
+          const response = await api.post(endpoint, body, {
             headers,
-            timeout: timeoutDuration
+            timeout: timeoutDuration,
           });
-          
-          const data = response.data;
 
-          if (data.success) {
-            const serverPrompt = data.data || data.prompt || data.updated || null;
-            
+          if (response.data.success) {
+            const serverPrompt = response.data.data || response.data.prompt;
+
             if (serverPrompt) {
-              setPrompts(prev => 
-                prev.map(p => p.id === tempId 
-                  ? { 
-                      ...serverPrompt, 
-                      _tempId: tempId,
-                      _skipAnimation: true 
-                    }
-                  : p
+              setPrompts((prev) =>
+                prev.map((p) =>
+                  p.id === tempId
+                    ? { ...serverPrompt, _tempId: tempId, _skipAnimation: true }
+                    : p
                 )
               );
             } else {
@@ -635,40 +532,46 @@ import("./ChatContainer.jsx").then((module) => {
                 queryClient.invalidateQueries(["prompts"]);
               }, 800);
             }
-            
-            queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
-            
+
+            queryClient.invalidateQueries(["stats"]);
           } else {
-            setPrompts(prev => prev.filter(p => p.id !== tempId));
-            toast.error(data.error || "Erro ao criar prompt");
+            setPrompts((prev) => prev.filter((p) => p.id !== tempId));
+            toast.error(response.data.error || "Erro ao criar prompt");
           }
         } catch (err) {
-          console.error("❌ ERRO AO CRIAR PROMPT:", err);
-          setPrompts(prev => prev.filter(p => p.id !== tempId));
-          
-          if (err.code === 'ECONNABORTED') {
-            toast.error("⏱️ Tempo esgotado ao enviar. Tente com arquivo menor.", {
-              duration: 5000
+          console.error("❌ Erro ao criar prompt:", err);
+          setPrompts((prev) => prev.filter((p) => p.id !== tempId));
+
+          if (err.code === "ECONNABORTED") {
+            toast.error("⏱️ Tempo esgotado. Tente com arquivo menor.", {
+              duration: 5000,
             });
           } else if (err.response?.status === 413) {
-            toast.error("📁 Arquivo muito grande! Máx 50MB para vídeo.");
+            toast.error("📦 Arquivo muito grande! Máx 50MB.");
           } else {
             toast.error("❌ Erro ao salvar. Tente novamente.");
           }
         }
       } else {
+        // Atualizar prompt existente
         const previousPrompts = [...prompts];
-        
+
         const updatedPrompt = {
           ...editingPrompt,
           title: promptForm.title,
           content: promptForm.content,
           description: promptForm.description,
           tags: promptForm.tags,
-          category_id: promptForm.category_id === "none" ? null : Number(promptForm.category_id),
-          category: promptForm.category_id !== "none" 
-            ? myCategories.find(c => String(c.id) === String(promptForm.category_id))
-            : null,
+          category_id:
+            promptForm.category_id === "none"
+              ? null
+              : Number(promptForm.category_id),
+          category:
+            promptForm.category_id !== "none"
+              ? myCategories.find(
+                  (c) => String(c.id) === String(promptForm.category_id)
+                )
+              : null,
           is_favorite: promptForm.is_favorite,
           image_url: promptForm.image_url || "",
           video_url: promptForm.video_url || "",
@@ -676,211 +579,187 @@ import("./ChatContainer.jsx").then((module) => {
           updated_at: new Date().toISOString(),
         };
 
-        setPrompts(prev => 
-          prev.map(p => p.id === editingPrompt.id ? updatedPrompt : p)
+        setPrompts((prev) =>
+          prev.map((p) => (p.id === editingPrompt.id ? updatedPrompt : p))
         );
-        
+
         setIsPromptDialogOpen(false);
         resetPromptForm();
-        toast.success('✏️ Prompt atualizado!');
+        toast.success("✏️ Prompt atualizado!");
 
         try {
-          let body;
-          let headers = {};
-          
-          const shouldUseFormData =
-            (promptForm.videoFile && !promptForm.video_url) ||
-            (promptForm.imageFile && !promptForm.image_url);
-
-          if (shouldUseFormData) {
-            body = new FormData();
-            body.append("title", promptForm.title);
-            body.append("content", promptForm.content);
-            body.append("description", promptForm.description);
-            body.append("tags", Array.isArray(promptForm.tags) ? promptForm.tags.join(",") : promptForm.tags);
-            
-            const categoryValue = !promptForm.category_id || promptForm.category_id === "none"
-              ? ""
-              : String(promptForm.category_id);
-            body.append("category_id", categoryValue);
-            body.append("is_favorite", promptForm.is_favorite ? "true" : "false");
-            
-            if (promptForm.image_url) body.append("image_url", promptForm.image_url);
-            if (promptForm.youtube_url) body.append("youtube_url", promptForm.youtube_url);
-            if (promptForm.videoFile) body.append("video", promptForm.videoFile);
-            if (promptForm.imageFile) body.append("file", promptForm.imageFile);
-          } else {
-            headers["Content-Type"] = "application/json";
-            body = JSON.stringify({
-              title: promptForm.title,
-              content: promptForm.content,
-              description: promptForm.description,
-              tags: typeof promptForm.tags === "string"
-                ? promptForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-                : promptForm.tags,
-              category_id: !promptForm.category_id || promptForm.category_id === "none"
-                ? null
-                : Number(promptForm.category_id),
-              is_favorite: promptForm.is_favorite,
-              image_url: promptForm.image_url || "",
-              video_url: promptForm.video_url || "",
-              youtube_url: promptForm.youtube_url || "",
-            });
-          }
-
-          const hasVideo = !!promptForm.videoFile;
-          const timeoutDuration = hasVideo ? 300000 : 120000;
-
-          const response = await api.put(endpoint, body, { 
+          const response = await api.put(endpoint, body, {
             headers,
-            timeout: timeoutDuration
+            timeout: timeoutDuration,
           });
-          
-          const data = response.data;
 
-          if (data.success) {
-            const serverPrompt = data.data || data.prompt || data.updated || null;
-            
+          if (response.data.success) {
+            const serverPrompt = response.data.data || response.data.updated;
+
             if (serverPrompt) {
-              setPrompts(prev => 
-                prev.map(p => p.id === serverPrompt.id ? serverPrompt : p)
+              setPrompts((prev) =>
+                prev.map((p) => (p.id === serverPrompt.id ? serverPrompt : p))
               );
             } else {
               setTimeout(() => {
                 queryClient.invalidateQueries(["prompts"]);
               }, 800);
             }
-            
-            queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
-            
+
+            queryClient.invalidateQueries(["stats"]);
           } else {
             setPrompts(previousPrompts);
-            toast.error(data.error || "Erro ao atualizar prompt");
+            toast.error(response.data.error || "Erro ao atualizar prompt");
           }
         } catch (err) {
-          console.error("❌ ERRO AO EDITAR PROMPT:", err);
+          console.error("❌ Erro ao editar prompt:", err);
           setPrompts(previousPrompts);
-          
-          if (err.code === 'ECONNABORTED') {
-            toast.error("⏱️ Tempo esgotado. Tente novamente.", { duration: 5000 });
+
+          if (err.code === "ECONNABORTED") {
+            toast.error("⏱️ Tempo esgotado. Tente novamente.", {
+              duration: 5000,
+            });
           } else {
             toast.error("❌ Erro ao atualizar.");
           }
         }
       }
     } catch (err) {
-      console.error("❌ ERRO GERAL:", err);
+      console.error("❌ Erro geral:", err);
       toast.error("Erro ao salvar prompt");
     }
-  };
+  }, [
+    uploadingImage,
+    promptForm,
+    editingPrompt,
+    prompts,
+    myCategories,
+    resetPromptForm,
+    queryClient,
+  ]);
 
-  const saveCategory = async () => {
+  const saveCategory = useCallback(async () => {
     try {
       const response = editingCategory
         ? await api.put(`/categories/${editingCategory.id}`, categoryForm)
         : await api.post("/categories", categoryForm);
-      const data = response.data;
-      if (data.success) {
+
+      if (response.data.success) {
         queryClient.invalidateQueries(["categories"]);
-        queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
+        queryClient.invalidateQueries(["stats"]);
         resetCategoryForm();
         setIsCategoryDialogOpen(false);
-      } else toast.error(data.error || "Erro ao salvar categoria");
-    } catch {
+        toast.success(
+          editingCategory ? "Categoria atualizada!" : "Categoria criada!"
+        );
+      } else {
+        toast.error(response.data.error || "Erro ao salvar categoria");
+      }
+    } catch (error) {
+      console.error("Erro ao salvar categoria:", error);
       toast.error("Erro ao salvar categoria");
     }
-  };
+  }, [editingCategory, categoryForm, resetCategoryForm, queryClient]);
 
-  const deleteCategory = async (id) => {
-    if (!id) {
-      toast.error("Categoria inválida!");
-      return;
-    }
-
-    if (!confirm("Tem certeza que deseja excluir esta categoria?")) return;
-
-    try {
-      setMyCategories((prev) => prev.filter((cat) => cat.id !== id));
-
-      const response = await api.delete(`/categories/${id}`);
-      const data = response.data;
-
-      if (data.success) {
-        toast.success("🗑️ Categoria removida com sucesso!");
-        queryClient.invalidateQueries(["categories"]);
-        queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida UMA vez
-      } else {
-        toast.error(data.error || "Erro ao deletar categoria");
-      }
-    } catch (err) {
-      console.error("❌ Erro ao deletar categoria:", err);
-      toast.error("Erro ao excluir categoria");
-    }
-  };
-
-  const deletePrompt = async (id) => {
-    if (String(id).startsWith("temp-")) {
-      toast.warning("⏳ Aguarde o prompt ser criado antes de deletar!");
-      return;
-    }
-
-    if (!confirm("Tem certeza que deseja deletar este prompt?")) return;
-
-    const previousPrompts = [...prompts];
-    setPrompts((prev) => prev.filter((p) => p.id !== id));
-    toast.success("🗑️ Prompt deletado!");
-
-    try {
-      const { data } = await api.delete(`/prompts/${id}`);
-
-      if (!data.success) {
-        setPrompts(previousPrompts);
-        toast.error(data.error || "Erro ao deletar prompt");
+  // ===== DELETE HANDLERS =====
+  const deletePrompt = useCallback(
+    async (id) => {
+      if (String(id).startsWith("temp-")) {
+        toast.warning("⏳ Aguarde o prompt ser criado antes de deletar!");
         return;
       }
 
-      queryClient.invalidateQueries(["prompts"]);
-      queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
+      if (!window.confirm("Tem certeza que deseja deletar este prompt?")) return;
 
-    } catch (err) {
-      setPrompts(previousPrompts);
-      toast.error("Erro ao deletar prompt");
-      console.error(err);
-    }
-  };
+      const previousPrompts = [...prompts];
+      setPrompts((prev) => prev.filter((p) => p.id !== id));
+      toast.success("🗑️ Prompt deletado!");
 
-  const toggleFavorite = async (prompt) => {
-    setPrompts((prev) =>
-      prev.map((p) =>
-        p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
-      )
-    );
+      try {
+        const { data } = await api.delete(`/prompts/${id}`);
 
-    try {
-      const response = await api.post(`/prompts/${prompt.id}/favorite`);
-      const data = response.data;
-      
-      if (data.success) {
-        queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
-      } else {
-        setPrompts((prev) =>
-          prev.map((p) =>
-            p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
-          )
-        );
-        toast.error("Erro ao atualizar favorito");
+        if (!data.success) {
+          setPrompts(previousPrompts);
+          toast.error(data.error || "Erro ao deletar prompt");
+          return;
+        }
+
+        queryClient.invalidateQueries(["prompts"]);
+        queryClient.invalidateQueries(["stats"]);
+      } catch (err) {
+        setPrompts(previousPrompts);
+        toast.error("Erro ao deletar prompt");
+        console.error(err);
       }
-    } catch (err) {
+    },
+    [prompts, queryClient]
+  );
+
+  const deleteCategory = useCallback(
+    async (id) => {
+      if (!id) {
+        toast.error("Categoria inválida!");
+        return;
+      }
+
+      if (!window.confirm("Tem certeza que deseja excluir esta categoria?"))
+        return;
+
+      try {
+        setMyCategories((prev) => prev.filter((cat) => cat.id !== id));
+
+        const response = await api.delete(`/categories/${id}`);
+
+        if (response.data.success) {
+          toast.success("🗑️ Categoria removida com sucesso!");
+          queryClient.invalidateQueries(["categories"]);
+          queryClient.invalidateQueries(["stats"]);
+        } else {
+          toast.error(response.data.error || "Erro ao deletar categoria");
+        }
+      } catch (err) {
+        console.error("❌ Erro ao deletar categoria:", err);
+        toast.error("Erro ao excluir categoria");
+      }
+    },
+    [queryClient]
+  );
+
+  // ===== OTHER HANDLERS =====
+  const toggleFavorite = useCallback(
+    async (prompt) => {
       setPrompts((prev) =>
         prev.map((p) =>
           p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
         )
       );
-      toast.error("Erro ao conectar ao servidor");
-    }
-  };
 
-  const copyToClipboard = async (prompt) => {
+      try {
+        const response = await api.post(`/prompts/${prompt.id}/favorite`);
+
+        if (response.data.success) {
+          queryClient.invalidateQueries(["stats"]);
+        } else {
+          setPrompts((prev) =>
+            prev.map((p) =>
+              p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
+            )
+          );
+          toast.error("Erro ao atualizar favorito");
+        }
+      } catch (err) {
+        setPrompts((prev) =>
+          prev.map((p) =>
+            p.id === prompt.id ? { ...p, is_favorite: !p.is_favorite } : p
+          )
+        );
+        toast.error("Erro ao conectar ao servidor");
+      }
+    },
+    [queryClient]
+  );
+
+  const copyToClipboard = useCallback(async (prompt) => {
     try {
       await navigator.clipboard.writeText(prompt.content);
       await api.post(`/prompts/${prompt.id}/copy`);
@@ -888,14 +767,72 @@ import("./ChatContainer.jsx").then((module) => {
     } catch {
       toast.error("Erro ao copiar prompt");
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    if (isPopupMode && defaultView === "chat") {
-      setShowChatModal(true);
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+    } catch {
+      window.location.href = "/";
     }
-  }, [isPopupMode, defaultView]);
+  }, [logout]);
 
+  const handlePromptSaved = useCallback(() => {
+    queryClient.invalidateQueries(["prompts"]);
+    queryClient.invalidateQueries(["categories"]);
+    queryClient.invalidateQueries(["stats"]);
+    toast.success("✅ Prompt adicionado com sucesso!");
+  }, [queryClient]);
+
+  const openChatFromTopButton = useCallback(() => {
+    if (window.innerWidth < 768) {
+      setShowChatModal(true);
+    } else {
+      if (isChatDetached) {
+        const channel = new BroadcastChannel("promply-chat-status");
+        channel.postMessage({ type: "focus-chat" });
+        channel.close();
+        toast.success("💬 Chat destacado atualizado!");
+      } else {
+        setShowChatModal(true);
+      }
+    }
+  }, [isChatDetached]);
+
+  const openImageModal = useCallback((imageBase64, title) => {
+    // Implementar modal de imagem se necessário
+    console.log("Abrir imagem:", title);
+  }, []);
+
+  const openVideoModal = useCallback((url) => {
+    // Implementar modal de vídeo se necessário
+    console.log("Abrir vídeo:", url);
+  }, []);
+
+  // ===== COMPUTED VALUES =====
+  const filteredPrompts = useMemo(() => {
+    if (!Array.isArray(prompts)) return [];
+
+    return prompts.filter((prompt) => {
+      const matchesSearch =
+        prompt.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        prompt.content?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (prompt.tags &&
+          (Array.isArray(prompt.tags)
+            ? prompt.tags.some((tag) =>
+                tag.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+            : prompt.tags.toLowerCase().includes(searchTerm.toLowerCase())));
+
+      const matchesCategory =
+        !selectedCategory || prompt.category_id === selectedCategory;
+      const matchesFavorites = !showFavoritesOnly || prompt.is_favorite;
+
+      return matchesSearch && matchesCategory && matchesFavorites;
+    });
+  }, [prompts, searchTerm, selectedCategory, showFavoritesOnly]);
+
+  // ===== RENDER =====
   if (showTemplates) {
     return (
       <TemplatesPage
@@ -904,7 +841,7 @@ import("./ChatContainer.jsx").then((module) => {
           setShowTemplates(false);
           queryClient.invalidateQueries(["prompts"]);
           queryClient.invalidateQueries(["categories"]);
-          queryClient.invalidateQueries(["stats"]); // ✅ Apenas invalida
+          queryClient.invalidateQueries(["stats"]);
         }}
       />
     );
@@ -946,13 +883,12 @@ import("./ChatContainer.jsx").then((module) => {
               isMobileSidebarOpen={isMobileSidebarOpen}
               user={user}
               handleLogout={handleLogout}
-
               openNewPromptModal={() => {
-    resetPromptForm();
-    setIsPromptDialogOpen(true);
-  }}
-  openTemplates={() => setShowTemplates(true)}
-  openChat={openChatFromTopButton}
+                resetPromptForm();
+                setIsPromptDialogOpen(true);
+              }}
+              openTemplates={() => setShowTemplates(true)}
+              openChat={openChatFromTopButton}
             />
 
             <div className="space-y-6">
@@ -977,40 +913,36 @@ import("./ChatContainer.jsx").then((module) => {
                   <span className="hidden sm:inline">Favoritos</span>
                 </Button>
 
-               
-<div className="hidden sm:flex items-center gap-3">
+                <div className="hidden sm:flex items-center gap-3">
+                  <Button
+                    onClick={openChatFromTopButton}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    size="sm"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Chat
+                  </Button>
 
-  <Button
-    onClick={openChatFromTopButton}
-    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-    size="sm"
-  >
-    <MessageSquare className="w-4 h-4" />
-    Chat
-  </Button>
+                  <Button
+                    onClick={() => setShowTemplates(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    size="sm"
+                  >
+                    <BookText className="w-4 h-4" />
+                    Templates
+                  </Button>
 
-  <Button
-    onClick={() => setShowTemplates(true)}
-    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-    size="sm"
-  >
-    <BookText className="w-4 h-4" />
-    Templates
-  </Button>
-
-  <Button
-    onClick={() => {
-      resetPromptForm();
-      setIsPromptDialogOpen(true);
-    }}
-    size="sm"
-  >
-    <Plus className="w-4 h-4 mr-2" />
-    Novo
-  </Button>
-
-</div>
-
+                  <Button
+                    onClick={() => {
+                      resetPromptForm();
+                      setIsPromptDialogOpen(true);
+                    }}
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Novo
+                  </Button>
+                </div>
               </div>
 
               <PromptGrid
@@ -1039,10 +971,8 @@ import("./ChatContainer.jsx").then((module) => {
         </div>
       </div>
 
-      <Dialog
-        open={isCategoryDialogOpen}
-        onOpenChange={setIsCategoryDialogOpen}
-      >
+      {/* Modal de Categoria */}
+      <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
         <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 z-[10000]">
           <DialogHeader>
             <DialogTitle>
@@ -1057,17 +987,21 @@ import("./ChatContainer.jsx").then((module) => {
 
           <div className="space-y-4">
             <div>
-              <Label>Nome</Label>
+              <Label htmlFor="cat-name">Nome</Label>
               <Input
+                id="cat-name"
                 value={categoryForm.name}
                 onChange={(e) =>
                   setCategoryForm({ ...categoryForm, name: e.target.value })
                 }
+                placeholder="Nome da categoria"
               />
             </div>
+
             <div>
-              <Label>Descrição</Label>
+              <Label htmlFor="cat-desc">Descrição</Label>
               <Textarea
+                id="cat-desc"
                 value={categoryForm.description}
                 onChange={(e) =>
                   setCategoryForm({
@@ -1075,12 +1009,15 @@ import("./ChatContainer.jsx").then((module) => {
                     description: e.target.value,
                   })
                 }
+                placeholder="Descrição opcional"
               />
             </div>
+
             <div>
-              <Label>Cor</Label>
+              <Label htmlFor="cat-color">Cor</Label>
               <div className="flex items-center space-x-2">
                 <input
+                  id="cat-color"
                   type="color"
                   value={categoryForm.color}
                   onChange={(e) =>
@@ -1093,9 +1030,11 @@ import("./ChatContainer.jsx").then((module) => {
                   onChange={(e) =>
                     setCategoryForm({ ...categoryForm, color: e.target.value })
                   }
+                  placeholder="#3B82F6"
                 />
               </div>
             </div>
+
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
@@ -1111,6 +1050,7 @@ import("./ChatContainer.jsx").then((module) => {
         </DialogContent>
       </Dialog>
 
+      {/* Modal de Prompt */}
       <Dialog open={isPromptDialogOpen} onOpenChange={setIsPromptDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-slate-900 shadow-2xl border border-gray-200 dark:border-slate-700 p-6">
           <DialogHeader>
@@ -1126,38 +1066,47 @@ import("./ChatContainer.jsx").then((module) => {
 
           <div className="space-y-4">
             <div>
-              <Label>Título</Label>
+              <Label htmlFor="prompt-title">Título</Label>
               <Input
+                id="prompt-title"
                 value={promptForm.title}
                 onChange={(e) =>
-                  setPromptForm(prev => ({ ...prev, title: e.target.value }))
+                  setPromptForm((prev) => ({ ...prev, title: e.target.value }))
                 }
                 placeholder="Título do prompt"
               />
             </div>
 
             <div>
-              <Label>Conteúdo</Label>
+              <Label htmlFor="prompt-content">Conteúdo</Label>
               <Textarea
+                id="prompt-content"
                 value={promptForm.content}
                 onChange={(e) =>
-                  setPromptForm(prev => ({ ...prev, content: e.target.value }))
+                  setPromptForm((prev) => ({ ...prev, content: e.target.value }))
                 }
                 rows={10}
                 className="w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words"
+                placeholder="Digite o conteúdo do prompt..."
               />
             </div>
 
             <div>
-              <Label>Descrição</Label>
+              <Label htmlFor="prompt-desc">Descrição</Label>
               <Textarea
+                id="prompt-desc"
                 value={promptForm.description}
                 onChange={(e) =>
-                  setPromptForm(prev => ({ ...prev, description: e.target.value }))
+                  setPromptForm((prev) => ({
+                    ...prev,
+                    description: e.target.value,
+                  }))
                 }
+                placeholder="Descrição opcional"
               />
             </div>
 
+            {/* Tipo de mídia */}
             <div>
               <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 Tipo de mídia
@@ -1195,6 +1144,7 @@ import("./ChatContainer.jsx").then((module) => {
               </div>
             </div>
 
+            {/* Upload de imagem */}
             {promptForm.selectedMedia === "imagem" && (
               <div className="mt-4 space-y-2">
                 <Label>Upload de imagem</Label>
@@ -1208,7 +1158,8 @@ import("./ChatContainer.jsx").then((module) => {
                     <button
                       type="button"
                       onClick={removeImage}
-                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
+                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+                      aria-label="Remover imagem"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1233,6 +1184,7 @@ import("./ChatContainer.jsx").then((module) => {
               </div>
             )}
 
+            {/* Upload de vídeo */}
             {promptForm.selectedMedia === "video" && (
               <div className="mt-4 space-y-2">
                 <Label>Upload de vídeo</Label>
@@ -1252,7 +1204,8 @@ import("./ChatContainer.jsx").then((module) => {
                           videoFile: null,
                         }))
                       }
-                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
+                      className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600"
+                      aria-label="Remover vídeo"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1277,10 +1230,12 @@ import("./ChatContainer.jsx").then((module) => {
               </div>
             )}
 
+            {/* Link do YouTube */}
             {promptForm.selectedMedia === "youtube" && (
               <div className="mt-4 space-y-2">
-                <Label>Link do YouTube</Label>
+                <Label htmlFor="youtube-url">Link do YouTube</Label>
                 <Input
+                  id="youtube-url"
                   type="url"
                   placeholder="https://www.youtube.com/watch?v=..."
                   value={promptForm.youtube_url || ""}
@@ -1301,16 +1256,18 @@ import("./ChatContainer.jsx").then((module) => {
               </div>
             )}
 
+            {/* Categoria */}
             <div className="mt-4">
               <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
                 Categoria
               </Label>
 
+              {/* Desktop */}
               <div className="hidden sm:block">
                 <Select
                   value={promptForm.category_id}
                   onValueChange={(value) =>
-                    setPromptForm(prev => ({ ...prev, category_id: value }))
+                    setPromptForm((prev) => ({ ...prev, category_id: value }))
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -1328,6 +1285,7 @@ import("./ChatContainer.jsx").then((module) => {
                 </Select>
               </div>
 
+              {/* Mobile */}
               <div className="block sm:hidden relative z-10">
                 <button
                   type="button"
@@ -1337,33 +1295,34 @@ import("./ChatContainer.jsx").then((module) => {
                     setShowCategoryModal(true);
                   }}
                   className="w-full px-4 py-2.5 text-left bg-white dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 active:bg-slate-100 dark:active:bg-slate-600 transition flex items-center justify-between touch-manipulation cursor-pointer"
-                  style={{ 
-                    WebkitTapHighlightColor: 'transparent',
-                    cursor: 'pointer'
-                  }}
                 >
                   <span className="text-sm text-slate-700 dark:text-slate-200 pointer-events-none">
-                    {promptForm.category_id === "none" || !promptForm.category_id
+                    {promptForm.category_id === "none" ||
+                    !promptForm.category_id
                       ? "Selecione uma categoria"
-                      : myCategories.find(c => String(c.id) === String(promptForm.category_id))?.name || "Sem categoria"}
+                      : myCategories.find(
+                          (c) =>
+                            String(c.id) === String(promptForm.category_id)
+                        )?.name || "Sem categoria"}
                   </span>
                   <ChevronDown className="w-4 h-4 text-slate-400 pointer-events-none" />
                 </button>
               </div>
             </div>
 
+            {/* Favorito */}
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
                 id="prompt-favorite"
                 checked={promptForm.is_favorite}
                 onChange={(e) =>
-                  setPromptForm(prev => ({
+                  setPromptForm((prev) => ({
                     ...prev,
                     is_favorite: e.target.checked,
                   }))
                 }
-                className="form-checkbox h-4 w-4 text-blue-600"
+                className="form-checkbox h-4 w-4 text-blue-600 rounded"
               />
               <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
             </div>
@@ -1375,70 +1334,27 @@ import("./ChatContainer.jsx").then((module) => {
               >
                 Cancelar
               </Button>
-              <Button onClick={savePrompt}>
-                {editingPrompt ? "Salvar" : "Criar"}
+              <Button onClick={savePrompt} disabled={uploadingImage}>
+                {uploadingImage ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Enviando...
+                  </>
+                ) : editingPrompt ? (
+                  "Salvar"
+                ) : (
+                  "Criar"
+                )}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
-      </Dialog>
-
-      <Dialog open={showVideoModal} onOpenChange={setShowVideoModal}>
-      </Dialog>
-
-      <Suspense
-        fallback={
-          <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-[10002]">
-            <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-6 flex flex-col items-center gap-3 text-center">
-              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Carregando módulo...
-              </p>
-            </div>
-          </div>
-        }
-      >
-        {showChatModal && (
-          <Suspense fallback={<div>Carregando chat...</div>}>
-            {ChatComponent ? (
-              <ChatComponent
-                isOpen={showChatModal}
-                onClose={() => setShowChatModal(false)}
-                onPromptSaved={handlePromptSaved}
-              />
-            ) : (
-              <div>Carregando chat...</div>
-            )}
-          </Suspense>
-        )}
-
-        {showShareModal && promptToShare && (
-          <SharePromptModal
-            prompt={promptToShare}
-            onClose={() => {
-              setShowShareModal(false);
-              setPromptToShare(null);
-            }}
-            onSuccess={() => {
-              setShowShareModal(false);
-              setPromptToShare(null);
-              openChatIntelligently();
-              queryClient.invalidateQueries(["prompts"]);
-              queryClient.invalidateQueries(["categories"]);
-            }}
-          />
-        )}
-      </Suspense>
-
+      {/* Modal de Categoria Mobile */}
       {createPortal(
         <Dialog open={showCategoryModal} onOpenChange={setShowCategoryModal}>
-          <DialogContent
-            className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 
-                       max-h-[80vh] flex flex-col overflow-hidden"
-          >
+          <DialogContent className="max-w-sm w-full rounded-xl p-4 bg-white dark:bg-slate-900 max-h-[80vh] flex flex-col overflow-hidden">
             <DialogHeader>
               <DialogTitle>Selecionar Categoria</DialogTitle>
             </DialogHeader>
@@ -1459,9 +1375,9 @@ import("./ChatContainer.jsx").then((module) => {
             >
               <div className="space-y-2 pb-4">
                 <button
-                  className="w-full text-left px-3 py-2 rounded-md border"
+                  className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-50 dark:hover:bg-slate-800"
                   onClick={() => {
-                    setPromptForm(prev => ({ ...prev, category_id: "none" }));
+                    setPromptForm((prev) => ({ ...prev, category_id: "none" }));
                     setShowCategoryModal(false);
                     setCategorySearch("");
                   }}
@@ -1471,18 +1387,21 @@ import("./ChatContainer.jsx").then((module) => {
 
                 {myCategories
                   .filter((cat) =>
-                    cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+                    cat.name
+                      .toLowerCase()
+                      .includes(categorySearch.toLowerCase())
                   )
                   .map((cat) => (
                     <button
                       key={cat.id}
-                      className="w-full text-left px-3 py-2 rounded-md border"
+                      className="w-full text-left px-3 py-2 rounded-md border hover:bg-slate-50 dark:hover:bg-slate-800"
                       onClick={() => {
                         setPromptForm((prev) => ({
                           ...prev,
                           category_id: String(cat.id),
                         }));
                         setShowCategoryModal(false);
+                        setCategorySearch("");
                       }}
                     >
                       {cat.name}
@@ -1492,7 +1411,10 @@ import("./ChatContainer.jsx").then((module) => {
             </div>
 
             <div className="flex justify-end mt-3">
-              <Button variant="outline" onClick={() => setShowCategoryModal(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setShowCategoryModal(false)}
+              >
                 Fechar
               </Button>
             </div>
@@ -1500,6 +1422,48 @@ import("./ChatContainer.jsx").then((module) => {
         </Dialog>,
         document.getElementById("category-modal-root")
       )}
+
+      {/* Modals com Suspense */}
+      <Suspense
+        fallback={
+          <div className="fixed inset-0 flex items-center justify-center bg-black/30 z-[10002]">
+            <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg p-6 flex flex-col items-center gap-3 text-center">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Carregando módulo...
+              </p>
+            </div>
+          </div>
+        }
+      >
+        {showChatModal && ChatComponent && (
+          <ChatComponent
+            isOpen={showChatModal}
+            onClose={() => setShowChatModal(false)}
+            onPromptSaved={handlePromptSaved}
+          />
+        )}
+
+        {showShareModal && promptToShare && (
+          <SharePromptModal
+            prompt={promptToShare}
+            onClose={() => {
+              setShowShareModal(false);
+              setPromptToShare(null);
+            }}
+            onSuccess={() => {
+              setShowShareModal(false);
+              setPromptToShare(null);
+              openChatFromTopButton();
+              queryClient.invalidateQueries(["prompts"]);
+              queryClient.invalidateQueries(["categories"]);
+            }}
+          />
+        )}
+      </Suspense>
+
+      {/* ⚠️ DEBUG - REMOVA EM PRODUÇÃO */}
+      <DebugUser />
     </>
   );
 }
