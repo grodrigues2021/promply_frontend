@@ -20,7 +20,11 @@ export default function Sidebar({
   handleLogout,
   Plus,
   BookText,           // ← NECESSÁRIO PARA O BOTÃO 'Templates'
-  MessageSquare
+  MessageSquare,
+
+  openNewPromptModal,   // ✔ ADICIONAR
+  openTemplates,        // ✔ ADICIONAR
+  openChat              // ✔ ADICIONAR
 }) {
   // Estado para controlar se as categorias estão abertas/fechadas (padrão: ABERTO)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
@@ -133,13 +137,12 @@ export default function Sidebar({
           {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
           <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
 {/* --- BOTÕES PRINCIPAIS DO MOBILE --- */}
-<div className="flex lg:hidden flex-col px-3 gap-2 mb-3">
+<<div className="flex lg:hidden flex-col px-3 gap-2 mb-3">
 
   {/* Novo Prompt */}
   <Button
     onClick={() => {
-      resetCategoryForm();
-      setIsPromptDialogOpen(true);
+      openNewPromptModal();
       setIsMobileSidebarOpen(false);
     }}
     className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
@@ -151,7 +154,7 @@ export default function Sidebar({
   {/* Templates */}
   <Button
     onClick={() => {
-      setShowTemplates(true);
+      openTemplates();
       setIsMobileSidebarOpen(false);
     }}
     className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700"
@@ -163,7 +166,7 @@ export default function Sidebar({
   {/* Chat da Comunidade */}
   <Button
     onClick={() => {
-      openChatFromTopButton();
+      openChat();
       setIsMobileSidebarOpen(false);
     }}
     className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700"
@@ -172,6 +175,7 @@ export default function Sidebar({
     Chat da Comunidade
   </Button>
 </div>
+
 
 
 

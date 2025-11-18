@@ -946,6 +946,13 @@ import("./ChatContainer.jsx").then((module) => {
               isMobileSidebarOpen={isMobileSidebarOpen}
               user={user}
               handleLogout={handleLogout}
+
+              openNewPromptModal={() => {
+    resetPromptForm();
+    setIsPromptDialogOpen(true);
+  }}
+  openTemplates={() => setShowTemplates(true)}
+  openChat={openChatFromTopButton}
             />
 
             <div className="space-y-6">
