@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import TemplateCard from "./TemplateCard";
 import PromptGrid from "./PromptGrid";
+import { LibraryBig } from "lucide-react";
+
 
 export default function TemplatesPage({ user, onBack }) {
   const [templates, setTemplates] = useState([]);
@@ -524,9 +526,9 @@ const handleVideoUpload = (e) => {
 </button>
 
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              📚 Biblioteca de Templates
-            </h1>
-          </div>
+  <LibraryBig className="w-6 h-6 text-purple-600" />
+  Biblioteca de Templates
+</h1>
 
           {user?.is_admin && (
             <Button
