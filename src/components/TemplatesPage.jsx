@@ -412,7 +412,8 @@ export default function TemplatesPage({ onBack }) {
         setIsTemplateDialogOpen(false);
         setEditingTemplate(null);
         setTemplateForm(INITIAL_TEMPLATE_FORM);
-        loadTemplates();
+        queryClient.invalidateQueries(["templates"]);
+
       } else {
         toast.error(response.data.error || "Erro ao salvar template");
       }
@@ -429,7 +430,8 @@ export default function TemplatesPage({ onBack }) {
       const res = await api.delete(`/templates/${id}`);
       if (res.data.success) {
         toast.success("Template excluído!");
-        loadTemplates();
+        queryClient.invalidateQueries(["templates"]);
+
       } else {
         toast.error(res.data.error || "Erro ao excluir template");
       }
