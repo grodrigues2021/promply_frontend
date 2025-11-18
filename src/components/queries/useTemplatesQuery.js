@@ -9,8 +9,8 @@ export function useTemplatesQuery() {
       return res.data?.data || [];
     },
 
-    staleTime: 1000 * 60 * 5, // 5 min - cache fresco
-    gcTime: 1000 * 60 * 20, // mantém cache por 20 min
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 20,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
