@@ -20,7 +20,7 @@ export default function Sidebar({
   handleLogout,
   Plus,
   BookText,           // ← NECESSÁRIO PARA O BOTÃO 'Templates'
-  MessageSquare,
+  MessageSquare
 }) {
   // Estado para controlar se as categorias estão abertas/fechadas (padrão: ABERTO)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
