@@ -18,6 +18,7 @@ export default function Sidebar({
   isMobileSidebarOpen,
   user,
   handleLogout,
+  Plus,
 }) {
   // Estado para controlar se as categorias estão abertas/fechadas (padrão: ABERTO)
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
