@@ -509,30 +509,30 @@ const handleVideoUpload = (e) => {
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm sticky top-0 z-50">
-  <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+<header className="bg-white border-b shadow-sm sticky top-0 z-50">
+  <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between relative">
 
-    {/* Esquerda — Título (desktop + mobile) */}
-    <div className="flex items-center gap-3">
-      <BookOpenText className="w-6 h-6 text-green-600" />
-      <h1 className="text-xl font-semibold text-gray-900 tracking-tight">
-        Templates
-      </h1>
-    </div>
-
-    {/* Centro — botão voltar (somente mobile) */}
+    {/* BOTÃO VOLTAR — DESKTOP + MOBILE */}
     <button
       onClick={() => (onBack ? onBack() : window.history.back())}
-      className="lg:hidden px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition active:scale-95 flex items-center gap-2 absolute left-4"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
     >
       <ArrowLeft className="w-4 h-4 text-gray-700" />
       <span className="text-sm font-medium text-gray-700">Voltar</span>
     </button>
 
-    {/* Direita — Ações */}
+    {/* TÍTULO CENTRALIZADO */}
+    <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+      <BookOpenText className="w-5 h-5 text-green-600" />
+      <span className="text-lg font-semibold text-gray-900 tracking-tight">
+        Templates
+      </span>
+    </div>
+
+    {/* AÇÕES (DESKTOP) */}
     <div className="flex items-center gap-3">
-      
-      {/* Botão Novo Template (apenas admin e desktop) */}
+
+      {/* BOTÃO NOVO TEMPLATE — APENAS ADMIN E APENAS DESKTOP */}
       {user?.is_admin && (
         <Button
           onClick={openTemplateDialog}
@@ -543,10 +543,10 @@ const handleVideoUpload = (e) => {
         </Button>
       )}
 
-      {/* Botão menu mobile */}
+      {/* MENU MOBILE */}
       <button
         onClick={() => setIsMobileSidebarOpen(true)}
-        className="p-2 rounded-lg hover:bg-gray-100 transition active:scale-95 lg:hidden"
+        className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition active:scale-95"
       >
         <Menu className="w-6 h-6 text-gray-600" />
       </button>
@@ -554,6 +554,7 @@ const handleVideoUpload = (e) => {
     </div>
   </div>
 </header>
+
 
 
 
