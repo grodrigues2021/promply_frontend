@@ -26,6 +26,7 @@ import TemplateCard from "./TemplateCard";
 import PromptGrid from "./PromptGrid";
 import { BookOpenText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTemplatesQuery } from "@/queries/useTemplatesQuery";
 import { BookText } from "lucide-react";
 
 // ===== CONSTANTES =====
@@ -144,12 +145,11 @@ export default function TemplatesPage({ onBack }) {
   const { user } = useAuth();
 
   // Estados principais
-  const [templates, setTemplates] = useState([]);
+  const { data: templates = [], isLoading: loading } = useTemplatesQuery();
   const [categories, setCategories] = useState([]);
   const [myCategories, setMyCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
@@ -169,26 +169,7 @@ export default function TemplatesPage({ onBack }) {
   const [imagePreview, setImagePreview] = useState({ open: false, url: "", title: "" });
   const [videoPreview, setVideoPreview] = useState({ open: false, url: "" });
 
-  // ===== EFFECTS =====
-  useEffect(() => {
-    loadTemplates();
-    loadCategories();
-    loadMyCategories();
-  }, []);
 
-  // ===== DATA LOADING =====
-  const loadTemplates = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/templates");
-      setTemplates(res.data?.data || []);
-    } catch (error) {
-      console.error("Erro ao carregar templates:", error);
-      toast.error("Erro ao carregar templates");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   const loadCategories = useCallback(async () => {
     try {
