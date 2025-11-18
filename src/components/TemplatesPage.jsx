@@ -25,9 +25,13 @@ import TemplateCard from "./TemplateCard";
 import PromptGrid from "./PromptGrid";
 import { LibraryBig } from "lucide-react";
 import { BookOpenText } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 
-export default function TemplatesPage({ user, onBack }) {
+
+export default function TemplatesPage({ onBack }) {
+  const { user } = useAuth();
+  console.log("USER ATUAL:", user);
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
