@@ -245,10 +245,10 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
 
           {/* Sidebar deslizante da direita */}
           <div
-            className={`fixed top-0 right-0 h-full w-[90vw] max-w-[400px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out flex flex-col ${
-              isSidebarOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
-          >
+  className={`fixed top-0 left-0 h-full w-[90vw] max-w-[400px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out flex flex-col ${
+    isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+  }`}
+>
             {/* Header da Sidebar */}
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-100 to-indigo-100 border-b border-purple-200">
               <h3 className="font-semibold text-gray-900">Prompts Compartilhados</h3>
