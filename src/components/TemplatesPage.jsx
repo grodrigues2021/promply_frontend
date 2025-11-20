@@ -29,6 +29,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTemplatesQuery } from "@/queries/useTemplatesQuery";
 import { BookText } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { TemplateModal } from "@/components/templates/TemplateModal";
+
 
 
 // ===== CONSTANTES =====
@@ -143,9 +145,28 @@ async function captureVideoThumbnail(file) {
 }
 
 // ===== COMPONENTE PRINCIPAL =====
-export default function TemplatesPage({ onBack }) {
+export default function TemplatesPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+    // ============================================
+  // ETAPA 8 — PARTE 1: Controle do Novo TemplateModal
+  // ============================================
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [selectedTemplateForModal, setSelectedTemplateForModal] = useState(null);
+
+  // Abrir criação
+  const openCreateTemplate = () => {
+    setSelectedTemplateForModal(null); // modo criar
+    setIsTemplateModalOpen(true);
+  };
+
+  // Abrir edição
+  const openEditTemplate = (template) => {
+    setSelectedTemplateForModal(template); // modo editar
+    setIsTemplateModalOpen(true);
+  };
+
 
   // Estados principais
   const { data: templates = [], isLoading: loading } = useTemplatesQuery();
@@ -195,36 +216,59 @@ export default function TemplatesPage({ onBack }) {
     }
   }, []);
 
-  // ===== CATEGORY MANAGEMENT =====
-  const saveCategory = useCallback(async () => {
-    if (!categoryForm.name.trim()) {
-      toast.error("Informe o nome da categoria");
-      return;
-    }
+// ===== CATEGORY MANAGEMENT =====
+const saveCategory = useCallback(async () => {
+  if (!categoryForm.name.trim()) {
+    toast.error("Informe o nome da categoria");
+    return;
+  }
 
-    try {
-      const url = editingCategory ? `/categories/${editingCategory.id}` : "/categories";
-      const method = editingCategory ? api.put : api.post;
-      
-      const res = await method(url, {
-        ...categoryForm,
-        is_template: true,
-      });
+  console.log("📤 Enviando categoria:", {
+    ...categoryForm,
+    is_template: true,
+  });
 
-      if (res.data.success) {
-        toast.success(editingCategory ? "Categoria atualizada!" : "Categoria criada!");
-        setIsCategoryDialogOpen(false);
-        setEditingCategory(null);
-        setCategoryForm(INITIAL_CATEGORY_FORM);
-        loadCategories();
-      } else {
-        toast.error(res.data.error || "Erro ao salvar categoria");
-      }
-    } catch (error) {
-      console.error("Erro ao salvar categoria:", error);
-      toast.error("Erro ao salvar categoria");
+  try {
+    const url = editingCategory ? `/categories/${editingCategory.id}` : "/categories";
+    const method = editingCategory ? api.put : api.post;
+    
+    // Garantir que description não seja undefined
+    const payload = {
+      name: categoryForm.name.trim(),
+      description: categoryForm.description?.trim() || "",
+      color: categoryForm.color || "#6366f1",
+      is_template: true,
+    };
+
+    console.log("📦 Payload final:", payload);
+
+    const res = await method(url, payload);
+
+    console.log("✅ Resposta do backend:", res.data);
+
+    if (res.data.success) {
+      toast.success(editingCategory ? "Categoria atualizada!" : "Categoria criada!");
+      setIsCategoryDialogOpen(false);
+      setEditingCategory(null);
+      setCategoryForm(INITIAL_CATEGORY_FORM);
+      loadCategories();
+    } else {
+      console.error("❌ Backend retornou erro:", res.data);
+      toast.error(res.data.error || "Erro ao salvar categoria");
     }
-  }, [categoryForm, editingCategory, loadCategories]);
+  } catch (error) {
+    console.error("❌ Erro completo:", error);
+    console.error("❌ Response data:", error.response?.data);
+    console.error("❌ Response status:", error.response?.status);
+    
+    const errorMessage = error.response?.data?.error || 
+                        error.response?.data?.message || 
+                        error.message || 
+                        "Erro ao salvar categoria";
+    
+    toast.error(errorMessage);
+  }
+}, [categoryForm, editingCategory, loadCategories]);
 
   const deleteCategory = useCallback(async (cat) => {
     if (!window.confirm(`Deseja excluir a categoria "${cat.name}"?`)) return;
@@ -499,6 +543,14 @@ export default function TemplatesPage({ onBack }) {
     }
   }, []);
 
+
+// ===== LOAD INITIAL DATA =====
+useEffect(() => {
+  loadCategories();
+  loadMyCategories();
+}, [loadCategories, loadMyCategories]);
+
+
   // ===== FILTERED TEMPLATES =====
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
@@ -515,11 +567,12 @@ export default function TemplatesPage({ onBack }) {
 <header className="bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] sticky top-0 z-50">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => (onBack ? onBack() : window.history.back())}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
-              aria-label="Voltar"
-            >
+           <button
+  onClick={() => window.history.back()}
+  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
+  aria-label="Voltar"
+>
+
               <ArrowLeft className="w-4 h-4 text-gray-700" />
               <span className="text-sm font-medium text-gray-700">Voltar</span>
             </button>
@@ -548,7 +601,8 @@ export default function TemplatesPage({ onBack }) {
           <div className="flex items-center gap-3">
             {user?.is_admin && (
               <Button
-                onClick={openTemplateDialog}
+                onClick={openCreateTemplate}
+
                 className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg transition px-4 py-2 rounded-lg"
               >
                 <Plus className="w-4 h-4" />
@@ -710,10 +764,12 @@ export default function TemplatesPage({ onBack }) {
             </div>
 
             <PromptGrid
-              prompts={filteredTemplates}
+              items={filteredTemplates}
               isLoading={loading}
-              CardComponent={(props) => <TemplateCard {...props} user={user} />}
-              onEdit={editTemplate}
+              CardComponent={({ prompt, ...rest }) => (
+  <TemplateCard template={prompt} {...rest} user={user} />
+)}
+              onEdit={openEditTemplate}
               onDelete={deleteTemplate}
               onShare={openUseTemplateDialog}
               onCopy={handleCopyTemplate}
@@ -789,213 +845,13 @@ export default function TemplatesPage({ onBack }) {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Template */}
-      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-lg p-6">
-          <DialogHeader>
-            <DialogTitle>{editingTemplate ? "Editar Template" : "Novo Template"}</DialogTitle>
-            <DialogDescription>Configure os detalhes do template.</DialogDescription>
-          </DialogHeader>
+  {/* NOVO MODAL — TemplateModal.jsx */}
+<TemplateModal
+  open={isTemplateModalOpen}
+  onClose={() => setIsTemplateModalOpen(false)}
+  template={selectedTemplateForModal}
+/>
 
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="tpl-title">Título</Label>
-              <Input
-                id="tpl-title"
-                value={templateForm.title}
-                onChange={(e) => setTemplateForm({ ...templateForm, title: e.target.value })}
-                placeholder="Título do template"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="tpl-desc">Descrição</Label>
-              <Textarea
-                id="tpl-desc"
-                rows={2}
-                value={templateForm.description}
-                onChange={(e) => setTemplateForm({ ...templateForm, description: e.target.value })}
-                placeholder="Descrição breve"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="tpl-content">Conteúdo</Label>
-              <Textarea
-                id="tpl-content"
-                rows={6}
-                value={templateForm.content}
-                onChange={(e) => setTemplateForm({ ...templateForm, content: e.target.value })}
-                placeholder="Conteúdo do template"
-              />
-            </div>
-
-            {/* Upload de Imagem */}
-            <div>
-              <Label>Imagem do Template (opcional)</Label>
-              <div className="space-y-3">
-                {templateForm.image_url && (
-                  <div className="relative w-full h-48 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
-                    <img
-                      src={templateForm.image_url}
-                      alt="Preview"
-                      className="w-full h-full object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
-                      aria-label="Remover imagem"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-                
-                <label
-                  htmlFor="template-image-upload"
-                  className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
-                    uploadingMedia
-                      ? 'border-gray-300 bg-gray-50 cursor-wait'
-                      : 'border-blue-300 hover:border-blue-500 hover:bg-blue-50'
-                  }`}
-                >
-                  {uploadingMedia ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
-                      <span className="text-sm text-gray-600">Carregando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-sm font-medium text-gray-700">
-                        {templateForm.image_url ? 'Trocar imagem' : 'Selecionar imagem'}
-                      </span>
-                    </>
-                  )}
-                </label>
-                <input
-                  id="template-image-upload"
-                  type="file"
-                  accept="image/jpeg,image/png,image/svg+xml"
-                  onChange={handleImageUpload}
-                  disabled={uploadingMedia}
-                  className="hidden"
-                />
-                <p className="text-xs text-gray-500">Formatos: JPG, PNG, SVG (máx. 5MB)</p>
-              </div>
-            </div>
-
-            {/* Upload de Vídeo */}
-            <div className="space-y-3">
-              <Label>Vídeo do Template (opcional)</Label>
-
-              {templateForm.video_url && templateForm.video_url.startsWith("data:video") && (
-                <div className="relative w-full h-56 rounded-lg overflow-hidden border-2 border-gray-200 bg-gray-50">
-                  <video src={templateForm.video_url} controls className="w-full h-full object-cover" />
-                  <button
-                    type="button"
-                    onClick={removeVideo}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition"
-                    aria-label="Remover vídeo"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              <label
-                htmlFor="template-video-upload"
-                className={`flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition ${
-                  uploadingMedia
-                    ? 'border-gray-300 bg-gray-50 cursor-wait'
-                    : 'border-purple-300 hover:border-purple-500 hover:bg-purple-50'
-                }`}
-              >
-                {uploadingMedia ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-600" />
-                    <span className="text-sm text-gray-600">Carregando...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.172 7l-6.586 6.586a2 2 0 01-2.828 0L3 11.828m6-6L21 3m0 0v6m0-6h-6" />
-                    </svg>
-                    <span className="text-sm font-medium text-gray-700">
-                      {templateForm.video_url ? 'Trocar vídeo' : 'Selecionar vídeo'}
-                    </span>
-                  </>
-                )}
-              </label>
-              <input
-                id="template-video-upload"
-                type="file"
-                accept="video/mp4,video/webm,video/ogg,video/quicktime"
-                onChange={handleVideoUpload}
-                disabled={uploadingMedia}
-                className="hidden"
-              />
-              <p className="text-xs text-gray-500">🎞️ Formatos: MP4, WebM, OGG, MOV (máx. 50MB)</p>
-
-              <div>
-                <Label htmlFor="tpl-video-url">ou cole o link do YouTube</Label>
-                <Input
-                  id="tpl-video-url"
-                  type="url"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                  value={templateForm.video_url?.startsWith("data:video") ? "" : templateForm.video_url || ""}
-                  onChange={(e) => setTemplateForm({ ...templateForm, video_url: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="tpl-tags">Tags</Label>
-              <Input
-                id="tpl-tags"
-                placeholder="Ex: marketing, redes sociais"
-                value={templateForm.tags}
-                onChange={(e) => setTemplateForm({ ...templateForm, tags: e.target.value })}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="tpl-category">Categoria</Label>
-              <Select
-                value={templateForm.category_id}
-                onValueChange={(v) => setTemplateForm({ ...templateForm, category_id: v })}
-              >
-                <SelectTrigger id="tpl-category">
-                  <SelectValue placeholder="Escolha uma categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sem categoria</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsTemplateDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white"
-              onClick={saveTemplate}
-            >
-              {editingTemplate ? "Salvar Alterações" : "Criar Template"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Modal Usar Template */}
       <Dialog open={isUseTemplateDialogOpen} onOpenChange={setIsUseTemplateDialogOpen}>

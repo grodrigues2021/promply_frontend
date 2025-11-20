@@ -2,15 +2,8 @@
 import React, { useMemo } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
-import {
-  Star,
-  Copy,
-  Edit,
-  Trash2,
-  Sparkles,
-  Play,
-  Image as ImageIcon,
-} from "lucide-react";
+import { ImageIcon, Play } from "lucide-react";
+
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 
@@ -72,29 +65,14 @@ const extractYouTubeId = (url) => {
   return null;
 };
 
-/* ==========================================
-   🔧 HELPER: DETECTAR TIPO DE VÍDEO
-   ========================================== */
-const detectVideoType = (url) => {
-  if (!url) return null;
-  
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return 'youtube';
-  }
-  
-  if (url.startsWith('data:video/') || url.startsWith('blob:') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
-    return 'local';
-  }
-  
-  return null;
-};
+
 
 /* ==========================================
    📦 COMPONENTE TEMPLATE CARD (OTIMIZADO)
    ========================================== */
 
 const TemplateCard = React.memo(({
-  prompt,
+  template,
   user,
   onEdit,
   onDelete,
@@ -105,301 +83,317 @@ const TemplateCard = React.memo(({
   onOpenVideo,
   className,
 }) => {
-  const mediaInfo = useMemo(() => {
-    const videoUrl = prompt.video_url || prompt.youtube_url;
-    const hasImage = prompt.image_url;
-    
-    const videoType = detectVideoType(videoUrl);
-    
-    const hasYouTubeVideo = videoType === 'youtube';
-    const hasLocalVideo = videoType === 'local';
-    const hasVideo = hasYouTubeVideo || hasLocalVideo;
-    const hasMedia = hasVideo || hasImage;
-    
-    const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
-    const youtubeThumbnail = videoId 
-      ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
-      : null;
-    
-    // ✅ Para vídeos locais, usa a imagem do prompt como thumbnail (se houver)
-    const thumbnailUrl = youtubeThumbnail || (hasImage ? prompt.image_url : null);
 
-    return { 
-      hasVideo,
-      hasYouTubeVideo,
-      hasLocalVideo,
-      hasImage, 
-      hasMedia, 
-      videoUrl,
-      videoId, 
-      thumbnailUrl 
-    };
-  }, [prompt.video_url, prompt.youtube_url, prompt.image_url]);
+const mediaInfo = useMemo(() => {
+  const imageUrl = template?.image_url || null;
+  const videoUrl = template?.video_url || null;
+  const thumbUrl = template?.thumb_url || null;
+
+  // Detectar YouTube pelo video_url
+  const isYouTube = videoUrl && extractYouTubeId(videoUrl);
+  const youtubeUrl = isYouTube ? videoUrl : null;
+
+  // Detectar mp4 (vídeo local/backblaze)
+  const isMp4 = videoUrl && !isYouTube;
+
+  // Thumbnail do YouTube
+  let youtubeThumbnail = null;
+  if (isYouTube) {
+    const id = extractYouTubeId(videoUrl);
+    youtubeThumbnail = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+  }
+
+  // PRIORIDADE DA THUMBNAIL:
+  // 1. thumb_url (mp4)
+  // 2. youtube thumbnail
+  // 3. image_url (imagem)
+  const thumbnailUrl =
+    thumbUrl ||
+    youtubeThumbnail ||
+    imageUrl ||
+    null;
+
+  return {
+    hasMedia: Boolean(imageUrl || videoUrl),
+    hasImage: Boolean(imageUrl),
+    hasVideoMp4: Boolean(isMp4),
+    hasYouTube: Boolean(isYouTube),
+
+    imageUrl,
+    videoUrl,
+    youtubeUrl,
+    thumbnailUrl,
+    isYouTube,
+    isMp4,
+  };
+}, [
+  template?.image_url,
+  template?.video_url,
+  template?.thumb_url
+]);
+
+
 
   const tagsArray = useMemo(() => {
-    if (Array.isArray(prompt.tags)) return prompt.tags;
-    if (typeof prompt.tags === 'string') {
-      return prompt.tags.split(',').map(t => t.trim()).filter(Boolean);
-    }
-    return [];
-  }, [prompt.tags]);
+  if (Array.isArray(template?.tags)) return template.tags;
+  if (typeof template?.tags === 'string') {
+    return template.tags.split(',').map(t => t.trim()).filter(Boolean);
+  }
+  return [];
+}, [template?.tags]);
+
 
   return (
-    <div className={cn(cardVariants({ layout: "horizontal", hover: "lift" }), className)}>
-      {/* CONTEÚDO */}
-      <div className={contentVariants({ layout: "horizontal" })}>
-        <div className="min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1 min-w-0">
-              {prompt.title}
-            </h3>
+    <div
+  className={cn(
+    cardVariants({ layout: "horizontal", hover: "none" }),
+    "transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:border-indigo-300",
+    className
+  )}
+>
 
-            {onToggleFavorite && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onToggleFavorite(prompt)}
-                className={cn(
-                  "flex-shrink-0 h-8 w-8 min-w-[32px] transition-all",
-                  prompt.is_favorite
-                    ? "text-amber-500 hover:text-amber-600"
-                    : "text-gray-400 hover:text-amber-500"
-                )}
-              >
-                <Star
-                  className={cn("h-5 w-5 transition-all", prompt.is_favorite && "fill-current")}
-                />
-              </Button>
-            )}
-          </div>
+{/* CONTEÚDO */}
+<div className={cn(contentVariants({ layout: "horizontal" }), "py-3 pr-4")}>
+  <div className="min-w-0 flex flex-col gap-2">
 
-          {prompt.category && (
-            <Badge
-              className="mb-2"
-              style={{
-                backgroundColor: prompt.category.color || "#6366f1",
-                color: "white",
-              }}
-            >
-              {prompt.category.name}
-            </Badge>
-          )}
+    {/* TÍTULO */}
+    <h3 className="text-lg font-semibold text-gray-900 leading-snug line-clamp-2">
+      {template.title}
+    </h3>
 
-          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-            {prompt.description || prompt.content}
-          </p>
+    {/* CATEGORIA */}
+    {template.category && (
+      <Badge
+        className="w-fit px-2 py-[2px] rounded-md text-xs mb-1"
+        style={{
+          backgroundColor: template.category.color || "#6366f1",
+          color: "white",
+        }}
+      >
+        {template.category.name}
+      </Badge>
+    )}
 
-          {tagsArray.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {tagsArray.slice(0, 3).map((tag, idx) => (
-                <Badge key={idx} variant="secondary" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {tagsArray.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{tagsArray.length - 3}
-                </Badge>
-              )}
-            </div>
-          )}
-        </div>
+    {/* DESCRIÇÃO */}
+    <p className="text-sm text-gray-500 leading-snug line-clamp-2">
+      {template.description || template.content}
+    </p>
 
-        {/* BOTÕES */}
-        <div className="flex gap-2 mt-auto">
-          <Button
-            size="sm"
-            className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare?.(prompt);
-            }}
+    {/* TAGS */}
+    {tagsArray.length > 0 && (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {tagsArray.slice(0, 3).map((tag, idx) => (
+          <Badge
+            key={idx}
+            variant="secondary"
+            className="text-xs bg-slate-100 text-slate-700 border border-slate-200"
           >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Usar Template
-          </Button>
+            {tag}
+          </Badge>
+        ))}
 
-          {onCopy && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Copiar conteúdo"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCopy(prompt);
-              }}
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          )}
+        {tagsArray.length > 3 && (
+          <Badge className="text-xs bg-slate-50 border border-slate-200 text-slate-600">
+            +{tagsArray.length - 3}
+          </Badge>
+        )}
+      </div>
+    )}
 
-          {user?.is_admin && onEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Editar Template"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(prompt);
-              }}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          )}
+    {/* BOTÕES */}
+    <div className="flex items-center gap-1.5 mt-auto pt-2">
 
-          {user?.is_admin && onDelete && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Excluir Template"
-              className="text-red-600 hover:text-red-700"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(prompt.id);
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
+      {/* BOTÃO PRINCIPAL – USAR */}
+      <Button
+        size="sm"
+        className="flex-1 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition shadow-sm hover:shadow-md"
+        onClick={(e) => {
+          e.stopPropagation();
+          onShare?.(template);
+        }}
+      >
+        Usar Template
+      </Button>
+
+      {/* BOTÃO COPIAR */}
+      {onCopy && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-lg"
+          title="Copiar conteúdo"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCopy(template);
+          }}
+        >
+          Copiar
+        </Button>
+      )}
+
+      {/* BOTÃO EDITAR */}
+      {user?.is_admin && onEdit && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-lg"
+          title="Editar Template"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(template);
+          }}
+        >
+          Editar
+        </Button>
+      )}
+
+      {/* BOTÃO EXCLUIR */}
+      {user?.is_admin && onDelete && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-lg text-red-600 hover:text-red-700"
+          title="Excluir Template"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(template.id);
+          }}
+        >
+          Excluir
+        </Button>
+      )}
+    </div>
+
+  </div>
+</div>
+
+
+
+   {/* ============================ */}
+{/*        SEÇÃO DE MÍDIA         */}
+{/* ============================ */}
+<div
+  className={cn(
+    mediaVariants({ layout: "horizontal" }),
+    "relative group/media sm:rounded-r-xl rounded-t-xl overflow-hidden"
+  )}
+>
+
+  {/* === Placeholder refinado === */}
+  {!mediaInfo.hasMedia && (
+    <div className="flex items-center justify-center w-full h-full bg-slate-100">
+      <ImageIcon className="h-8 w-8 text-slate-400 opacity-50" />
+    </div>
+  )}
+
+  {/* ========================= YOUTUBE ========================= */}
+  {mediaInfo.hasYouTube && (
+    <button
+      type="button"
+      onClick={() => onOpenVideo?.(mediaInfo.youtubeUrl)}
+      className="w-full h-full overflow-hidden relative rounded-t-xl sm:rounded-r-xl sm:rounded-l-none"
+    >
+      <img
+        src={mediaInfo.thumbnailUrl}
+        alt={template.title}
+        className="w-full h-full object-cover transition-all duration-500 group-hover/media:scale-110"
+      />
+
+      {/* Badge */}
+      <div className="absolute top-2 right-2 z-20">
+        <Badge className="bg-red-600 text-white border border-red-700 shadow-md">
+          YouTube
+        </Badge>
       </div>
 
-      {/* MÍDIA */}
-      {mediaInfo.hasMedia && (
-        <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
-          
-          {/* Badge de tipo de vídeo */}
-          {mediaInfo.hasYouTubeVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700">
-                YouTube
-              </Badge>
-            </div>
-          )}
-          
-          {mediaInfo.hasLocalVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
-                Vídeo
-              </Badge>
-            </div>
-          )}
-
-          {/* 🎬 VÍDEO LOCAL: Thumbnail clicável (NÃO player direto) */}
-          {mediaInfo.hasLocalVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {/* Thumbnail ou placeholder */}
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-                  <Play className="h-16 w-16 text-purple-400" />
-                </div>
-              )}
-
-              {/* Overlay com botão play */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-8 w-8 text-purple-600 fill-current" />
-                </div>
-              </div>
-
-              {/* Label "Clique para assistir" */}
-              <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                  Clique para assistir
-                </span>
-              </div>
-            </button>
-          )}
-
-          {/* 🎥 YOUTUBE: Thumbnail clicável */}
-          {mediaInfo.hasYouTubeVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full">
-                  <Play className="h-12 w-12 text-slate-400" />
-                </div>
-              )}
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-6 w-6 text-slate-800 fill-current" />
-                </div>
-              </div>
-            </button>
-          )}
-
-          {/* 🖼️ IMAGEM: Apenas se não tem vídeo */}
-          {!mediaInfo.hasVideo && mediaInfo.hasImage && (
-            <button
-              type="button"
-              onClick={() => onOpenImage?.(prompt.image_url, prompt.title)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              <img
-                src={mediaInfo.thumbnailUrl}
-                alt={prompt.title}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                loading="lazy"
-              />
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <ImageIcon className="h-6 w-6 text-slate-800" />
-                </div>
-              </div>
-            </button>
-          )}
+      {/* Overlay Play */}
+      <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/50 transition-colors duration-300 flex items-center justify-center">
+        <div className="bg-white p-4 rounded-full shadow-2xl opacity-0 group-hover/media:opacity-100 transition-all transform scale-90 group-hover/media:scale-105">
+          <Play className="h-8 w-8 text-red-600 fill-current" />
         </div>
-      )}
+      </div>
+    </button>
+  )}
 
-      {/* Placeholder se não tem mídia */}
-      {!mediaInfo.hasMedia && (
-        <div className={cn(
-          mediaVariants({ layout: "horizontal" }),
-          "flex items-center justify-center"
-        )}>
-          <div className="text-center text-slate-400">
-            <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-40" />
-            <p className="text-xs">Sem mídia</p>
-          </div>
+  {/* ======================== VÍDEO MP4 ======================== */}
+  {mediaInfo.hasVideoMp4 && (
+    <button
+      type="button"
+      onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+      className="w-full h-full overflow-hidden relative rounded-t-xl sm:rounded-r-xl sm:rounded-l-none"
+    >
+      <img
+        src={mediaInfo.thumbnailUrl}
+        alt={template.title}
+        loading="lazy"
+        className="w-full h-full object-cover transition-all duration-500 group-hover/media:scale-110"
+      />
+
+      {/* Badge */}
+      <div className="absolute top-2 right-2 z-20">
+        <Badge className="bg-purple-600 text-white border border-purple-700 shadow-md">
+          Vídeo
+        </Badge>
+      </div>
+
+      {/* Overlay Play */}
+      <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/50 transition-colors duration-300 flex items-center justify-center">
+        <div className="bg-white p-4 rounded-full shadow-2xl opacity-0 group-hover/media:opacity-100 transition-all transform scale-90 group-hover/media:scale-105">
+          <Play className="h-8 w-8 text-purple-600 fill-current" />
         </div>
-      )}
+      </div>
+    </button>
+  )}
+
+  {/* ======================== IMAGEM ======================== */}
+  {!mediaInfo.hasYouTube && !mediaInfo.hasVideoMp4 && mediaInfo.hasImage && (
+    <button
+      type="button"
+      onClick={() => onOpenImage?.(mediaInfo.imageUrl, template.title)}
+      className="w-full h-full overflow-hidden relative rounded-t-xl sm:rounded-r-xl sm:rounded-l-none"
+    >
+      <img
+        src={mediaInfo.thumbnailUrl}
+        alt={template.title}
+        loading="lazy"
+        className="w-full h-full object-cover transition-all duration-500 group-hover/media:scale-110"
+      />
+
+      {/* Badge */}
+      <div className="absolute top-2 right-2 z-20">
+        <Badge className="bg-blue-600 text-white border border-blue-700 shadow-md">
+          Imagem
+        </Badge>
+      </div>
+
+      {/* Overlay Zoom */}
+      <div className="absolute inset-0 bg-black/0 group-hover/media:bg-black/40 transition-colors duration-300 flex items-center justify-center">
+        <div className="bg-white/90 p-3 rounded-full shadow-lg opacity-0 group-hover/media:opacity-100 transition-opacity">
+          <ImageIcon className="h-6 w-6 text-gray-800" />
+        </div>
+      </div>
+    </button>
+  )}
+
+</div>
+
+
     </div>
   );
 }, (prevProps, nextProps) => {
   return (
-    prevProps.prompt.id === nextProps.prompt.id &&
-    prevProps.prompt.title === nextProps.prompt.title &&
-    prevProps.prompt.is_favorite === nextProps.prompt.is_favorite &&
-    prevProps.prompt.image_url === nextProps.prompt.image_url &&
-    prevProps.prompt.video_url === nextProps.prompt.video_url &&
-    prevProps.prompt.youtube_url === nextProps.prompt.youtube_url &&
-    prevProps.prompt.tags === nextProps.prompt.tags &&
+    prevProps.template.id === nextProps.template.id &&
+    prevProps.template.title === nextProps.template.title &&
+    prevProps.template.is_favorite === nextProps.template.is_favorite &&
+    prevProps.template.image_url === nextProps.template.image_url &&
+    prevProps.template.video_url === nextProps.template.video_url &&
+    prevProps.template.thumb_url === nextProps.template.thumb_url &&
+    JSON.stringify(prevProps.template.tags) === JSON.stringify(nextProps.template.tags) &&
     prevProps.user?.is_admin === nextProps.user?.is_admin
   );
-});
+}
+
+);
 
 TemplateCard.displayName = 'TemplateCard';
 

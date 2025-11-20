@@ -303,3 +303,28 @@ iframe[style*="position: fixed"][style*="bottom: 0"][style*="right: 0"] {
 [data-react-devtools-portal] {
   display: none !important;
 }
+
+
+/* === Scrollbar moderna === */
+.modern-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modern-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modern-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 9999px;
+}
+
+.modern-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Firefox */
+.modern-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
