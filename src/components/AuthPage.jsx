@@ -58,6 +58,7 @@ function AuthPage() {
     } else {
       console.warn("⚠️ Login sem sucesso — backend não retornou token ou success");
       setLoginError(data?.error || "Erro ao fazer login");
+
     }
   } catch (error) {
     console.error("💥 Erro capturado no try/catch do AuthPage:");

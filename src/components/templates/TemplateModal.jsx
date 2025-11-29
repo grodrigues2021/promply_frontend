@@ -1,669 +1,826 @@
-import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/useAuth";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useState, useCallback } from "react";
 import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue
-} from "@/components/ui/select";
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 
+import { X, Upload, ImageIcon, Video, Youtube } from "lucide-react";
+
+import api from "../../lib/api";
+
+
+
+
+// ============================================================
+// 🔵 PLATAFORMAS DISPONÍVEIS
+// ============================================================
+const PLATFORMS = [
+    { value: "chatgpt", label: "ChatGPT", icon: "🤖", color: "#10a37f" },
+    { value: "claude", label: "Claude", icon: "🧠", color: "#6366f1" },
+    { value: "gemini", label: "Gemini", icon: "✨", color: "#8e44ad" },
+    { value: "copilot", label: "Copilot", icon: "🔷", color: "#0078d4" },
+    { value: "perplexity", label: "Perplexity", icon: "🔍", color: "#1fb6ff" },
+    { value: "midjourney", label: "Midjourney", icon: "🎨", color: "#ff6b6b" },
+    { value: "dall-e", label: "DALL-E", icon: "🖼️", color: "#ff9500" },
+    { value: "other", label: "Outro", icon: "⚡", color: "#64748b" },
+];
+
+// ============================================================
+// 🔵 Helpers
+// ============================================================
+
+// Extrai ID de YouTube de qualquer URL
 function extractYouTubeId(url) {
-  if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match?.[1]) return match[1];
-  }
-  return null;
+    if (!url) return null;
+
+    try {
+        let regExp =
+            /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|youtube.com\/watch\?v=)([^#&?]*).*/;
+        let match = url.match(regExp);
+        return match && match[2].length === 11 ? match[2] : null;
+    } catch {
+        return null;
+    }
 }
 
+// Detecta se uma string é URL completa
+function isValidHttpUrl(str) {
+    try {
+        let url = new URL(str);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch (_) {
+        return false;
+    }
+}
 
-// Este modal será usado para:
-// - Criar Template
-// - Editar Template
-// Recebe:
-// open: boolean
-// onClose: function
-// template: objeto OU null
+// Detecta MIME do arquivo
+function detectFileType(file) {
+    if (!file) return null;
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    return null;
+}
 
-export function TemplateModal({ open, onClose, template }) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
+// ============================================================
+// 🔵 Componente TemplateModal
+// ============================================================
 
-  const isAdmin = user?.is_admin === true;
-// ================================
-// BUSCAR CATEGORIAS DA API
-// ================================
-const { data: categoriesResponse, isLoading: loadingCategories } = useQuery({
-  queryKey: ["categories"],
-  queryFn: async () => {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/categories`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-    });
-    return response.json();
-  },
-});
+export default function TemplateModal({
+  isOpen,
+  onClose,
+  onSave,
+  template,
+  categories = [],
+  extraFiles,
+  setExtraFiles,
+  handleExtraFilesChange,
+}) {
+
+    // ------------------------------------------------------------
+    // 🟡 ESTADOS – UNIFICADOS
+    // ------------------------------------------------------------
+
+    const [title, setTitle] = useState(template?.title || "");
+    const [description, setDescription] = useState(template?.description || "");
+    const [content, setContent] = useState(template?.content || "");
+
+    const [selectedCategories, setSelectedCategories] = useState(
+        template?.categories_ids || []
+    );
+    const [tagsInput, setTagsInput] = useState("");
+    const [platform, setPlatform] = useState(template?.platform || "");
+    
+    const [imageUrl, setImageUrl] = useState(template?.image_url || null);
+    const [videoUrl, setVideoUrl] = useState(template?.video_url || null);
+    const [youtubeUrl, setYoutubeUrl] = useState(template?.youtube_url || "");
+
+    const [imageFile, setImageFile] = useState(null);
+    const [videoFile, setVideoFile] = useState(null);
+
+    const [thumbUrl, setThumbUrl] = useState(template?.thumb_url || null);
+
+    const [preview, setPreview] = useState(null);
+
+    const [isSaving, setIsSaving] = useState(false);
+
+    // 🔵 Arquivos extras já existentes no template (TemplateFile)
+    const [existingFiles, setExistingFiles] = useState([]);
+
+    const isEdit = !!template?.id;
+
+    // ------------------------------------------------------------
+    // 🟡 RESET – ao abrir modal
+    // ------------------------------------------------------------
+    useEffect(() => {
+        if (!isOpen) return;
+
+        setTitle(template?.title || "");
+        setDescription(template?.description || "");
+        setContent(template?.content || "");
+        setSelectedCategories(template?.categories_ids || []);
+        setPlatform(template?.platform || "");
+        
+        // ✅ Converter tags para string
+        // 🟣 Normalização definitiva das tags (corrige JSON, aspas internas e arrays)
+        const templateTags = template?.tags || [];
+
+        if (Array.isArray(templateTags)) {
+            // ex: ["teste 1", "teste 2"]
+            setTagsInput(templateTags.join(", "));
+        }
+        else if (typeof templateTags === "string") {
+            const raw = templateTags.trim();
+
+            if (raw.startsWith("[")) {
+                // ex: "["teste 1","teste 2"]"
+                try {
+                    const parsed = JSON.parse(raw);
+                    setTagsInput(parsed.join(", "));
+                } catch {
+                    // remove aspas e brackets por segurança
+                    setTagsInput(raw.replace(/[\[\]"]/g, "").trim());
+                }
+            } else {
+                // string comum (ex: "teste 1, teste 2")
+                setTagsInput(raw.replace(/[\[\]"]/g, "").trim());
+            }
+        }
+        else {
+            setTagsInput("");
+        }
+
+        setImageUrl(template?.image_url || null);
+        setVideoUrl(template?.video_url || null);
+        setYoutubeUrl(template?.youtube_url || "");
+        setThumbUrl(template?.thumb_url || null);
+
+        setImageFile(null);
+        setVideoFile(null);
+        setPreview(null);
+
+        // 🔥 CORREÇÃO: limpar anexos ao criar novo template
+if (template?.id) {
+    loadExistingFiles(template.id);
+} else {
+    setExistingFiles([]);      // ← ZERA ANEXOS ANTIGOS
+    setExtraFiles([]);         // ← ZERA ARQUIVOS SELECIONADOS
+}
+
+    }, [isOpen, template]);
+
+    // ------------------------------------------------------------
+    // 🟣 Atualiza preview automaticamente
+    // ------------------------------------------------------------
+    useEffect(() => {
+        if (videoFile) {
+            const url = URL.createObjectURL(videoFile);
+            setPreview({ type: "video", src: url });
+            return;
+        }
+
+        const ytId = extractYouTubeId(youtubeUrl);
+        if (ytId) {
+            setPreview({ type: "youtube", src: ytId });
+            return;
+        }
+
+        if (videoUrl) {
+            setPreview({ type: "video", src: videoUrl, poster: thumbUrl });
+            return;
+        }
+
+        if (imageFile) {
+            const url = URL.createObjectURL(imageFile);
+            setPreview({ type: "image", src: url });
+            return;
+        }
+
+        if (imageUrl) {
+            setPreview({ type: "image", src: imageUrl });
+            return;
+        }
+
+        setPreview(null);
+    }, [videoFile, youtubeUrl, videoUrl, imageFile, imageUrl, thumbUrl]);
 
 
 
-const categories = categoriesResponse?.templates || [];
-
-
-  // ===============================
-  // ESTADOS PRINCIPAIS DO TEMPLATE
-  // ===============================
-
-  // Se template existe → edição
-  // Se template é null → criação
-  const [title, setTitle] = useState(template?.title || "");
-  const [description, setDescription] = useState(template?.description || "");
-  const [content, setContent] = useState(template?.content || "");
-
-  const [tags, setTags] = useState(template?.tags || []);
-  const [categoryId, setCategoryId] = useState(template?.category_id || null);
-
-  // Mídia atual
-  const [imageUrl, setImageUrl] = useState(template?.image_url || null);
-  const [videoUrl, setVideoUrl] = useState(template?.video_url || null);
-  const [thumbUrl, setThumbUrl] = useState(template?.thumb_url || null);
-
-  // Arquivo novo selecionado pelo usuário
-  const [selectedFile, setSelectedFile] = useState(null);
-
-  // Estado de carregamento (upload ou salvar)
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-
-
-  // ===============================
-  // QUANDO TROCA O TEMPLATE (editar)
-  // ===============================
-useEffect(() => {
-  if (template) {
-    // Editar template existente
-    setTitle(template.title || "");
-    setDescription(template.description || "");
-    setContent(template.content || "");
-
-    setTags(template.tags || []);
-    setCategoryId(template.category_id || null);
-
-    // Detectar YouTube
-    const isYouTube = template.video_url && extractYouTubeId(template.video_url);
-
-    setYoutubeUrl(isYouTube ? template.video_url : "");
-
-    // Se for YouTube → limpar mídia local
-    setImageUrl(isYouTube ? null : (template.image_url || null));
-    setVideoUrl(template.video_url || null);
-    setThumbUrl(template.thumb_url || null);
-
-  } else {
-    // Criar template novo → limpar tudo
-    setTitle("");
-    setDescription("");
-    setContent("");
-
-
-    setTags([]);
-    setCategoryId(null);
-
-    setYoutubeUrl("");
-    setImageUrl(null);
-    setVideoUrl(null);
-    setThumbUrl(null);
-  }
-}, [template]);
-
-
- const handleFileSelect = async (file) => {
-  if (!file) return;
-
-  // Sempre limpar YouTube ao enviar arquivo
-  setYoutubeUrl("");
-  setVideoUrl(null);
-
-  setSelectedFile(file);
-
-  // Se for imagem, já gerar URL local para preview
-  if (file.type.startsWith("image/")) {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImageUrl(reader.result);
-      setThumbUrl(null);
+    // ============================================================
+    // 🔵 Carrega arquivos extras existentes do Template (GET)
+    // ============================================================
+    const loadExistingFiles = async (templateId) => {
+    try {
+        const response = await api.get(`/templates/${templateId}/files`);
+        setExistingFiles(response.data.data || []);
+    } catch (error) {
+        console.error("Erro ao carregar arquivos extras:", error);
+    }
     };
-    reader.readAsDataURL(file);
-  }
+    // ------------------------------------------------------------
+    // 🔵 handleFileSelect
+    // ------------------------------------------------------------
+    const handleFileSelect = useCallback((event) => {
 
-  // Se for vídeo MP4
-  if (file.type.startsWith("video/")) {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImageUrl(null);
-      setVideoUrl(reader.result); // preview local
-      setThumbUrl(null);
+
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const type = detectFileType(file);
+
+        if (type === "image") {
+            setImageFile(file);
+            setImageUrl(null);
+            setVideoFile(null);
+            setVideoUrl(null);
+            setYoutubeUrl("");
+        }
+
+        if (type === "video") {
+            setVideoFile(file);
+            setVideoUrl(null);
+            setImageFile(null);
+            setImageUrl(null);
+            setYoutubeUrl("");
+        }
+    }, []);
+
+    // ============================================================
+    // 🟦 PREVIEW INTELIGENTE – JSX
+    // ============================================================
+    const renderPreview = () => {
+        if (!preview) {
+            return (
+                <div className="w-full h-48 flex items-center justify-center bg-muted rounded-lg border">
+                    <p className="text-sm text-muted-foreground">
+                        Nenhuma mídia selecionada
+                    </p>
+                </div>
+            );
+        }
+
+        if (preview.type === "video") {
+            return (
+                <div className="relative w-full h-56 rounded-lg overflow-hidden bg-black">
+                    <video
+                        controls
+                        className="w-full h-full object-contain"
+                        src={preview.src}
+                        poster={preview.poster || undefined}
+                    />
+                    <button
+                        type="button"
+                        className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
+                        onClick={() => {
+                            setVideoFile(null);
+                            setVideoUrl(null);
+                            setPreview(null);
+                        }}
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            );
+        }
+
+        if (preview.type === "youtube") {
+            return (
+                <div className="relative w-full h-56 rounded-lg overflow-hidden bg-black">
+                    <iframe
+                        className="w-full h-full"
+                        src={`https://www.youtube.com/embed/${preview.src}`}
+                        title="YouTube video"
+                        allowFullScreen
+                    ></iframe>
+
+                    <button
+                        type="button"
+                        className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
+                        onClick={() => {
+                            setYoutubeUrl("");
+                            setPreview(null);
+                        }}
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            );
+        }
+
+        if (preview.type === "image") {
+            return (
+                <div className="relative w-full h-56 rounded-lg overflow-hidden">
+                    <img
+                        src={preview.src}
+                        alt="Preview"
+                        className="w-full h-full object-contain bg-muted"
+                    />
+
+                    <button
+                        type="button"
+                        className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
+                        onClick={() => {
+                            setImageFile(null);
+                            setImageUrl(null);
+                            setPreview(null);
+                        }}
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <div className="w-full h-48 flex items-center justify-center bg-muted rounded-lg border">
+                <p className="text-sm text-muted-foreground">Preview indisponível</p>
+            </div>
+        );
     };
-    reader.readAsDataURL(file);
-  }
-};
+
+        // ============================================================
+    // 🟦 HANDLE SAVE – PATCH FINAL E CORRIGIDO
+    // ============================================================
+    const handleSave = async () => {
+        if (!title.trim()) {
+            alert("Título é obrigatório.");
+            return;
+        }
+        if (!content.trim()) {
+            alert("Conteúdo é obrigatório.");
+            return;
+        }
+
+        setIsSaving(true);
+
+        try {
+            // ---------------------------------------------------------
+            // 🔵 PREPARAR TAGS
+            // ---------------------------------------------------------
+            const tagsArray = tagsInput
+                .split(",")
+                .map((t) => t.trim())
+                .filter(Boolean);
+
+            // ---------------------------------------------------------
+            // 🔵 IDENTIFICADORES
+            // ---------------------------------------------------------
+            const hasNewMedia = imageFile || videoFile;              // imagem/vídeo novos
+            const hasYouTube = extractYouTubeId(youtubeUrl);         // youtube ativo
+            const hasExtraFiles = extraFiles && extraFiles.length > 0; // arquivos extras novos
+
+            // ---------------------------------------------------------
+            // 🔵 NECESSIDADE DE FORMDATA
+            // ---------------------------------------------------------
+            const mustUseFormData = hasNewMedia || hasYouTube || hasExtraFiles;
+
+            let payload;
+
+            // ============================================================
+            // 🔵 CASO 1 — FORM DATA (upload de qualquer arquivo)
+            // ============================================================
+            if (mustUseFormData) {
+                payload = new FormData();
+
+                payload.append("title", title);
+                payload.append("description", description);
+                payload.append("content", content);
+                payload.append("categories", JSON.stringify(selectedCategories));
+                payload.append("tags", JSON.stringify(tagsArray));
+                payload.append("platform", platform || "");
+
+                // 🔵 MÍDIA NOVA (somente novas!)
+                if (imageFile) {
+                    payload.append("image", imageFile);
+                }
+                if (videoFile) {
+                    payload.append("video", videoFile);
+                }
+
+                // 🔵 YouTube → inclui URL e gera thumbnail
+                if (hasYouTube) {
+                    payload.append("youtube_url", youtubeUrl);
+
+                    const ytId = extractYouTubeId(youtubeUrl);
+                    if (ytId) {
+                        const ytThumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+                        payload.append("thumb_url", ytThumb);
+                    }
+                }
+
+                // 🔵 ARQUIVOS EXTRAS (somente os novos)
+                if (hasExtraFiles) {
+                    extraFiles.forEach((file) => {
+                        payload.append("extra_files", file);
+                    });
+                }
+
+                // ❌ NÃO ENVIAR image_url / video_url / thumb_url NO PUT
+                //    O backend mantém tudo automaticamente.
+
+            }
+
+            // ============================================================
+            // 🔵 CASO 2 — JSON (nenhuma mídia envolvida)
+            // ============================================================
+            else {
+                let finalThumbUrl = thumbUrl;
+
+                if (youtubeUrl) {
+                    const ytId = extractYouTubeId(youtubeUrl);
+                    if (ytId) {
+                        finalThumbUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+                    }
+                }
+
+                payload = {
+                    title,
+                    description,
+                    content,
+                    categories: selectedCategories,
+                    tags: tagsArray,
+                    platform: platform || null,
+                    youtube_url: youtubeUrl || null,
+                    thumb_url: finalThumbUrl || null,
+
+                    // 🔴 NÃO ENVIAR mídias existentes → backend já mantém
+                    image_url: imageUrl || null,
+                    video_url: videoUrl || null,
+                };
+            }
+
+            // ============================================================
+            // 🔵 EXECUTAR SALVAMENTO
+            // ============================================================
+            await onSave(payload, template?.id || null);
+
+            setIsSaving(false);
+            onClose();
+        } catch (err) {
+            console.error("❌ Erro ao salvar template:", err);
+            alert("Erro ao salvar template.");
+            setIsSaving(false);
+        }
+    };
 
 
-  // ===================================================
-// SALVAR TEMPLATE (CRIAR ou EDITAR) — PROTEGIDO POR ADMIN
-// ===================================================
-const handleSave = async () => {
-  if (!isAdmin) {
-    console.warn("Usuário não pode criar/editar templates.");
-    return;
-  }
-
-  if (!title.trim()) {
-    alert("O template precisa ter um título.");
-    return;
-  }
-
-  setIsSaving(true);
+// ============================================================
+// 🔴 Remover arquivo extra existente (DELETE)
+// ============================================================
+const handleDeleteExistingFile = async (fileId) => {
+  if (!window.confirm("Deseja remover este arquivo?")) return;
 
   try {
-    const isYouTube = videoUrl && extractYouTubeId(videoUrl);
-
-const payload = {
-  title,
-  description,
-  content,
-  tags,
-  category_id: categoryId,
-  image_url: isYouTube ? null : imageUrl,
-  video_url: isYouTube ? videoUrl : (videoUrl || null),
-  thumb_url: isYouTube ? null : thumbUrl,
-};
-
-
-
-    if (template) {
-      // ============================
-      // UPDATE TEMPLATE EXISTENTE
-      // ============================
-      await updateMutation.mutateAsync({ id: template.id, data: payload });
-
-    } else {
-      // ============================
-      // CREATE NOVO TEMPLATE
-      // ============================
-      await createMutation.mutateAsync(payload);
-    }
-
-    // Forçar refetch da listagem de templates
-    queryClient.invalidateQueries(["templates"]);
-
-    // Fechar modal
-    onClose();
-
+    await api.delete(`/templates/files/${fileId}`);
+    setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
   } catch (error) {
-    console.error("Erro ao salvar template:", error);
-    alert("Erro ao salvar template");
-  } finally {
-    setIsSaving(false);
+    console.error("Erro ao remover arquivo extra:", error);
   }
 };
 
-// ================================
-// MUTATION: CRIAR TEMPLATE
-// ================================
-const createMutation = useMutation({
-  mutationFn: async (data) => {
-    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/templates`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(data),
-    });
 
-    if (!response.ok) {
-      throw new Error(`Erro HTTP: ${response.status}`);
-    }
 
-    const text = await response.text();
-    if (!text) {
-      throw new Error("Resposta vazia do servidor");
-    }
+    // ============================================================
+    // 🟦 JSX FINAL – FORMULÁRIO + BOTÕES
+    // ============================================================
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white">
+                <DialogHeader>
+                    <DialogTitle className="text-xl">
+                        {isEdit ? "Editar Template" : "Criar Template"}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Preencha os campos abaixo para criar ou editar o template.
+                    </DialogDescription>
+                </DialogHeader>
 
-    return JSON.parse(text);
-  }
-});
+                {/* LAYOUT 2 COLUNAS */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+                    
+                    {/* ========== COLUNA ESQUERDA - MÍDIA ========== */}
+                    <div className="space-y-4">
+                        {/* PREVIEW */}
+                        <div className="sticky top-0">
+                            {renderPreview()}
+                        </div>
 
-// ================================
-// MUTATION: EDITAR TEMPLATE
-// ================================
-const updateMutation = useMutation({
-  mutationFn: async ({ id, data }) => {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/templates/${id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(data),
-      }
-    );
+                        {/* UPLOAD BUTTONS */}
+                        <div className="flex flex-col gap-3">
+                            <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:opacity-90 transition-opacity shadow-md">
+                                <ImageIcon className="w-5 h-5" />
+                                <span className="font-medium">Upload Imagem</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                />
+                            </label>
 
-    if (!response.ok) {
-      throw new Error(`Erro HTTP: ${response.status}`);
-    }
+                            <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:opacity-90 transition-opacity shadow-md">
+                                <Video className="w-5 h-5" />
+                                <span className="font-medium">Upload Vídeo</span>
+                                <input
+                                    type="file"
+                                    accept="video/*"
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                />
+                            </label>
+                        </div>
 
-    const text = await response.text();
-    if (!text) {
-      throw new Error("Resposta vazia do servidor");
-    }
+{/* ===== ARQUIVOS EXTRAS (PNG/JPG) ===== */}
+<div className="mt-4">
+  <label className="text-sm font-semibold mb-2 block">
+    Arquivos Extras (PNG/JPG)
+  </label>
 
-    return JSON.parse(text);
-  }
-});
-// ===============================
-// RESETAR ESTADOS AO FECHAR MODAL
-// ===============================
-const resetAll = () => {
-  setTitle("");
-  setDescription("");
-  setContent("");
-  setTags([]);
-  setCategoryId(null);
-  setImageUrl(null);
-  setVideoUrl(null);
-  setThumbUrl(null);
-  setYoutubeUrl("");
-  setSelectedFile(null);
-};
+  <input
+    type="file"
+    accept="image/png, image/jpeg"
+    multiple
+    onChange={handleExtraFilesChange}
+    className="block w-full border border-gray-300 rounded-lg p-2"
+  />
 
-  // ===============================
-  // RENDERIZAÇÃO BÁSICA (SEM UI FINAL)
-  // Apenas declara o esqueleto do modal
-  // ===============================
-  return (
-  <Dialog
-    open={open}
-    onOpenChange={(state) => {
-      if (!state) resetAll();
-      onClose();
-    }}
+{/* 🔵 LISTA DE ARQUIVOS JÁ EXISTENTES NO TEMPLATE */}
+{existingFiles.length > 0 && (
+  <div className="mt-3 space-y-2">
+    <label className="text-sm font-semibold block">
+      Arquivos já anexados:
+    </label>
+
+    {existingFiles.map((file) => (
+  <div
+    key={file.id}
+    className="flex items-center justify-between w-full py-1 px-2 border rounded-md bg-gray-50"
   >
-<DialogContent 
-  className="max-w-5xl max-h-[90vh] overflow-y-auto bg-white/95 backdrop-blur-xl shadow-2xl border border-gray-100 rounded-2xl p-6"
->
+    <span className="text-sm truncate">{file.filename}</span>
 
-        <DialogHeader>
-          
-          <DialogTitle>
-            {template ? "Editar Template" : "Criar Template"}
-          </DialogTitle>
-        </DialogHeader>
+    <div className="flex items-center gap-3">
+      {/* Botão Baixar */}
+      <a
+        href={`http://localhost:5000/media/templates/${template?.id}/files/${file.filename}`}
 
- {/* =============================== */}
-{/*   LAYOUT HÍBRIDO (PREVIEW + FORM) */}
-{/* =============================== */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-
-  {/* ======================== */}
-  {/*        PREVIEW (ESQ.)     */}
-  {/* ======================== */}
-  <div className="border rounded-xl bg-slate-50 p-4 flex items-center justify-center min-h-[280px] overflow-hidden">
-
-    {/* PLACEHOLDER SEM MÍDIA */}
-    {!imageUrl && !videoUrl && !thumbUrl && (
-      <div className="text-slate-400 text-center flex flex-col items-center">
-        <div className="bg-white p-4 rounded-full shadow-sm mb-3">
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/6897/6897039.png"
-            className="h-12 w-12 opacity-30"
-          />
-        </div>
-        <p className="font-medium opacity-70">Nenhuma mídia selecionada</p>
-        <p className="text-xs opacity-60">Envie uma imagem ou vídeo</p>
-      </div>
-    )}
-{/* YOUTUBE PREVIEW */}
-{videoUrl && extractYouTubeId(videoUrl) && (
-  <iframe
-    className="w-full h-full rounded-lg"
-    src={`https://www.youtube.com/embed/${extractYouTubeId(videoUrl)}`}
-    title="YouTube Preview"
-    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-  />
-)}
-
-{/* IMAGEM */}
-{imageUrl && !extractYouTubeId(videoUrl) && (
-  <img
-    src={imageUrl}
-    alt="preview"
-    className="w-full h-full object-cover rounded-lg transition-transform duration-500 hover:scale-105 cursor-pointer"
-  />
-)}
-
-{/* VÍDEO - MP4 */}
-{videoUrl && !extractYouTubeId(videoUrl) && (
-  <video
-    src={videoUrl}
-    poster={thumbUrl || imageUrl || ""}
-    controls
-    className="w-full h-full object-cover rounded-lg shadow-md"
-  />
-)}
-
-  </div>
-
-  {/* ======================== */}
-  {/*          FORM (DIR.)     */}
-  {/* ======================== */}
-  <div className="space-y-4">
-
-    {/* TÍTULO */}
-    <div>
-      <label className="text-sm font-medium">Título</label>
-      <input
-  type="text"
-  value={title}
-  onChange={(e) => isAdmin && setTitle(e.target.value)}
-  disabled={!isAdmin}
-  className="w-full mt-1 p-2 border rounded-md disabled:bg-slate-100 disabled:opacity-70"
-  placeholder="Nome do template"
-/>
-
-    </div>
-
-    {/* DESCRIÇÃO */}
-    <div>
-      <label className="text-sm font-medium">Descrição</label>
-      <textarea
-  value={description}
-  onChange={(e) => isAdmin && setDescription(e.target.value)}
-  disabled={!isAdmin}
-  rows={2}
-  className="w-full mt-1 p-2 border rounded-md resize-none overflow-hidden disabled:bg-slate-100 disabled:opacity-70"
-  onInput={(e) => {
-    e.target.style.height = "auto";
-    e.target.style.height = e.target.scrollHeight + 'px';
-  }}
-  placeholder="Descreva o propósito do template..."
-/>
-{/* CONTEÚDO DO PROMPT */}
-<div>
-  <label className="text-sm font-medium">Conteúdo do Prompt</label>
-  <textarea
-    value={content}
-    onChange={(e) => isAdmin && setContent(e.target.value)}
-    disabled={!isAdmin}
-    rows={4}
-    className="w-full mt-1 p-2 border rounded-md resize-none overflow-hidden disabled:bg-slate-100 disabled:opacity-70"
-    onInput={(e) => {
-      e.target.style.height = "auto";
-      e.target.style.height = e.target.scrollHeight + 'px';
-    }}
-    placeholder="Digite o prompt completo..."
-  />
-</div>
-
-
-    </div>
-
-{/* CATEGORIA */}
-<div>
-  <label className="text-sm font-medium">Categoria</label>
-
-  {loadingCategories ? (
-    <div className="text-xs text-slate-400 mt-1">Carregando categorias...</div>
-  ) : (
-    <Select
-      disabled={!isAdmin}
-      value={categoryId ? String(categoryId) : "none"}
-      onValueChange={(value) => {
-        if (!isAdmin) return;
-        setCategoryId(value === "none" ? null : Number(value));
-      }}
-    >
-      <SelectTrigger className="w-full mt-1">
-        <SelectValue placeholder="Selecione uma categoria" />
-      </SelectTrigger>
-
-      <SelectContent>
-  <SelectItem value="none">Sem categoria</SelectItem>
-
-  {!loadingCategories && categories && categories.length > 0 ? (
-    categories.map((cat) => (
-      <SelectItem key={cat.id} value={String(cat.id)}>
-        {cat.name}
-      </SelectItem>
-    ))
-  ) : (
-    <div className="px-3 py-2 text-sm text-gray-500">Nenhuma categoria encontrada</div>
-  )}
-</SelectContent>
-
-    </Select>
-  )}
-</div>
-
-
-
-   {/* TAGS */}
-<div>
-  <label className="text-sm font-medium">Tags</label>
-
-  {/* TAGS COMO CHIPS */}
-  <div className="flex flex-wrap gap-2 mt-2">
-    {tags.map((tag, index) => (
-      <div
-        key={index}
-        className="flex items-center gap-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs"
+        download={file.filename}
+        className="text-blue-600 hover:text-blue-800 text-sm underline"
       >
-        <span>{tag}</span>
-        <button
-          type="button"
-          onClick={() => {
-            setTags(tags.filter((_, i) => i !== index));
-          }}
-          className="hover:text-red-500 text-purple-600"
-        >
-          ×
-        </button>
-      </div>
-    ))}
-  </div>
+        Baixar
+      </a>
 
-  {/* INPUT INTELIGENTE DE TAGS */}
- <input
-  type="text"
-  className="w-full mt-2 p-2 border rounded-md disabled:bg-slate-100 disabled:opacity-70"
-  placeholder="Digite uma tag e pressione Enter..."
-  disabled={!isAdmin}
-  onKeyDown={(e) => {
-    if (!isAdmin) return;
-
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const value = e.target.value.trim();
-      if (value && !tags.includes(value.toLowerCase())) {
-        setTags([...tags, value.toLowerCase()]);
-      }
-      e.target.value = "";
-    }
-
-    if (e.key === "Backspace" && e.target.value === "") {
-      setTags(tags.slice(0, -1));
-    }
-  }}
-/>
-
-</div>
-
-
-  </div>
-</div>
-
-
-{/* BOTÕES – protegidos por admin */}
-<div className="flex justify-end gap-3 pt-4">
-  <button
-    onClick={onClose}
-    className="px-4 py-2 bg-slate-200 rounded-md hover:bg-slate-300"
-  >
-    Fechar
-  </button>
-
-  {isAdmin && (
-    <button
-      onClick={handleSave}
-      disabled={isSaving}
-      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
-    >
-      {template ? "Salvar Alterações" : "Criar Template"}
-    </button>
-  )}
-</div>
-
-{/* YOUTUBE URL */}
-<div className="mt-6">
-  <label className="text-sm font-medium">URL do YouTube (opcional)</label>
-
-  <input
-    type="text"
-    value={youtubeUrl}
-    onChange={(e) => {
-      const url = e.target.value;
-      setYoutubeUrl(url);
-
-      const id = extractYouTubeId(url);
-
-      if (id) {
-        // limpar mídia local
-        setImageUrl(null);
-        setVideoUrl(url);
-        setThumbUrl(null);
-        setSelectedFile(null);
-      }
-    }}
-    disabled={!isAdmin}
-    placeholder="Cole aqui um link do YouTube..."
-    className="w-full mt-1 p-2 border rounded-md disabled:bg-slate-100 disabled:opacity-70"
-  />
-</div>
-
-
-{/* =============================== */}
-{/*      UPLOAD DE MÍDIA (REAL)     */}
-{/* =============================== */}
-<div className="border-t pt-4 mt-4">
-
-  <label className="text-sm font-medium">Mídia (imagem ou vídeo)</label>
-
-  <input
-  type="file"
-  accept="image/*,video/*"
-  disabled={!isAdmin}
-  onChange={(e) => {
-    if (!isAdmin) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-    handleFileSelect(file);
-  }}
-  className="mt-2 disabled:opacity-60"
-/>
-
-
-  {/* Se o usuário selecionou ARQUIVO e ainda não fez upload */}
-  {selectedFile && (
-    <div className="mt-3 text-xs text-purple-600">
-      Arquivo selecionado: {selectedFile.name}
+      {/* Botão Remover */}
+      <button
+        onClick={() => handleDeleteExistingFile(file.id)}
+        className="text-red-500 hover:text-red-700 text-sm"
+      >
+        Remover
+      </button>
     </div>
-  )}
+  </div>
+))}
 
-  {/* BOTÃO PARA ENVIAR ARQUIVO */}
-  {selectedFile && (
-    <button
-      onClick={async () => {
-        try {
-          setIsSaving(true);
-
-          const formData = new FormData();
-          formData.append("file", selectedFile);
-
-          const response = await fetch(
-            `${import.meta.env.VITE_API_BASE_URL}/upload/template`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem("token")}`,
-              },
-              body: formData,
-            }
-          );
-
-          const data = await response.json();
-
-          // Define URLs conforme retorno do backend
-          // Sempre limpar YouTube ao enviar arquivo
-setYoutubeUrl("");
-
-// Atualizar URLs retornadas pelo backend
-setImageUrl(data.image_url || null);
-setVideoUrl(data.video_url || null);
-
-// Thumbnail (para vídeos)
-setThumbUrl(data.thumb_url || null);
-
-// limpar seleção
-setSelectedFile(null);
-
-        } catch (err) {
-          console.error("Erro ao enviar mídia:", err);
-        } finally {
-          setIsSaving(false);
-        }
-      }}
-      className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
-      disabled={isSaving}
-    >
-      {isSaving ? "Enviando mídia..." : "Enviar arquivo"}
-    </button>
-  )}
-
- {/* BOTÃO DE REMOVER MÍDIA */}
-{isAdmin && (imageUrl || videoUrl) && (
-  <button
-    onClick={() => {
-      setImageUrl(null);
-      setVideoUrl(null);
-      setThumbUrl(null);
-      setSelectedFile(null);
-      setYoutubeUrl(""); // garantir remoção de YouTube
-
-    }}
-    className="ml-3 mt-3 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-  >
-    Remover mídia
-  </button>
+  </div>
 )}
 
 
+
+  {/* LISTA DOS ARQUIVOS SELECIONADOS */}
+  {extraFiles && extraFiles.length > 0 && (
+    <div className="mt-3 space-y-2">
+      {extraFiles.map((file, i) => (
+        <div
+          key={i}
+          className="flex items-center justify-between bg-gray-50 border rounded-lg px-3 py-2 text-sm"
+        >
+          <span className="truncate max-w-[70%]">📎 {file.name}</span>
+
+          <button
+            type="button"
+            onClick={() => {
+              const updated = extraFiles.filter((_, idx) => idx !== i);
+              setExtraFiles(updated);
+            }}
+            className="text-red-500 hover:text-red-700 text-xs"
+          >
+            Remover
+          </button>
+        </div>
+      ))}
+
+      {/* BOTÃO LIMPAR TODOS */}
+      <button
+        type="button"
+        onClick={() => setExtraFiles([])}
+        className="text-xs text-red-600 hover:text-red-800 mt-1"
+      >
+        Limpar Todos
+      </button>
+    </div>
+  )}
 </div>
 
-   
-      </DialogContent>
-    </Dialog>
-  );
+
+
+
+                        {/* YOUTUBE URL */}
+                        <div>
+                            <label className="text-sm font-semibold flex items-center gap-2 mb-2">
+                                <Youtube className="w-5 h-5 text-red-600" /> 
+                                <span>URL do YouTube</span>
+                            </label>
+                            <Input
+                                placeholder="https://www.youtube.com/watch?v=XXXX"
+                                value={youtubeUrl}
+                                onChange={(e) => {
+                                    setYoutubeUrl(e.target.value);
+                                    setImageFile(null);
+                                    setVideoFile(null);
+                                }}
+                                className="border-gray-300"
+                            />
+                        </div>
+                    </div>
+
+                    {/* ========== COLUNA DIREITA - FORMULÁRIO ========== */}
+                    <div className="space-y-4">
+                        {/* TITLE */}
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block">
+                                Título <span className="text-red-500">*</span>
+                            </label>
+                            <Input
+                                placeholder="Digite o título do template"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="border-gray-300"
+                            />
+                        </div>
+
+                        {/* DESCRIPTION */}
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block">
+                                Descrição
+                            </label>
+                            <Textarea
+                                placeholder="Digite uma descrição..."
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="border-gray-300 min-h-[80px]"
+                                rows={3}
+                            />
+                        </div>
+
+                        {/* CONTENT */}
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block">
+                                Conteúdo <span className="text-red-500">*</span>
+                            </label>
+                            <Textarea
+                                placeholder="Digite o conteúdo (prompt)"
+                                value={content}
+                                onChange={(e) => setContent(e.target.value)}
+                                className="border-gray-300 min-h-[120px]"
+                                rows={5}
+                            />
+                        </div>
+
+                        {/* PLATFORM DROPDOWN */}
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block">
+                                Plataforma
+                            </label>
+                            
+                            <select
+                                value={platform}
+                                onChange={(e) => setPlatform(e.target.value)}
+                                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
+                            >
+                                <option value="">Selecione uma plataforma</option>
+                                
+                                {PLATFORMS.map((p) => (
+                                    <option key={p.value} value={p.value}>
+                                        {p.icon} {p.label}
+                                    </option>
+                                ))}
+                            </select>
+                            
+                            {/* Preview da plataforma selecionada */}
+                            {platform && PLATFORMS.find(p => p.value === platform) && (
+                                <div className="mt-3 flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                                    <span className="text-lg">
+                                        {PLATFORMS.find(p => p.value === platform)?.icon}
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-700">
+                                        {PLATFORMS.find(p => p.value === platform)?.label}
+                                    </span>
+                                </div>
+                            )}
+                            
+                            <p className="text-xs text-gray-500 mt-2">
+                                Escolha a plataforma de IA para este template
+                            </p>
+                        </div>
+
+                        {/* CATEGORIES */}
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block">
+                                Categoria
+                            </label>
+                            
+                            <select
+                                value={selectedCategories[0] || "none"}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    if (value === "none") {
+                                        setSelectedCategories([]);
+                                    } else {
+                                        setSelectedCategories([Number(value)]);
+                                    }
+                                }}
+                                className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
+                            >
+                                <option value="none" className="text-gray-500">
+                                    Sem categoria
+                                </option>
+                                
+                                {categories.length > 0 ? (
+                                    categories.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>
+                                            {cat.name}
+                                        </option>
+                                    ))
+                                ) : (
+                                    <option disabled>Nenhuma categoria disponível</option>
+                                )}
+                            </select>
+                            
+                            {/* Preview da categoria selecionada */}
+                            {selectedCategories.length > 0 && categories.find(c => c.id === selectedCategories[0]) && (
+                                <div className="mt-3 flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                                    <div 
+                                        className="w-3 h-3 rounded-full border border-gray-300"
+                                        style={{ backgroundColor: categories.find(c => c.id === selectedCategories[0])?.color || '#6366f1' }}
+                                    />
+                                    <span className="text-sm font-medium text-gray-700">
+                                        {categories.find(c => c.id === selectedCategories[0])?.name}
+                                    </span>
+                                </div>
+                            )}
+                            
+                            <p className="text-xs text-gray-500 mt-2">
+                                Selecione uma categoria para organizar este template
+                            </p>
+                        </div>
+
+                        {/* TAGS */}
+                        <div>
+                            <label className="text-sm font-semibold mb-2 block">
+                                Tags
+                            </label>
+                            <Input
+                                placeholder="Ex: marketing, vendas, email"
+                                value={tagsInput}
+                                onChange={(e) => setTagsInput(e.target.value)}
+                                className="border-gray-300"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Separe as tags por vírgula
+                            </p>
+                        </div>
+                    </div>
+                </div>  
+
+                {/* FOOTER - BOTÕES */}
+                <div className="flex justify-end mt-6 gap-3 pt-4 border-t border-gray-200">
+                    <Button
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={isSaving}
+                        className="px-6"
+                    >
+                        Cancelar
+                    </Button>
+
+                    <Button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:opacity-90 px-6"
+                    >
+                        {isSaving
+                            ? "Salvando..."
+                            : isEdit
+                            ? "Salvar Alterações"
+                            : "Criar Template"}
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
 }

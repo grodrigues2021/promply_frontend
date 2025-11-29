@@ -1,5 +1,5 @@
-// src/components/PromptCard.jsx - VERSÃO COMPLETA COM TODAS AS CORREÇÕES
-import React, { useMemo, useState } from "react";
+// src/components/PromptCard.jsx - VERSÃO CORRIGIDA
+import React, { useMemo, useState, useEffect } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
+import api from "../lib/api";
+
+
+
 
 const cardVariants = cva(
   "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
@@ -62,27 +66,35 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   },
 });
 
-// --- 🔧 Video helpers ---
 const detectVideoType = (url) => {
-  if (!url) return null;
+  if (!url) {
+    console.log("⚠️ detectVideoType: URL vazia");
+    return null;
+  }
+  
   const normalized = url.toLowerCase().trim();
+  console.log("🔍 detectVideoType analisando:", normalized);
 
   if (
     normalized.includes("youtube.com/watch") ||
     normalized.includes("youtube.com/embed/") ||
     normalized.includes("youtu.be/")
   ) {
+    console.log("✅ Detectado como YouTube");
     return "youtube";
   }
 
-  if (
+  const isLocalVideo = 
     normalized.startsWith("data:video/") ||
     normalized.startsWith("blob:") ||
-    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(normalized)
-  ) {
+    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(normalized);
+    
+  if (isLocalVideo) {
+    console.log("✅ Detectado como vídeo local (MP4)");
     return "local";
   }
 
+  console.log("❌ Não detectado como vídeo");
   return null;
 };
 
@@ -103,7 +115,6 @@ const extractYouTubeId = (url) => {
 const MediaModal = ({ type, src, videoId, title, onClose }) => {
   if (!type) return null;
 
-  // 📥 Função para baixar imagem – usa fetch + blob para forçar download
   const downloadImage = async () => {
     try {
       toast.info("⏳ Baixando imagem...");
@@ -111,7 +122,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
       const extension = src.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
       const filename = `${title || "imagem"}.${extension}`;
 
-      // 🔄 Converte S3 URL em Friendly URL (suporta ambos os formatos do B2)
       let friendlySrc = src;
       if (src.includes("s3.us-east-005.backblazeb2.com")) {
         friendlySrc = src
@@ -142,7 +152,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
     }
   };
 
-  // 📥 Download de vídeo MP4
   const downloadVideo = async () => {
     try {
       toast.info("⏳ Baixando vídeo...");
@@ -168,7 +177,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
     }
   };
 
-  // 🔗 Copiar link do YouTube
   const copyYouTubeLink = async () => {
     try {
       const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -187,7 +195,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
       <div className="relative w-full max-w-4xl bg-black rounded-xl overflow-hidden">
-        {/* HEADER */}
         <div className="flex justify-between items-center px-4 py-3 bg-black/70">
           <h3 className="text-white font-semibold truncate flex-1 mr-4">
             {title || "Mídia"}
@@ -215,7 +222,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
           </div>
         </div>
 
-        {/* CONTEÚDO */}
         <div className="bg-black flex items-center justify-center">
           {type === "image" && (
             <img
@@ -255,7 +261,6 @@ const MediaModal = ({ type, src, videoId, title, onClose }) => {
   );
 };
 
-/* ========================================== */
 const getInitials = (name) => {
   if (!name) return 'U';
   const parts = name.trim().split(' ');
@@ -280,6 +285,10 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
+  // ✅ CORREÇÃO CRÍTICA: Declarar attachments ANTES do useMemo
+  const [attachments, setAttachments] = useState([]);
+  const [loadingAttachments, setLoadingAttachments] = useState(true);
+
   // Estado do modal
   const [modalState, setModalState] = useState({
     isOpen: false,
@@ -293,38 +302,129 @@ const PromptCard = React.memo(({
     return String(prompt.id).startsWith('temp-') || prompt._isOptimistic;
   }, [prompt.id, prompt._isOptimistic]);
 
+  // ✅ AGORA o useMemo pode usar attachments com segurança
   const mediaInfo = useMemo(() => {
-    const videoUrl = prompt.video_url || prompt.youtube_url;
+    // Garantir que attachments seja sempre um array
+    const safeAttachments = Array.isArray(attachments) ? attachments : [];
+    
+    const videoUrl = prompt.video_url || null;
+    const youtubeUrl = prompt.youtube_url || null;
     const hasImage = prompt.image_url;
+    
+    // 🔍 DEBUG: Ver o que está chegando
+    console.log("🎬 DEBUG PromptCard:", {
+      promptId: prompt.id,
+      promptTitle: prompt.title,
+      video_url: prompt.video_url,
+      youtube_url: prompt.youtube_url,
+      image_url: prompt.image_url,
+      thumb_url: prompt.thumb_url,
+      videoUrl: videoUrl,
+      hasImage: !!hasImage,
+    });
     
     const videoType = detectVideoType(videoUrl);
     
-    // 🎯 Considera as flags de mídia otimista
-    const hasYouTubeVideo = prompt._hasYouTube || videoType === 'youtube';
+    console.log("🎯 Tipo de vídeo detectado:", videoType);
+    
+const hasYouTubeVideo =
+  !!prompt.youtube_url ||
+  videoType === "youtube";
     const hasLocalVideo = prompt._hasLocalVideo || videoType === 'local';
     const hasVideo = hasYouTubeVideo || hasLocalVideo;
     const hasMedia = hasVideo || hasImage;
     
-    const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
+    console.log("✅ Flags finais:", {
+      hasYouTubeVideo,
+      hasLocalVideo,
+      hasVideo,
+      hasImage: !!hasImage,
+      hasMedia,
+    });
     
-    // ✅ Usar hqdefault (sempre existe) ao invés de maxresdefault
+const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
+    
     const youtubeThumbnail = videoId 
       ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
       : null;
     
+    // 🖼️ Construir imageUrlWithCacheBuster
     let imageUrlWithCacheBuster = null;
     if (hasImage && prompt.image_url) {
-      if (prompt.image_url.startsWith("data:image")) {
-        imageUrlWithCacheBuster = prompt.image_url;
+      let fixedUrl = prompt.image_url;
+      
+      // Corrigir caminhos antigos
+      if (fixedUrl.startsWith("/media/images/")) {
+        fixedUrl = fixedUrl.replace("/media/images/", "/media/image/");
+      }
+
+      if (fixedUrl.startsWith("data:image")) {
+        imageUrlWithCacheBuster = fixedUrl;
       } else if (prompt.updated_at) {
         const timestamp = new Date(prompt.updated_at).getTime();
-        imageUrlWithCacheBuster = `${prompt.image_url}?v=${timestamp}`;
+        let normalizedUrl = fixedUrl;
+
+        // Garantir domínio do backend
+        let backendHost = api.defaults.baseURL.replace("/api", "");
+
+        if (normalizedUrl.startsWith("/")) {
+          normalizedUrl = `${backendHost}${normalizedUrl}`;
+        }
+
+        imageUrlWithCacheBuster = `${normalizedUrl}?v=${timestamp}`;
       } else {
-        imageUrlWithCacheBuster = prompt.image_url;
+        imageUrlWithCacheBuster = fixedUrl;
       }
     }
 
-    const thumbnailUrl = youtubeThumbnail || imageUrlWithCacheBuster;
+    // 📸 Construir thumbUrlWithCache
+    let thumbUrlWithCache = null;
+    if (prompt.thumb_url) {
+      let fixedThumb = prompt.thumb_url;
+
+      // Corrigir caminhos antigos
+      if (fixedThumb.startsWith("/media/images/")) {
+        fixedThumb = fixedThumb.replace("/media/images/", "/media/image/");
+      }
+
+      // Normalizar URL absoluta
+      let backendHost = api.defaults.baseURL.replace("/api", "");
+
+      if (fixedThumb.startsWith("/")) {
+        fixedThumb = `${backendHost}${fixedThumb}`;
+      }
+
+      // Cache-buster
+      const t = prompt.updated_at
+        ? new Date(prompt.updated_at).getTime()
+        : Date.now();
+
+      thumbUrlWithCache = `${fixedThumb}?v=${t}`;
+    }
+
+    // 📎 Construir attachmentUrl
+    let attachmentUrl = null;
+    if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
+      attachmentUrl = safeAttachments[0].file_url;
+
+      // Corrigir caminhos antigos
+      if (attachmentUrl.startsWith("/media/images/")) {
+        attachmentUrl = attachmentUrl.replace("/media/images/", "/media/image/");
+      }
+
+      // Montar URL absoluta
+      let backendHost = api.defaults.baseURL.replace("/api", "");
+      if (attachmentUrl.startsWith("/")) {
+        attachmentUrl = `${backendHost}${attachmentUrl}`;
+      }
+    }
+
+    // 🎯 Prioridade final do preview
+    const thumbnailUrl =
+      youtubeThumbnail ||
+      imageUrlWithCacheBuster ||
+      thumbUrlWithCache ||
+      attachmentUrl;
 
     return { 
       hasVideo,
@@ -336,15 +436,71 @@ const PromptCard = React.memo(({
       videoId, 
       thumbnailUrl 
     };
-  }, [prompt.video_url, prompt.youtube_url, prompt.image_url, prompt.updated_at, prompt._hasYouTube, prompt._hasLocalVideo]);
+  }, [
+    prompt.video_url, 
+    prompt.youtube_url, 
+    prompt.image_url, 
+    prompt.thumb_url,
+    prompt.updated_at, 
+    prompt._hasYouTube, 
+    prompt._hasLocalVideo,
+    attachments  // ✅ Agora está seguro
+  ]);
 
-  const tagsArray = useMemo(() => {
-    if (Array.isArray(prompt.tags)) return prompt.tags;
-    if (typeof prompt.tags === 'string') {
-      return prompt.tags.split(',').map(t => t.trim()).filter(Boolean);
+ const tagsArray = useMemo(() => {
+  console.log("🏷️ Tags recebidas:", prompt.tags, "Tipo:", typeof prompt.tags);
+  
+  if (Array.isArray(prompt.tags)) return prompt.tags;
+  if (typeof prompt.tags === 'string') {
+    return prompt.tags.split(',').map(t => t.trim()).filter(Boolean);
+  }
+  return [];
+}, [prompt.tags]);
+
+  // 🔵 Ícones por plataforma
+  const platformIcons = {
+    chatgpt: "🤖",
+    nanobanana: "🌙",
+    gemini: "✨",
+    veo3: "🎥",
+    manus: "📝",
+    claude: "🧠",
+  };
+
+  // 🔵 Rótulos amigáveis
+  const platformLabels = {
+    chatgpt: "ChatGPT",
+    nanobanana: "Nano Banana",
+    gemini: "Gemini",
+    veo3: "VEO3",
+    manus: "Manus",
+    claude: "Claude",
+  };
+
+  const platformIcon = platformIcons[prompt.platform] || null;
+  const platformLabel = platformLabels[prompt.platform] || null;
+
+  // 🔵 Carregar anexos do prompt
+  useEffect(() => {
+    // 🔒 Evitar IDs temporários (ex: "temp-123123")
+    if (!prompt.id || typeof prompt.id !== "number") {
+      setLoadingAttachments(false);
+      return;
     }
-    return [];
-  }, [prompt.tags]);
+
+    async function fetchFiles() {
+      try {
+        const res = await api.get(`/prompts/${prompt.id}/files`);
+        setAttachments(res.data?.data || []);
+      } catch (err) {
+        console.error("Erro ao carregar anexos:", err);
+      } finally {
+        setLoadingAttachments(false);
+      }
+    }
+
+    fetchFiles();
+  }, [prompt.id]);
 
   const displayAuthorName = authorName || 
                            prompt.author_name || 
@@ -355,6 +511,14 @@ const PromptCard = React.memo(({
 
   // Função para abrir modal
   const openModal = (type, src = null, videoId = null) => {
+     console.log("🎬 ABRINDO MODAL:", {
+    type: type,
+    src: src,
+    videoId: videoId,
+    hasVideo: mediaInfo.hasVideo,
+    hasLocalVideo: mediaInfo.hasLocalVideo,
+    videoUrl: mediaInfo.videoUrl
+  });
     setModalState({
       isOpen: true,
       type,
@@ -418,26 +582,68 @@ const PromptCard = React.memo(({
             ) : (
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
-                    {prompt.title}
-                  </h3>
+                 <h3
+  className="
+    text-lg font-semibold text-gray-900
+    whitespace-nowrap overflow-hidden text-ellipsis
+    line-clamp-1
+  "
+>
+  {prompt.title}
+</h3>
+
                   
-                  {prompt.category && (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <TagIcon className="w-3.5 h-3.5 text-gray-400" />
-                      <Badge
-                        variant="secondary"
-                        className="text-xs font-medium"
-                        style={{
-                          backgroundColor: prompt.category.color ? `${prompt.category.color}15` : '#e0e7ff',
-                          color: prompt.category.color || '#4f46e5',
-                          borderColor: prompt.category.color ? `${prompt.category.color}30` : '#c7d2fe',
-                        }}
-                      >
-                        {prompt.category.name}
-                      </Badge>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between mt-1 w-full">
+                    {/* TAG DE CATEGORIA */}
+                    {prompt.category && (
+                      <div className="flex items-center gap-1.5">
+                        <TagIcon className="w-3.5 h-3.5 text-gray-400" />
+                        <Badge
+                          variant="secondary"
+                          className="text-xs font-medium"
+                          style={{
+                            backgroundColor: prompt.category.color ? `${prompt.category.color}15` : '#e0e7ff',
+                            color: prompt.category.color || '#4f46e5',
+                            borderColor: prompt.category.color ? `${prompt.category.color}30` : '#c7d2fe',
+                          }}
+                        >
+                          {prompt.category.name}
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* TAG DE PLATAFORMA - APENAS ÍCONE COM TOOLTIP */}
+                    {platformLabel && (
+  <div className="relative">
+  <div
+    className="
+      peer   /* <- ICON BECOMES PEER */
+      flex items-center justify-center w-7 h-7 rounded-full
+      bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300
+      cursor-pointer transition-all duration-200 hover:scale-110 hover:shadow-md
+    "
+  >
+    <span className="text-base">{platformIcon}</span>
+  </div>
+
+  <div
+    className="
+      absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5
+      bg-gray-900 text-white text-xs font-medium rounded-lg
+      opacity-0 invisible
+      peer-hover:opacity-100 peer-hover:visible   /* <- WORKS! */
+      transition-all duration-200 whitespace-nowrap pointer-events-none z-10
+    "
+  >
+    {platformLabel}
+
+                           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+      <div className="border-4 border-transparent border-t-gray-900"></div>
+    </div>
+  </div>
+</div>
+                    )}
+                  </div>
                 </div>
 
                 {onToggleFavorite && (
@@ -660,11 +866,15 @@ const PromptCard = React.memo(({
 
             {/* VÍDEO LOCAL - Apenas thumbnail clicável */}
             {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
-              <button
-                type="button"
-                onClick={() => openModal('video', mediaInfo.videoUrl)}
-                className="relative w-full h-full group/media overflow-hidden"
-              >
+  <button
+    type="button"
+    onClick={() => {
+      const backend = api.defaults.baseURL.replace("/api", "");
+      openModal('video', `${backend}${mediaInfo.videoUrl}`);
+    }}
+    className="relative w-full h-full group/media overflow-hidden"
+  >
+
                 {mediaInfo.thumbnailUrl ? (
                   <img
                     src={mediaInfo.thumbnailUrl}
@@ -696,7 +906,7 @@ const PromptCard = React.memo(({
             {!mediaInfo.hasVideo && mediaInfo.hasImage && (
               <button
                 type="button"
-                onClick={() => openModal('image', prompt.image_url)}
+                onClick={() => openModal('image', mediaInfo.thumbnailUrl)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
                 <img
@@ -743,7 +953,6 @@ const PromptCard = React.memo(({
     </>
   );
 }, (prevProps, nextProps) => {
-  // Ignora mudanças apenas na flag _skipAnimation, _isOptimistic, _hasLocalVideo e _hasYouTube
   return (
     prevProps.prompt.id === nextProps.prompt.id &&
     prevProps.prompt.title === nextProps.prompt.title &&

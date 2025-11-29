@@ -242,14 +242,7 @@ input[type="search"]::-webkit-search-cancel-button {
 
 
 
-/* Força os modais do shadcn/ui a ficarem acima de sidebars e overlays */
-[data-state="open"] > .fixed.inset-0 {
-  z-index: 55 !important; /* Overlay do modal */
-}
 
-[data-state="open"] > .fixed.inset-0 + div {
-  z-index: 60 !important; /* Conteúdo do modal */
-}
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -258,24 +251,7 @@ input[type="search"]::-webkit-search-cancel-button {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-/* Força o fundo escuro opaco do overlay do Dialog */
-/* Corrige o fundo do overlay de TODOS os Dialogs (Radix/shadcn) */
-/* Fundo correto para o overlay dos Dialogs (Radix / shadcn-ui) */
-[data-overlay][data-state="open"] {
-  background-color: rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(2px);
-}
 
-/* ==========================================
-   🩹 Corrige fundo transparente dos Dialogs (shadcn/ui)
-   ========================================== */
-
-[data-overlay][data-state="open"] {
-  background-color: rgba(0, 0, 0, 0.7) !important; /* fundo escuro */
-  backdrop-filter: blur(4px); /* leve desfoque */
-  transition: background-color 0.3s ease;
-  z-index: 55 !important; /* mantém acima da sidebar */
-}
 
 
 /* 🔍 Modo diagnóstico temporário do React Query DevTools */
@@ -327,4 +303,29 @@ iframe[style*="position: fixed"][style*="bottom: 0"][style*="right: 0"] {
 .modern-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+
+/* 🎯 Remove TODAS as setas de Tooltips/Popovers Radix */
+[data-radix-popper-content-wrapper] [data-side]::before,
+[data-radix-popper-content-wrapper] [data-side]::after,
+[role="tooltip"]::before,
+[role="tooltip"]::after,
+.radix-tooltip::before,
+.radix-tooltip::after {
+  display: none !important;
+  content: none !important;
+  visibility: hidden !important;
+}
+
+/* Se ainda aparecer, force opacity */
+[data-radix-popper-content-wrapper] * {
+  --radix-tooltip-arrow-display: none !important;
+}
+
+/* Força remoção em qualquer pseudo-elemento do tooltip */
+[data-state="delayed-open"]::before,
+[data-state="delayed-open"]::after,
+[data-state="instant-open"]::before,
+[data-state="instant-open"]::after {
+  display: none !important;
 }

@@ -1,8 +1,8 @@
-
 // src/components/TemplatesPage.jsx
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Search, X, Menu, Download } from "lucide-react";
 import {
   Dialog,
@@ -26,16 +26,16 @@ import TemplateCard from "./TemplateCard";
 import PromptGrid from "./PromptGrid";
 import { BookOpenText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useTemplatesQuery } from "@/queries/useTemplatesQuery";
 import { BookText } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { TemplateModal } from "@/components/templates/TemplateModal";
+import TemplateModal from "@/components/templates/TemplateModal";
+import { useNavigate } from 'react-router-dom';
+
 
 
 
 // ===== CONSTANTES =====
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-const MAX_VIDEO_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MAX_VIDEO_SIZE = 50 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/svg+xml'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
 
@@ -79,16 +79,13 @@ function extractYouTubeId(url) {
 
 function validateFile(file, allowedTypes, maxSize, typeName) {
   if (!file) return null;
-
   if (!allowedTypes.some(type => file.type === type)) {
     return `Selecione um ${typeName} válido`;
   }
-
   if (file.size > maxSize) {
     const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(0);
     return `${typeName} muito grande! Máx. ${maxSizeMB}MB`;
   }
-
   return null;
 }
 
@@ -144,40 +141,46 @@ async function captureVideoThumbnail(file) {
   });
 }
 
-// ===== COMPONENTE PRINCIPAL =====
-export default function TemplatesPage() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
 
-    // ============================================
-  // ETAPA 8 — PARTE 1: Controle do Novo TemplateModal
-  // ============================================
+// ===== COMPONENTE PRINCIPAL =====
+export default function TemplatesPage({ onBack }) { 
+  const { user } = useAuth();
+  const queryClient = useQueryClient(); 
+  const navigate = useNavigate();
+
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [selectedTemplateForModal, setSelectedTemplateForModal] = useState(null);
 
-  // Abrir criação
   const openCreateTemplate = () => {
-    setSelectedTemplateForModal(null); // modo criar
+    setSelectedTemplateForModal(null);
+    setExtraFiles([]);   // limpa anexos ao criar novo template
     setIsTemplateModalOpen(true);
   };
 
-  // Abrir edição
-  const openEditTemplate = (template) => {
-    setSelectedTemplateForModal(template); // modo editar
+ const openEditTemplate = (template) => {
+  setSelectedTemplateForModal(template);
+  setExtraFiles([]);   // limpa anexos antes de editar
+
+
+  // 🔥 Garante que o modal abre somente após o React aplicar o estado
+  setTimeout(() => {
     setIsTemplateModalOpen(true);
-  };
+  }, 0);
+};
 
 
-  // Estados principais
-  const { data: templates = [], isLoading: loading } = useTemplatesQuery();
+  // ===== ESTADOS - CARREGAMENTO DIRETO =====
+  const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [myCategories, setMyCategories] = useState([]);
+
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
-  // Modais
   const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [templateForm, setTemplateForm] = useState(INITIAL_TEMPLATE_FORM);
@@ -192,18 +195,49 @@ export default function TemplatesPage() {
 
   const [imagePreview, setImagePreview] = useState({ open: false, url: "", title: "" });
   const [videoPreview, setVideoPreview] = useState({ open: false, url: "" });
+  const [extraFiles, setExtraFiles] = useState([]);
 
 
+  // ===== CARREGAMENTO DE DADOS =====
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/templates");
+        setTemplates(res.data?.data || []);
+        console.log("✅ Templates carregados:", res.data?.data?.length);
+      } catch (error) {
+        console.error("Erro ao carregar templates:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTemplates();
+  }, []);
 
-  const loadCategories = useCallback(async () => {
-    try {
-      const res = await api.get("/categories");
-      const list = res.data?.data || [];
-      setCategories(list.filter((c) => c.is_template));
-    } catch (error) {
-      console.error("Erro ao carregar categorias:", error);
-      toast.error("Erro ao carregar categorias");
-    }
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        setLoadingCategories(true);
+        const res = await api.get("/categories");
+        const all = res.data?.data || [];
+        
+        console.log("🔍 TODAS as categorias:", all);
+        
+        const templateCategories = all.filter(
+          (c) => c.is_template == true || c.is_template === 1
+        );
+        
+        console.log("✅ Categorias filtradas:", templateCategories);
+        
+        setCategories(templateCategories);
+      } catch (error) {
+        console.error("Erro ao carregar categorias:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+    loadCategories();
   }, []);
 
   const loadMyCategories = useCallback(async () => {
@@ -216,59 +250,48 @@ export default function TemplatesPage() {
     }
   }, []);
 
-// ===== CATEGORY MANAGEMENT =====
-const saveCategory = useCallback(async () => {
-  if (!categoryForm.name.trim()) {
-    toast.error("Informe o nome da categoria");
-    return;
-  }
+  useEffect(() => {
+    loadMyCategories();
+  }, [loadMyCategories]);
 
-  console.log("📤 Enviando categoria:", {
-    ...categoryForm,
-    is_template: true,
-  });
-
-  try {
-    const url = editingCategory ? `/categories/${editingCategory.id}` : "/categories";
-    const method = editingCategory ? api.put : api.post;
-    
-    // Garantir que description não seja undefined
-    const payload = {
-      name: categoryForm.name.trim(),
-      description: categoryForm.description?.trim() || "",
-      color: categoryForm.color || "#6366f1",
-      is_template: true,
-    };
-
-    console.log("📦 Payload final:", payload);
-
-    const res = await method(url, payload);
-
-    console.log("✅ Resposta do backend:", res.data);
-
-    if (res.data.success) {
-      toast.success(editingCategory ? "Categoria atualizada!" : "Categoria criada!");
-      setIsCategoryDialogOpen(false);
-      setEditingCategory(null);
-      setCategoryForm(INITIAL_CATEGORY_FORM);
-      loadCategories();
-    } else {
-      console.error("❌ Backend retornou erro:", res.data);
-      toast.error(res.data.error || "Erro ao salvar categoria");
+  // ===== CATEGORY MANAGEMENT =====
+  const saveCategory = useCallback(async () => {
+    if (!categoryForm.name.trim()) {
+      toast.error("Informe o nome da categoria");
+      return;
     }
-  } catch (error) {
-    console.error("❌ Erro completo:", error);
-    console.error("❌ Response data:", error.response?.data);
-    console.error("❌ Response status:", error.response?.status);
-    
-    const errorMessage = error.response?.data?.error || 
-                        error.response?.data?.message || 
-                        error.message || 
-                        "Erro ao salvar categoria";
-    
-    toast.error(errorMessage);
-  }
-}, [categoryForm, editingCategory, loadCategories]);
+
+    try {
+      const url = editingCategory ? `/categories/${editingCategory.id}` : "/categories";
+      const method = editingCategory ? api.put : api.post;
+      
+      const payload = {
+        name: categoryForm.name.trim(),
+        description: categoryForm.description?.trim() || "",
+        color: categoryForm.color || "#6366f1",
+        is_template: true,
+      };
+
+      const res = await method(url, payload);
+
+      if (res.data.success) {
+        toast.success(editingCategory ? "Categoria atualizada!" : "Categoria criada!");
+        setIsCategoryDialogOpen(false);
+        setEditingCategory(null);
+        setCategoryForm(INITIAL_CATEGORY_FORM);
+        
+        // Recarregar categorias
+        const res2 = await api.get("/categories");
+        const all = res2.data?.data || [];
+        setCategories(all.filter(c => c.is_template == true || c.is_template === 1));
+      } else {
+        toast.error(res.data.error || "Erro ao salvar categoria");
+      }
+    } catch (error) {
+      console.error("Erro ao salvar categoria:", error);
+      toast.error(error.response?.data?.error || "Erro ao salvar categoria");
+    }
+  }, [categoryForm, editingCategory]);
 
   const deleteCategory = useCallback(async (cat) => {
     if (!window.confirm(`Deseja excluir a categoria "${cat.name}"?`)) return;
@@ -277,7 +300,11 @@ const saveCategory = useCallback(async () => {
       const res = await api.delete(`/categories/${cat.id}`);
       if (res.data.success) {
         toast.success("Categoria excluída!");
-        loadCategories();
+        
+        // Recarregar categorias
+        const res2 = await api.get("/categories");
+        const all = res2.data?.data || [];
+        setCategories(all.filter(c => c.is_template == true || c.is_template === 1));
       } else {
         toast.error(res.data.error || "Erro ao excluir categoria");
       }
@@ -285,7 +312,7 @@ const saveCategory = useCallback(async () => {
       console.error("Erro ao excluir categoria:", error);
       toast.error("Erro ao excluir categoria");
     }
-  }, [loadCategories]);
+  }, []);
 
   // ===== MEDIA UPLOAD HANDLERS =====
   const handleImageUpload = useCallback(async (e) => {
@@ -369,6 +396,23 @@ const saveCategory = useCallback(async () => {
     toast.success('Vídeo removido');
   }, []);
 
+// ===== EXTRA FILES HANDLER =====
+const handleExtraFilesChange = (event) => {
+  const files = Array.from(event.target.files || []);
+  const valid = files.filter(
+    (f) => f.type === "image/png" || f.type === "image/jpeg"
+  );
+
+  if (valid.length !== files.length) {
+    toast.error("Apenas PNG e JPG são permitidos no momento.");
+  }
+
+  setExtraFiles((prev) => [...prev, ...valid]);
+};
+
+
+
+
   // ===== TEMPLATE MANAGEMENT =====
   const openTemplateDialog = useCallback(() => {
     setEditingTemplate(null);
@@ -413,7 +457,6 @@ const saveCategory = useCallback(async () => {
       let body;
       const headers = { 'Authorization': `Bearer ${token}` };
 
-      // FormData se houver arquivos
       if (templateForm.videoFile || templateForm.imageFile) {
         body = new FormData();
         body.append("title", templateForm.title);
@@ -435,7 +478,6 @@ const saveCategory = useCallback(async () => {
         if (templateForm.imageFile) body.append("file", templateForm.imageFile);
         if (templateForm.videoFile) body.append("video", templateForm.videoFile);
       } else {
-        // JSON se não houver arquivos
         headers["Content-Type"] = "application/json";
         body = JSON.stringify({
           title: templateForm.title,
@@ -459,7 +501,11 @@ const saveCategory = useCallback(async () => {
         setIsTemplateDialogOpen(false);
         setEditingTemplate(null);
         setTemplateForm(INITIAL_TEMPLATE_FORM);
-        queryClient.invalidateQueries(["templates"]);
+        
+        // Recarregar templates
+        const res2 = await api.get("/templates");
+        setTemplates(res2.data?.data || []);
+        setExtraFiles([]);   // limpa anexos após salvar template
 
       } else {
         toast.error(response.data.error || "Erro ao salvar template");
@@ -477,14 +523,125 @@ const saveCategory = useCallback(async () => {
       const res = await api.delete(`/templates/${id}`);
       if (res.data.success) {
         toast.success("Template excluído!");
-        queryClient.invalidateQueries(["templates"]);
-
+        
+        // Recarregar templates
+        const res2 = await api.get("/templates");
+        setTemplates(res2.data?.data || []);
       } else {
         toast.error(res.data.error || "Erro ao excluir template");
       }
     } catch (error) {
       console.error("Erro ao excluir template:", error);
       toast.error("Erro ao excluir template");
+    }
+  }, []);
+
+// PATCH: Adicionar suporte ao campo platform no handleSaveTemplate
+
+// 📍 LOCALIZAÇÃO: TemplatesPage.jsx
+// 🔍 ENCONTRE a função handleSaveTemplate (aproximadamente linha 312)
+// ✏️ SUBSTITUA o trecho do jsonPayload por:
+
+const handleSaveTemplate = useCallback(async (payload, templateId) => {
+
+  // PATCH 2.2 — transformar payload em FormData se houver arquivos extras
+if (payload && ! (payload instanceof FormData)) {
+  if (Array.isArray(extraFiles) && extraFiles.length > 0) {
+
+    console.log("📦 PATCH 2.2 → Convertendo JSON para FormData por causa de extraFiles");
+
+    const fd = new FormData();
+
+    // Transferir todos os campos do JSON para FormData
+    Object.keys(payload).forEach((key) => {
+      if (key === "tags" && Array.isArray(payload.tags)) {
+        fd.append("tags", payload.tags.join(","));
+      } else if (key === "category_id") {
+        fd.append("category_id", payload.category_id || "");
+      } else if (payload[key] !== undefined && payload[key] !== null) {
+        fd.append(key, payload[key]);
+      }
+    });
+
+    // 🔥 Adicionar os arquivos extras
+    extraFiles.forEach((file) => {
+      fd.append("extra_files", file);
+    });
+
+    // Substituir payload original
+    payload = fd;
+  }
+}
+
+    try {
+      console.log("🔍 DEBUG - handleSaveTemplate chamado:", { payload, templateId });
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error("Sessão expirada. Faça login novamente.");
+        return;
+      }
+
+      // ✅ Mostrar toast de loading
+      const toastId = toast.loading(templateId ? "Atualizando template..." : "Criando template...");
+
+      const isFormData = payload instanceof FormData;
+      const url = templateId ? `/templates/${templateId}` : "/templates";
+      const method = templateId ? "PUT" : "POST";
+
+      let response;
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      if (isFormData) {
+        // Upload com FormData (imagem/vídeo)
+        response = method === "PUT"
+          ? await api.put(url, payload, { headers })
+          : await api.post(url, payload, { headers });
+      } else {
+        // Envio JSON simples
+        headers["Content-Type"] = "application/json";
+        
+        const jsonPayload = {
+          title: payload.title,
+          content: payload.content,
+          description: payload.description,
+          tags: Array.isArray(payload.tags) ? payload.tags : [],
+          category_id: payload.categories?.[0] || null,
+          platform: payload.platform || null,  // ✅ ADICIONAR ESTA LINHA
+          image_url: payload.image_url || "",
+          video_url: payload.video_url || "",
+          youtube_url: payload.youtube_url || "",
+          thumb_url: payload.thumb_url || "",
+        };
+
+        response = method === "PUT"
+          ? await api.put(url, jsonPayload, { headers })
+          : await api.post(url, jsonPayload, { headers });
+      }
+
+      if (response.data.success) {
+        // ✅ RECARREGAR templates ANTES de fechar o modal
+        console.log("✅ Template salvo, recarregando lista...");
+        const res2 = await api.get("/templates");
+        console.log("✅ Templates recarregados:", res2.data?.data?.length);
+        setTemplates(res2.data?.data || []);
+        
+        // ✅ Atualizar toast
+        toast.success(templateId ? "Template atualizado!" : "Template criado!", {
+          id: toastId,
+        });
+        
+        // ✅ Fechar modal APÓS recarregar
+        setIsTemplateModalOpen(false);
+        setSelectedTemplateForModal(null);
+      } else {
+        toast.error(response.data.error || "Erro ao salvar template", {
+          id: toastId,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erro ao salvar template:", error);
+      toast.error(error.response?.data?.error || "Erro ao salvar template");
     }
   }, []);
 
@@ -510,7 +667,12 @@ const saveCategory = useCallback(async () => {
       });
 
       if (res.data.success) {
-        toast.success("Template adicionado com sucesso!");
+        toast.success("✅ Prompt criado com sucesso!");
+        
+        // ✅ ADICIONAR ESTAS LINHAS:
+        queryClient.invalidateQueries(["prompts"]);
+        queryClient.invalidateQueries(["stats"]);
+        
         setIsUseTemplateDialogOpen(false);
         setSelectedTemplate(null);
         setUseTemplateForm(INITIAL_USE_TEMPLATE_FORM);
@@ -521,7 +683,7 @@ const saveCategory = useCallback(async () => {
       console.error("Erro ao usar template:", error);
       toast.error("Erro ao usar template");
     }
-  }, [selectedTemplate, useTemplateForm]);
+  }, [selectedTemplate, useTemplateForm, queryClient]); // ✅ Adicionar queryClient nas dependências
 
   // ===== PREVIEW HANDLERS =====
   const handleOpenImage = useCallback((url, title = "") => {
@@ -543,18 +705,11 @@ const saveCategory = useCallback(async () => {
     }
   }, []);
 
-
-// ===== LOAD INITIAL DATA =====
-useEffect(() => {
-  loadCategories();
-  loadMyCategories();
-}, [loadCategories, loadMyCategories]);
-
-
   // ===== FILTERED TEMPLATES =====
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
-      const matchCat = selectedCategory === "Todos" || t.category_name === selectedCategory;
+      const matchCat = selectedCategory === "Todos" || 
+                       t.category?.name === selectedCategory;
       const matchSearch = t.title?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchCat && matchSearch;
     });
@@ -563,46 +718,37 @@ useEffect(() => {
   // ===== RENDER =====
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      {/* Header */}
-<header className="bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] sticky top-0 z-50">
+      <header className="bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] sticky top-0 z-50">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-           <button
-  onClick={() => window.history.back()}
+<button
+  onClick={onBack}  // ✅ Chama a função que volta pro PromptManager
   className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
   aria-label="Voltar"
 >
+  <ArrowLeft className="w-4 h-4 text-gray-700" />
+  <span className="text-sm font-medium text-gray-700">Voltar</span>
+</button>
 
-              <ArrowLeft className="w-4 h-4 text-gray-700" />
-              <span className="text-sm font-medium text-gray-700">Voltar</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 lg:hidden">
+                <BookText className="w-5 h-5 text-green-600" />
+                <span className="text-lg font-semibold text-gray-900">Templates</span>
+              </div>
 
-            {/* TÍTULO — VERSÃO RESPONSIVA */}
-<div className="flex items-center gap-2">
-
-  {/* MOBILE: versão curta */}
-  <div className="flex items-center gap-2 lg:hidden">
-    <BookText className="w-5 h-5 text-green-600" />
-    <span className="text-lg font-semibold text-gray-900">Templates</span>
-  </div>
-
-  {/* DESKTOP: versão completa */}
-  <div className="hidden lg:flex items-center gap-2">
-    <BookText className="w-6 h-6 text-green-600" />
-    <span className="text-xl font-semibold text-gray-900">
-      Biblioteca de Templates
-    </span>
-  </div>
-
-</div>
-
+              <div className="hidden lg:flex items-center gap-2">
+                <BookText className="w-6 h-6 text-green-600" />
+                <span className="text-xl font-semibold text-gray-900">
+                  Biblioteca de Templates
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
             {user?.is_admin && (
               <Button
                 onClick={openCreateTemplate}
-
                 className="hidden lg:flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:opacity-90 hover:shadow-lg transition px-4 py-2 rounded-lg"
               >
                 <Plus className="w-4 h-4" />
@@ -621,7 +767,6 @@ useEffect(() => {
         </div>
       </header>
 
-      {/* Overlay mobile */}
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-40 lg:hidden"
@@ -631,7 +776,6 @@ useEffect(() => {
 
       <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
-          {/* Sidebar */}
           <aside
             className={`fixed lg:static top-0 left-0 h-full lg:h-auto bg-white lg:bg-transparent w-64 lg:w-[240px] shadow-lg lg:shadow-none p-5 rounded-r-xl lg:rounded-xl transform transition-transform duration-300 ease-in-out z-50 ${
               isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -740,7 +884,6 @@ useEffect(() => {
             </div>
           </aside>
 
-          {/* Main content */}
           <main className="flex flex-col gap-6">
             <div className="bg-white rounded-xl p-4 flex items-center gap-3 shadow-sm">
               <Search className="text-gray-400 w-5 h-5" />
@@ -764,11 +907,11 @@ useEffect(() => {
             </div>
 
             <PromptGrid
-              items={filteredTemplates}
+              prompts={filteredTemplates}
               isLoading={loading}
               CardComponent={({ prompt, ...rest }) => (
-  <TemplateCard template={prompt} {...rest} user={user} />
-)}
+                <TemplateCard template={prompt} {...rest} user={user} />
+              )}
               onEdit={openEditTemplate}
               onDelete={deleteTemplate}
               onShare={openUseTemplateDialog}
@@ -845,11 +988,22 @@ useEffect(() => {
         </DialogContent>
       </Dialog>
 
-  {/* NOVO MODAL — TemplateModal.jsx */}
 <TemplateModal
-  open={isTemplateModalOpen}
-  onClose={() => setIsTemplateModalOpen(false)}
+  isOpen={isTemplateModalOpen}
+  onClose={() => {
+    setIsTemplateModalOpen(false);
+    setSelectedTemplateForModal(null);
+    setExtraFiles([]);   // limpa anexos ao fechar modal
+
+  }}
+  onSave={handleSaveTemplate}
   template={selectedTemplateForModal}
+  categories={categories}
+  
+  /* 🟦 NOVAS PROPRIEDADES — ETAPA 1.3 */
+  extraFiles={extraFiles}
+  setExtraFiles={setExtraFiles}
+  handleExtraFilesChange={handleExtraFilesChange}
 />
 
 
@@ -921,46 +1075,73 @@ useEffect(() => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Preview Imagem */}
-      <Dialog open={imagePreview.open} onOpenChange={(open) => setImagePreview({ ...imagePreview, open })}>
-        <DialogContent className="max-w-[90vw] max-h-[90vh] p-0 overflow-hidden bg-white">
-          <DialogHeader className="p-6 pb-3 border-b bg-white">
-            <DialogTitle className="text-lg text-gray-900">
-              {imagePreview.title || "Imagem do Template"}
-            </DialogTitle>
-            <DialogDescription className="text-gray-600">Visualização da imagem</DialogDescription>
-          </DialogHeader>
-          
-          <div className="relative w-full h-full max-h-[70vh] overflow-auto bg-gray-50 flex items-center justify-center p-6">
-            <img
-              src={imagePreview.url}
-              alt={imagePreview.title}
-              className="max-w-full max-h-full object-contain"
-            />
+  {/* Modal Preview Imagem */}
+      {imagePreview.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
+          <div className="relative w-full max-w-4xl bg-black rounded-xl overflow-hidden">
+            {/* HEADER */}
+            <div className="flex justify-between items-center px-4 py-3 bg-black/70">
+              <h3 className="text-white font-semibold truncate flex-1 mr-4">
+                {imagePreview.title || "Imagem do Template"}
+              </h3>
+
+              <div className="flex gap-2">
+                <Button 
+                  onClick={async () => {
+                    try {
+                      toast.info("⏳ Baixando imagem...");
+                      
+                      const extension = imagePreview.url.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
+                      const filename = `${imagePreview.title || 'template'}.${extension}`;
+                      
+                      const response = await fetch(imagePreview.url);
+                      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                      
+                      const blob = await response.blob();
+                      const blobUrl = window.URL.createObjectURL(blob);
+                      
+                      const link = document.createElement("a");
+                      link.href = blobUrl;
+                      link.download = filename;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      
+                      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+                      
+                      toast.success("✅ Download concluído!");
+                    } catch (error) {
+                      console.error("❌ Erro ao baixar imagem:", error);
+                      toast.error("Erro ao baixar. Abrindo em nova aba...");
+                      window.open(imagePreview.url, "_blank");
+                    }
+                  }}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Download className="w-4 h-4 mr-1" /> Baixar
+                </Button>
+                
+                <Button 
+                  onClick={() => setImagePreview({ open: false, url: "", title: "" })}
+                  className="bg-gray-700 text-white hover:bg-gray-600"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {/* CONTEÚDO */}
+            <div className="bg-black flex items-center justify-center">
+              <img
+                src={imagePreview.url}
+                alt={imagePreview.title}
+                className="w-full h-auto max-h-[80vh] object-contain"
+                loading="lazy"
+              />
+            </div>
           </div>
-          
-          <div className="flex justify-end gap-2 p-6 pt-3 border-t border-gray-200 bg-white">
-            <Button 
-              variant="outline" 
-              onClick={() => setImagePreview({ open: false, url: "", title: "" })}
-            >
-              Fechar
-            </Button>
-            <Button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = imagePreview.url;
-                link.download = `${imagePreview.title || 'template'}.png`;
-                link.click();
-              }}
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:opacity-90"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Baixar Imagem
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      )}
 
       {/* Modal Preview Vídeo */}
       <Dialog open={videoPreview.open} onOpenChange={(open) => setVideoPreview({ ...videoPreview, open })}>
