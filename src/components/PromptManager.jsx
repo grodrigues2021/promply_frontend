@@ -230,9 +230,7 @@ export default function PromptManager({
   };
 
 
-  // Fallback final
-  return `${backendBase}/${url}`;
-};
+
 
 
   const handleImageUpload = async (e) => {
