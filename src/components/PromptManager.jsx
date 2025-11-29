@@ -68,7 +68,7 @@ import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStats } from "../hooks/useStats";
 import { debounce } from "lodash";
-
+import { resolveMediaUrl } from "../lib/media";
 
 
 const isMobile = window.innerWidth < 768;
@@ -229,26 +229,6 @@ export default function PromptManager({
     return isValid;
   };
 
-  const resolveMediaUrl = (url) => {
-  if (!url) return "";
-
-  // Base64 ou blob
-  if (url.startsWith("data:") || url.startsWith("blob:")) {
-    return url;
-  }
-
-  // URLs externas
-  if (url.startsWith("http")) {
-    return url;
-  }
-
-  // Garantir que /api não esteja presente no prefixo
-  const backendBase = API_BASE_URL.replace("/api", "");
-
-  // Caminho local vindo do backend (edição)
-  if (url.startsWith("/")) {
-    return `${backendBase}${url}`;
-  }
 
   // Fallback final
   return `${backendBase}/${url}`;
@@ -1532,7 +1512,8 @@ if (key === "video") {
 
                 <div className="flex items-center gap-2">
                   <a
-                    href={`${API_BASE_URL.replace("/api", "")}${file.file_url}`}
+                    href={resolveMediaUrl(file.file_url)}
+
                     download={file.file_name}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -1541,7 +1522,8 @@ if (key === "video") {
                       e.preventDefault();
 
                       const link = document.createElement("a");
-                      link.href = `${API_BASE_URL.replace("/api", "")}${file.file_url}`;
+                      link.href = resolveMediaUrl(file.file_url);
+
                       link.download = file.file_name;
                       link.style.display = "none";
                       document.body.appendChild(link);
