@@ -1531,7 +1531,6 @@ if (key === "video") {
                 <div className="flex items-center gap-2">
                   <a
                     href={`${API_BASE_URL.replace("/api", "")}${file.file_url}`}
-
                     download={file.file_name}
                     target="_blank"
                     rel="noopener noreferrer"

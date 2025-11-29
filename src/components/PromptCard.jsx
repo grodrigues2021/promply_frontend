@@ -367,9 +367,10 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
         // Garantir domínio do backend
         let backendHost = api.defaults.baseURL.replace("/api", "");
 
-        if (normalizedUrl.startsWith("/")) {
+        if (!normalizedUrl.startsWith("http")) {
           normalizedUrl = `${backendHost}${normalizedUrl}`;
         }
+
 
         imageUrlWithCacheBuster = `${normalizedUrl}?v=${timestamp}`;
       } else {
@@ -390,9 +391,10 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
       // Normalizar URL absoluta
       let backendHost = api.defaults.baseURL.replace("/api", "");
 
-      if (fixedThumb.startsWith("/")) {
+      if (!fixedThumb.startsWith("http")) {
         fixedThumb = `${backendHost}${fixedThumb}`;
       }
+
 
       // Cache-buster
       const t = prompt.updated_at
@@ -414,9 +416,11 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
 
       // Montar URL absoluta
       let backendHost = api.defaults.baseURL.replace("/api", "");
-      if (attachmentUrl.startsWith("/")) {
+      // Se for URL ABSOLUTA (B2 ou outro CDN), NÃO prefixa o backend
+      if (!attachmentUrl.startsWith("http")) {
         attachmentUrl = `${backendHost}${attachmentUrl}`;
       }
+
     }
 
     // 🎯 Prioridade final do preview
