@@ -866,14 +866,21 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
 
             {/* VÍDEO LOCAL - Apenas thumbnail clicável */}
             {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
-  <button
-    type="button"
-    onClick={() => {
-      const backend = api.defaults.baseURL.replace("/api", "");
-      openModal('video', `${backend}${mediaInfo.videoUrl}`);
-    }}
-    className="relative w-full h-full group/media overflow-hidden"
-  >
+            <button
+              type="button"
+              onClick={() => {
+                const backend = api.defaults.baseURL.replace("/api", "");
+
+                const finalVideoUrl =
+                  mediaInfo.videoUrl?.startsWith("http")
+                    ? mediaInfo.videoUrl
+                    : `${backend}${mediaInfo.videoUrl}`;
+
+                openModal("video", finalVideoUrl);
+              }}
+              className="relative w-full h-full group/media overflow-hidden"
+            >
+
 
                 {mediaInfo.thumbnailUrl ? (
                   <img
