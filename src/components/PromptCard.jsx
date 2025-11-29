@@ -20,7 +20,7 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
-
+import { resolveMediaUrl } from "../lib/media";
 
 
 
@@ -424,11 +424,13 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
     }
 
     // 🎯 Prioridade final do preview
-    const thumbnailUrl =
-      youtubeThumbnail ||
-      imageUrlWithCacheBuster ||
-      thumbUrlWithCache ||
-      attachmentUrl;
+    const thumbnailUrl = resolveMediaUrl(
+    youtubeThumbnail ||
+    imageUrlWithCacheBuster ||
+    thumbUrlWithCache ||
+    attachmentUrl
+  );
+
 
     return { 
       hasVideo,
@@ -875,10 +877,8 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
               onClick={() => {
                 const backend = api.defaults.baseURL.replace("/api", "");
 
-                const finalVideoUrl =
-                  mediaInfo.videoUrl?.startsWith("http")
-                    ? mediaInfo.videoUrl
-                    : `${backend}${mediaInfo.videoUrl}`;
+                const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
+
 
                 openModal("video", finalVideoUrl);
               }}
@@ -888,7 +888,7 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
 
                 {mediaInfo.thumbnailUrl ? (
                   <img
-                    src={mediaInfo.thumbnailUrl}
+                    src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
                     alt={prompt.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
@@ -920,12 +920,13 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
                 onClick={() => openModal('image', mediaInfo.thumbnailUrl)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
+              <img
+  src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
+  alt={prompt.title}
+  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+  loading="lazy"
+/>
+
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">

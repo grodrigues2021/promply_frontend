@@ -1,5 +1,6 @@
 import React from "react";
 import { X } from "lucide-react";
+import { resolveMediaUrl } from "../lib/media";
 
 const MediaModal = ({ type, prompt, onClose }) => {
   if (!prompt) return null;
@@ -38,7 +39,7 @@ const MediaModal = ({ type, prompt, onClose }) => {
 
         {isLocalVideo && (
           <video
-            src={prompt.video_url}
+            src={resolveMediaUrl(prompt.video_url)}
             controls
             autoPlay
             className="max-w-full max-h-[80vh] rounded-lg"
@@ -47,7 +48,7 @@ const MediaModal = ({ type, prompt, onClose }) => {
 
         {isImage && (
           <img
-            src={prompt.image_url}
+            src={resolveMediaUrl(prompt.image_url)}
             alt={prompt.title || "Imagem"}
             className="max-w-full max-h-[80vh] object-contain rounded-lg"
           />
