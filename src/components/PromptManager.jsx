@@ -665,12 +665,12 @@ const savePrompt = async () => {
 
   // Validação ANTES de setar isSaving
   if (!validateForm()) {
-    return; // ❌ NÃO seta isSaving se validação falhar
+    return;
   }
 
   try {
     console.log("🚀 SALVANDO PROMPT...");
-    setIsSaving(true); // ✅ Só seta DEPOIS da validação
+    setIsSaving(true);
 
     // Montagem do FormData
     const formData = new FormData();
@@ -684,17 +684,14 @@ const savePrompt = async () => {
     formData.append("is_favorite", promptForm.is_favorite);
     formData.append("tags", promptForm.tags || "");
 
-    // 🎥 Vídeo
     if (promptForm.videoFile instanceof File) {
       formData.append("video", promptForm.videoFile);
     }
 
-    // 📷 Imagem principal
     if (promptForm.imageFile instanceof File) {
       formData.append("image", promptForm.imageFile);
     }
 
-    // 📎 Arquivos extras
     if (extraFiles.length > 0) {
       extraFiles.forEach((file) => {
         formData.append("extra_files", file);
@@ -735,10 +732,6 @@ const savePrompt = async () => {
       // Invalida queries
       await queryClient.invalidateQueries(["prompts"]);
       await queryClient.invalidateQueries(["stats"]);
-
-      // ✅ FECHA O MODAL E RESETA
-      setIsPromptDialogOpen(false);
-      resetPromptForm();
     } else {
       toast.error(response.data?.error || "Erro ao salvar prompt");
     }
@@ -747,13 +740,19 @@ const savePrompt = async () => {
     console.error("❌ ERRO AO SALVAR PROMPT:", error);
     toast.error("Erro ao salvar prompt");
   } finally {
-    // ✅ SEMPRE RESETA isSaving
+    // ✅ SEMPRE reseta isSaving
+    console.log("🔴 FINALLY: resetando isSaving");
     setIsSaving(false);
     
-    // ✅ GARANTIA EXTRA: força reset após 500ms
+    // ✅ FECHA O MODAL SEMPRE (movido para cá)
+    setIsPromptDialogOpen(false);
+    resetPromptForm();
+    
+    // Garantia extra
     setTimeout(() => {
       setIsSaving(false);
-    }, 500);
+      console.log("🟡 TIMEOUT: garantia de reset isSaving");
+    }, 300);
   }
 };
 
@@ -1137,9 +1136,6 @@ if (!open) {
       }
     }}
   >
-
-
-
 
     <DialogContent
       className="
