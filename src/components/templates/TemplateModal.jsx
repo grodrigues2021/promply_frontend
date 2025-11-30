@@ -567,9 +567,10 @@ const handleDeleteExistingFile = async (fileId) => {
     <div className="flex items-center gap-3">
       {/* Botão Baixar */}
       <a
-        href={`http://localhost:5000/media/templates/${template?.id}/files/${file.filename}`}
-
+        href={file.url}
         download={file.filename}
+        target="_blank"              // ✅ Abre em nova aba
+        rel="noopener noreferrer"
         className="text-blue-600 hover:text-blue-800 text-sm underline"
       >
         Baixar
