@@ -1168,7 +1168,7 @@ if (!open) {
       }
     }}
   >
-    <DialogOverlay className="fixed inset-0 bg-black/40 z-[10050]" />
+
 
 
 
@@ -1772,7 +1772,7 @@ if (key === "video") {
       if (!open) resetCategoryForm();
     }}
   >
-    <DialogOverlay className="fixed inset-0 bg-black/40 z-[10050]" />
+
     <DialogContent
       className="
         max-w-md w-full rounded-xl bg-white dark:bg-slate-900
