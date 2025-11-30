@@ -643,38 +643,23 @@ useEffect(() => {
     : [];
 
 const savePrompt = async () => {
+  // Prevenção de duplo clique
+  if (isSaving) {
+    console.log("⚠️ Já está salvando, ignorando clique duplo");
+    return;
+  }
+
+  // Validação ANTES de setar isSaving
+  if (!validateForm()) {
+    return; // ❌ NÃO seta isSaving se validação falhar
+  }
+
   try {
     console.log("🚀 SALVANDO PROMPT...");
-
-    // Prevenção de duplo clique
-    if (isSaving) {
-      console.log("⚠️ Já está salvando, ignorando clique duplo");
-      return;
-    }
-
-    // Validação
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsSaving(true);
-    
-
-    // 🔍 DEBUG CRÍTICO - ADICIONE AQUI
-    console.log("🎬 DEBUG ANTES DE ENVIAR:", {
-      selectedMedia: promptForm.selectedMedia,
-      hasVideoFile: !!promptForm.videoFile,
-      videoFileName: promptForm.videoFile?.name,
-      videoFileSize: promptForm.videoFile?.size,
-      videoFileType: promptForm.videoFile?.type,
-      hasImageFile: !!promptForm.imageFile,
-      video_url: promptForm.video_url,
-      youtube_url: promptForm.youtube_url,
-    });
+    setIsSaving(true); // ✅ Só seta DEPOIS da validação
 
     // Montagem do FormData
     const formData = new FormData();
-
     formData.append("title", promptForm.title);
     formData.append("content", promptForm.content);
     formData.append("description", promptForm.description || "");
@@ -683,96 +668,61 @@ const savePrompt = async () => {
     formData.append("youtube_url", promptForm.youtube_url || "");
     formData.append("video_url", promptForm.video_url || "");
     formData.append("is_favorite", promptForm.is_favorite);
-
-    // ✅ TAGS - ADICIONE AQUI:
     formData.append("tags", promptForm.tags || "");
 
-    // 🎥 VÍDEO - ADICIONE LOG AQUI
+    // 🎥 Vídeo
     if (promptForm.videoFile instanceof File) {
-      console.log("🎥 ANEXANDO VÍDEO AO FORMDATA:", {
-        name: promptForm.videoFile.name,
-        size: promptForm.videoFile.size,
-        type: promptForm.videoFile.type,
-      });
       formData.append("video", promptForm.videoFile);
-    } else {
-      console.log("⚠️ VÍDEO NÃO É FILE:", typeof promptForm.videoFile);
     }
 
     // 📷 Imagem principal
     if (promptForm.imageFile instanceof File) {
-      console.log("📷 ANEXANDO IMAGEM AO FORMDATA:", promptForm.imageFile.name);
       formData.append("image", promptForm.imageFile);
     }
-// 📎 ARQUIVOS EXTRAS
-if (extraFiles.length > 0) {
-  console.log("📎 Adicionando arquivos extras:", extraFiles.length);
-  extraFiles.forEach((file, index) => {
-    console.log("📎 Enviando extra_files:", file.name);
-    formData.append("extra_files", file);
-  });
-} else {
-  console.log("📎 Nenhum arquivo extra selecionado.");
-}
-    // 🔍 LOG FINAL DO FORMDATA
-    console.log("📦 CONTEÚDO DO FORMDATA:");
-    for (let [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(`  ${key}: [FILE] ${value.name} (${value.size} bytes)`);
-      } else {
-        console.log(`  ${key}: ${value}`);
-      }
+
+    // 📎 Arquivos extras
+    if (extraFiles.length > 0) {
+      extraFiles.forEach((file) => {
+        formData.append("extra_files", file);
+      });
     }
 
     // POST ou PUT
     let response;
     if (isEditMode === true && editingPrompt?.id) {
-      console.log("📤 ENVIANDO PUT para:", `/prompts/${editingPrompt.id}`);
       response = await api.put(`/prompts/${editingPrompt.id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
     } else {
-      console.log("📤 ENVIANDO POST para:", `/prompts`);
       response = await api.post("/prompts", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
     }
 
-   console.log("📥 RESPOSTA DO BACKEND:", response.data);
+    console.log("📥 RESPOSTA DO BACKEND:", response.data);
 
-    // ✅ ADICIONE ESTAS LINHAS APÓS O CONSOLE.LOG:
     if (response.data?.success) {
       toast.success(
         isEditMode ? "✅ Prompt atualizado!" : "✅ Prompt criado!"
       );
+
+      // Atualiza lista local
       setPrompts((prev) =>
-  prev.map((p) =>
-    editingPrompt && p.id === editingPrompt.id
-      ? {
-          ...p,
-          title: promptForm.title,
-          content: promptForm.content,
-          description: promptForm.description,
-          platform: promptForm.platform,
-          category_id: promptForm.category_id,
-          tags: promptForm.tags,
-          youtube_url: promptForm.youtube_url,
-          video_url: promptForm.video_url,
-          image_url: promptForm.image_url,
-          is_favorite: promptForm.is_favorite,
-        }
-      : p
-  )
-);
+        prev.map((p) =>
+          editingPrompt && p.id === editingPrompt.id
+            ? { ...p, ...promptForm }
+            : p
+        )
+      );
 
-  // 🧹 REMOVER RASCUNHO APÓS SALVAR ✔
-  localStorage.removeItem("prompt-draft");
+      // Remove rascunho
+      localStorage.removeItem("prompt-draft");
 
-      // Invalida as queries para recarregar a lista
+      // Invalida queries
       await queryClient.invalidateQueries(["prompts"]);
       await queryClient.invalidateQueries(["stats"]);
-      
-      // Fecha o modal e reseta o formulário
+
+      // ✅ FECHA O MODAL E RESETA
       setIsPromptDialogOpen(false);
       resetPromptForm();
     } else {
@@ -783,8 +733,13 @@ if (extraFiles.length > 0) {
     console.error("❌ ERRO AO SALVAR PROMPT:", error);
     toast.error("Erro ao salvar prompt");
   } finally {
+    // ✅ SEMPRE RESETA isSaving
     setIsSaving(false);
     
+    // ✅ GARANTIA EXTRA: força reset após 500ms
+    setTimeout(() => {
+      setIsSaving(false);
+    }, 500);
   }
 };
 
