@@ -566,22 +566,26 @@ const handleDeleteExistingFile = async (fileId) => {
 
     <div className="flex items-center gap-3">
       {/* Botão Baixar */}
-      <button
-        onClick={() => {
-            // Cria link temporário e clica programaticamente
-            const link = document.createElement('a');
-            link.href = file.url;
-            link.download = file.filename;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }}
-        className="text-blue-600 hover:text-blue-800 text-sm underline cursor-pointer bg-transparent border-0 p-0"
-        >
-        Baixar
-        </button>
+      {/* Botão Baixar - SEM PISCADA */}
+<button
+  onClick={(e) => {
+    e.preventDefault(); // ✅ ADICIONAR ESTA LINHA
+    e.stopPropagation();
+    
+    // Cria link temporário e clica programaticamente
+    const link = document.createElement('a');
+    link.href = file.url;
+    link.download = file.filename;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }}
+  className="text-blue-600 hover:text-blue-800 text-sm underline cursor-pointer bg-transparent border-0 p-0"
+>
+  Baixar
+</button>
       {/* Botão Remover */}
       <button
         onClick={() => handleDeleteExistingFile(file.id)}
