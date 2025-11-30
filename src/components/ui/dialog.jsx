@@ -11,7 +11,7 @@ const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
 /**
- * 🔹 Overlay — camada escura que cobre o fundo
+ * 🔹 Overlay – camada escura que cobre o fundo
  */
 const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
@@ -26,11 +26,12 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 /**
- * 🔹 Conteúdo — o modal em si
+ * 🔹 Conteúdo – o modal em si
+ * ✅ CORREÇÃO: Removido <DialogOverlay /> automático
  */
 const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
   <DialogPortal>
-    <DialogOverlay />
+    {/* ✅ REMOVIDO: <DialogOverlay /> - O Radix já gerencia automaticamente */}
     <DialogPrimitive.Content
       ref={ref}
       className={cn(

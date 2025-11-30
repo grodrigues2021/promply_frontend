@@ -623,6 +623,20 @@ useEffect(() => {
   }
 }, [isMobileSidebarOpen]);
 
+// Força reset do isSaving quando modal fecha
+useEffect(() => {
+  if (!isPromptDialogOpen) {
+    setIsSaving(false);
+    
+    // Limpeza adicional: remove qualquer overlay órfão
+    const orphanOverlays = document.querySelectorAll('[data-radix-dialog-overlay]');
+    orphanOverlays.forEach(overlay => {
+      if (overlay.getAttribute('data-state') === 'closed') {
+        overlay.remove();
+      }
+    });
+  }
+}, [isPromptDialogOpen]);
 
   const filteredPrompts = Array.isArray(prompts)
     ? prompts.filter((prompt) => {
