@@ -1146,15 +1146,7 @@ if (!open) {
         p-6 z-[10051]
       "
     >
-      {/* Overlay de salvamento */}
-      {isSaving && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-black/50 z-50 flex items-center justify-center rounded-xl">
-          <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-lg flex items-center gap-3">
-            <div className="w-6 h-6 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm font-medium">Salvando prompt...</span>
-          </div>
-        </div>
-      )}
+  
 
       <DialogHeader>
         <DialogTitle>
