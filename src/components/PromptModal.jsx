@@ -64,24 +64,18 @@ export default function PromptModal({
   resetPromptForm,
 }) {
 
+const apiBaseUrl =
+  import.meta.env.VITE_API_URL?.replace('/api', '') ||  // ✅ USA A VARIÁVEL CORRETA
+  '';                                 // Dev sem backend
+   
 
-  useEffect(() => {
-  if (!promptForm) {
-    console.log("⚠️ promptForm ainda não foi inicializado");
-    return;
-  }
-  
-  console.log("🟧 PROMPT FORM RECEIVED:", promptForm);
-  console.log("  📸 image_url:", promptForm.image_url);
-  console.log("  🎬 video_url:", promptForm.video_url);
-  console.log("  🔗 youtube_url:", promptForm.youtube_url);
-  console.log("  📺 selectedMedia:", promptForm.selectedMedia);
-}, [promptForm]);
+const handleMediaTypeClick = (type) => {
+  setPromptForm((prev) => ({
+    ...prev,
+    selectedMedia: type,
+  }));
+};
 
-
-   useEffect(() => {
-    console.log("🟧 PROMPT FORM RECEIVED:", promptForm);
-  }, [promptForm]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -194,206 +188,178 @@ export default function PromptModal({
   </section>
 
 
+{/* 🔹 Seção Mídia */}
 <section className="space-y-6 md:col-span-1">
-  <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-    Mídia
+  {/* TÍTULO AJUSTADO */}
+  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+    Mídia (opcional)
   </h3>
 
-  
-  <div className="space-y-2">
-    <Label className="text-sm font-medium">Tipo de mídia</Label>
+  {/* BOTÕES DE SELEÇÃO MAIS ELEGANTES */}
+  <div className="flex flex-wrap gap-2">
+    {/* Botão de imagem */}
+    <button
+      type="button"
+      onClick={() => handleMediaTypeClick("image")}
+      className={`px-3 py-1.5 rounded-lg border transition
+        ${
+          promptForm.selectedMedia === "image"
 
-    <div className="flex flex-wrap gap-2">
-      {[
-        { key: "none", label: "Nenhum", icon: "❌" },
-        { key: "image", label: "Imagem", icon: "📷" },
-        { key: "video", label: "Vídeo", icon: "🎥" },
-        { key: "youtube", label: "YouTube", icon: "🔗" },
-      ].map(({ key, label, icon }) => (
-        <button
-          key={key}
-          type="button"
-          onClick={() =>
-            setPromptForm((prev) => {
-              const updated = { ...prev, selectedMedia: key };
+            ? "bg-blue-50 border-blue-500 text-blue-600"
+            : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+        }`}
+    >
+      Imagem
+    </button>
 
-              if (key === "image") {
-                updated.video_url = "";
-                updated.youtube_url = "";
-                updated.videoFile = null;
-              }
-              if (key === "video") {
-                updated.youtube_url = "";
-              }
-              if (key === "youtube") {
-                updated.image_url = "";
-                updated.video_url = "";
-                updated.imageFile = null;
-                updated.videoFile = null;
-              }
-              if (key === "none") {
-                updated.image_url = "";
-                updated.video_url = "";
-                updated.youtube_url = "";
-                updated.imageFile = null;
-                updated.videoFile = null;
-              }
-              return updated;
-            })
-          }
-          className={`px-3 py-1.5 text-sm rounded-md border transition ${
-            promptForm.selectedMedia === key
-              ? "bg-blue-600 text-white border-blue-600"
-              : "bg-transparent border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-          }`}
-        >
-          <span className="mr-1">{icon}</span> {label}
-        </button>
-      ))}
-    </div>
+    {/* Botão de vídeo */}
+    <button
+      type="button"
+      onClick={() => handleMediaTypeClick("video")}
+      className={`px-3 py-1.5 rounded-lg border transition
+        ${
+          promptForm.selectedMedia === "video"
+            ? "bg-blue-50 border-blue-500 text-blue-600"
+            : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+        }`}
+    >
+      Vídeo
+    </button>
+
+    {/* Botão de YouTube */}
+    <button
+      type="button"
+      onClick={() => handleMediaTypeClick("youtube")}
+      className={`px-3 py-1.5 rounded-lg border transition
+        ${
+      promptForm.selectedMedia === "youtube"
+            ? "bg-blue-50 border-blue-500 text-blue-600"
+            : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+        }`}
+    >
+      YouTube
+    </button>
   </div>
 
-  
-{promptForm.selectedMedia === "image" && (
-  <div className="space-y-3">
-    <Label>Upload de imagem</Label>
+  {/* ÁREA DE PREVIEW AJUSTADA */}
+  {promptForm.selectedMedia === "image" && (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+      {promptForm.image_url && (
+        <div className="relative">
+          <img
+            src={
+              promptForm.image_url.startsWith("http")
+                ? promptForm.image_url
+                : `${apiBaseUrl}${promptForm.image_url}`
+            }
+            alt="Pré-visualização"
+            className="w-full rounded-lg object-contain"
+          />
+          <button
+            type="button"
+            onClick={removeImage}
+            className="absolute top-2 right-2 bg-white border border-gray-300 rounded-full p-1 shadow-sm hover:bg-gray-100"
+          >
+            ❌
+          </button>
+        </div>
+      )}
 
-    {promptForm.image_url ? (
-      <div className="relative w-full h-48 rounded-lg overflow-hidden border">
-        <img
-          src={
-            // ✅ RESOLVER URL RELATIVA PARA ABSOLUTA
-            promptForm.image_url.startsWith('http') 
-              ? promptForm.image_url 
-              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${promptForm.image_url}`
-          }
-          alt="Preview"
-          className="object-contain w-full h-full"
-          onError={(e) => {
-            console.error("❌ Erro ao carregar imagem:", promptForm.image_url);
-            e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' dy='.3em' fill='%23ccc'%3EErro%3C/text%3E%3C/svg%3E";
-          }}
-        />
-        <button
-          type="button"
-          onClick={removeImage}
-          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    ) : (
-      <label
-        htmlFor="prompt-image-upload"
-        className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800"
-      >
-        <span className="text-sm text-slate-600 dark:text-slate-300">
-          Selecione uma imagem
-        </span>
+      {!promptForm.image_url && (
+        <p className="text-sm text-gray-500">
+          Selecione uma imagem para visualizar aqui.
+        </p>
+      )}
+
+      {/* Upload */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Enviar imagem
+        </label>
         <input
-          id="prompt-image-upload"
           type="file"
           accept="image/*"
           onChange={handleImageUpload}
-          className="hidden"
+          className="w-full text-sm text-gray-700"
         />
-      </label>
-    )}
-  </div>
-)}
-
-  
-{promptForm.selectedMedia === "video" && (
-  <div className="space-y-3">
-    <Label>Upload de vídeo</Label>
-
-    <input
-      type="file"
-      accept="video/mp4,video/webm,video/ogg"
-      onChange={handleVideoUpload}
-      className="border p-2 rounded-lg w-full bg-white dark:bg-slate-800"
-    />
-
-    <div className="w-full rounded-lg overflow-hidden bg-black flex justify-center items-center h-[260px]">
-      {promptForm.videoFile ? (
-        // Vídeo novo (upload local)
-        <video
-          src={URL.createObjectURL(promptForm.videoFile)}
-          controls
-          className="max-h-[260px] w-auto rounded-lg"
-        />
-      ) : promptForm.video_url ? (
-        // Vídeo existente (do banco)
-        <video
-          src={
-            promptForm.video_url.startsWith('http') 
-              ? promptForm.video_url 
-              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || ''}${promptForm.video_url}`
-          }
-          controls
-          className="max-h-[260px] w-auto rounded-lg"
-          onError={(e) => {
-            console.error("❌ Erro ao carregar vídeo:", promptForm.video_url);
-          }}
-        />
-      ) : promptForm.image_url ? (
-        // Thumbnail
-        <img
-          src={promptForm.image_url}
-          alt="Thumb"
-          className="max-h-[260px] w-auto object-contain rounded-lg"
-        />
-      ) : (
-        // Placeholder
-        <div className="text-white text-sm">Nenhum vídeo selecionado</div>
-      )}
-    </div>
-  </div>
-)}
-
- 
-  {promptForm.selectedMedia === "youtube" && (
-    <div className="space-y-3">
-
-      <Label>Link do YouTube</Label>
-
-      <Input
-        type="text"
-        inputMode="url"
-        placeholder="https://www.youtube.com/watch?v=..."
-        value={promptForm.youtube_url || ""}
-        onChange={(e) =>
-          setPromptForm((prev) => ({
-            ...prev,
-            youtube_url: e.target.value.trim(),
-          }))
-        }
-      />
-
-      <div className="w-full rounded-lg overflow-hidden bg-black flex justify-center items-center h-[260px]">
-        {extractYouTubeId(promptForm.youtube_url) ? (
-          <div
-            onClick={() => window.open(promptForm.youtube_url, "_blank")}
-            className="cursor-pointer"
-          >
-            <img
-              src={getYouTubeThumbnail(promptForm.youtube_url)}
-              alt="Preview YouTube"
-              className="max-h-[260px] w-auto object-contain rounded-lg"
-              draggable={false}
-            />
-          </div>
-        ) : (
-          <div className="text-white text-sm select-none">
-            Cole um link válido do YouTube…
-          </div>
-        )}
       </div>
-
     </div>
   )}
 
+ {promptForm.selectedMedia === "video" && (
+  <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+    
+    {/* ✅ PRIORIDADE: videoFile (novo) → video_url (existente) → placeholder */}
+    
+    {promptForm.videoFile ? (
+      // 1️⃣ Mostra vídeo recém-selecionado
+      <video
+        controls
+        src={URL.createObjectURL(promptForm.videoFile)}
+        className="w-full rounded-lg"
+      />
+    ) : promptForm.video_url ? (
+      // 2️⃣ Mostra vídeo existente do banco
+      <video
+        controls
+        src={
+          promptForm.video_url.startsWith("http")
+            ? promptForm.video_url
+            : `${apiBaseUrl}${promptForm.video_url}`
+        }
+        className="w-full rounded-lg"
+      />
+    ) : (
+      // 3️⃣ Placeholder quando não tem vídeo
+      <p className="text-sm text-gray-500">
+        Envie um vídeo para visualizar aqui.
+      </p>
+    )}
+
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Enviar vídeo (MP4)
+      </label>
+      <input
+        type="file"
+        accept="video/mp4,video/webm,video/ogg"
+        onChange={handleVideoUpload}
+        className="w-full text-sm text-gray-700"
+      />
+    </div>
+  </div>
+)}
+
+  {promptForm.selectedMedia === "youtube" && (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4">
+      <label className="block text-sm font-medium text-gray-700">
+        URL do YouTube
+      </label>
+
+      <input
+        type="text"
+        value={promptForm.youtube_url}
+        onChange={(e) =>
+          setPromptForm((prev) => ({
+            ...prev,
+            youtube_url: e.target.value,
+          }))
+        }
+        placeholder="Cole o link do YouTube"
+        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:ring-2 focus:ring-blue-500"
+      />
+
+      {promptForm.youtube_url && (
+        <img
+          src={getYouTubeThumbnail(promptForm.youtube_url)}
+          alt="Thumbnail do YouTube"
+          className="w-full rounded-lg object-cover"
+        />
+      )}
+    </div>
+  )}
 </section>
+
 
 
 <section className="space-y-6 md:col-span-1">

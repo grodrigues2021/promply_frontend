@@ -366,7 +366,6 @@ export default function PromptManager({
     const backendBase = API_BASE_URL.replace("/api", ""); 
     const fullUrl = url.startsWith("http") ? url : backendBase + url;
 
-    console.log("🎥 VIDEO FINAL URL:", fullUrl);
 
     setCurrentVideoUrl(fullUrl);
     setShowVideoModal(true);
@@ -452,7 +451,7 @@ setIsEditMode(false);
   }, []);
 
 const editPrompt = useCallback((prompt) => {
-  console.log("🟦 EDIT PROMPT RAW DATA:", prompt);
+ 
 
   setIsEditMode(true);
   setEditingPrompt(prompt);
@@ -464,7 +463,6 @@ const editPrompt = useCallback((prompt) => {
     prompt.thumb_url ||
     "";
 
-  console.log("📸 NORMALIZED IMAGE:", normalizedImage); // ← ADICIONAR LOG
 
   // ✅ DETECÇÃO DO TIPO DE MÍDIA (CRÍTICO!)
   const mediaType = prompt.youtube_url
@@ -475,7 +473,6 @@ const editPrompt = useCallback((prompt) => {
     ? "image"
     : "none";
 
-  console.log("📺 MEDIA TYPE DETECTADO:", mediaType); // ← ADICIONAR LOG
 
   const formData = {
     id: prompt.id || null,
@@ -500,9 +497,6 @@ const editPrompt = useCallback((prompt) => {
     selectedMedia: mediaType, // ← DEVE SER "image" SE HOUVER IMAGEM
   };
 
-  console.log("🟩 FORM DATA BEFORE SET:", formData);
-  console.log("  📸 image_url no formData:", formData.image_url);
-  console.log("  📺 selectedMedia no formData:", formData.selectedMedia);
 
   setPromptForm(formData);
   setIsPromptDialogOpen(true);
@@ -611,14 +605,11 @@ const editPrompt = useCallback((prompt) => {
       if (event.data.type === "chat-detached") {
         setIsChatDetached(true);
         setShowChatModal(false);
-        console.log("✅ Chat destacado detectado");
       } else if (event.data.type === "chat-closed") {
         setIsChatDetached(false);
-        console.log("❌ Chat destacado fechado");
       } else if (event.data.type === "pong") {
         setIsChatDetached(true);
         setShowChatModal(false);
-        console.log("✅ Chat destacado já estava aberto");
       }
     };
 
@@ -677,7 +668,6 @@ useEffect(() => {
 const savePrompt = async () => {
   // Prevenção de duplo clique
   if (isSaving) {
-    console.log("⚠️ Já está salvando, ignorando clique duplo");
     return;
   }
 
@@ -687,7 +677,7 @@ const savePrompt = async () => {
   }
 
   try {
-    console.log("🚀 SALVANDO PROMPT...");
+
     setIsSaving(true);
 
     // Montagem do FormData
@@ -728,7 +718,6 @@ const savePrompt = async () => {
       });
     }
 
-    console.log("📥 RESPOSTA DO BACKEND:", response.data);
 
     if (response.data?.success) {
       toast.success(
@@ -755,11 +744,10 @@ const savePrompt = async () => {
     }
 
   } catch (error) {
-    console.error("❌ ERRO AO SALVAR PROMPT:", error);
     toast.error("Erro ao salvar prompt");
   } finally {
     // ✅ SEMPRE reseta isSaving
-    console.log("🔴 FINALLY: resetando isSaving");
+
     setIsSaving(false);
     
     // ✅ FECHA O MODAL SEMPRE (movido para cá)
@@ -773,7 +761,7 @@ setTimeout(() => {
     // Garantia extra
     setTimeout(() => {
       setIsSaving(false);
-      console.log("🟡 TIMEOUT: garantia de reset isSaving");
+      
     }, 300);
   }
 };
