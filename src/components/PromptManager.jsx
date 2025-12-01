@@ -133,6 +133,7 @@ export default function PromptManager({
     title: "",
     content: ""
   });
+  
 
   const [promptForm, setPromptForm] = useState({
     title: "",
