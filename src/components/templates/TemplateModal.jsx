@@ -567,16 +567,34 @@ const handleDeleteExistingFile = async (fileId) => {
     <div className="flex items-center gap-3">
       {/* Botão Baixar */}
       {/* Botão Baixar - SEM PISCADA */}
-<a
-  href={file.url}
-  download={file.filename}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="text-blue-600 hover:text-blue-800 text-sm underline cursor-pointer"
-  onClick={(e) => e.stopPropagation()}
+<button
+  onClick={async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      const response = await fetch(file.url, { method: "GET" });
+      const blob = await response.blob();
+
+      const blobUrl = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = file.filename;
+      document.body.appendChild(a);
+      a.click();
+
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Erro ao baixar arquivo:", error);
+    }
+  }}
+  className="text-blue-600 hover:text-blue-800 text-sm underline cursor-pointer bg-transparent border-0 p-0"
 >
   Baixar
-</a>
+</button>
+
 
       {/* Botão Remover */}
       <button
