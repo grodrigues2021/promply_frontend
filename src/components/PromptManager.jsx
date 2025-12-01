@@ -69,6 +69,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useStats } from "../hooks/useStats";
 import { debounce } from "lodash";
 import { resolveMediaUrl } from "../lib/media";
+import PromptModal from "./PromptModal";
+
 
 
 const isMobile = window.innerWidth < 768;
@@ -123,6 +125,8 @@ export default function PromptManager({
   const [extraFiles, setExtraFiles] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const extraFilesInputRef = useRef(null);
+  const isRestoringDraft = useRef(false);
+
 
   // Estados para validação de formulário
   const [formErrors, setFormErrors] = useState({
@@ -422,8 +426,12 @@ const getYouTubeThumbnail = useCallback((url) => {
       selectedMedia: "none",
     });
     
-    setEditingPrompt(null);
-    setIsEditMode(false);
+    // Só limpar editingPrompt quando NÃO estamos editando
+if (!isEditMode) {
+  setEditingPrompt(null);
+}
+setIsEditMode(false);
+
     setExtraFiles([]);
     setAttachments([]);
     setFormErrors({ title: "", content: "" });
@@ -443,53 +451,63 @@ const getYouTubeThumbnail = useCallback((url) => {
     setEditingCategory(null);
   }, []);
 
-  const editPrompt = useCallback((prompt) => {
-    console.log("✏️ Editando prompt:", prompt);
-    
-    // Limpar arquivos extras ao editar
-    setExtraFiles([]);
-    if (extraFilesInputRef.current) {
-      extraFilesInputRef.current.value = "";
-    }
+const editPrompt = useCallback((prompt) => {
+  console.log("🟦 EDIT PROMPT RAW DATA:", prompt);
 
-    const categoryId = prompt.category?.id
-      ? String(prompt.category.id)
-      : prompt.category_id
-      ? String(prompt.category_id)
-      : "none";
+  setIsEditMode(true);
+  setEditingPrompt(prompt);
 
-    let mediaType = "none";
-if (prompt.youtube_url) mediaType = "youtube";
-else if (prompt.video_url) mediaType = "video";
-else if (prompt.image_url) mediaType = "image";
+  // ✅ NORMALIZAÇÃO DA IMAGEM
+  const normalizedImage =
+    prompt.imageUrl ||
+    prompt.image_url ||
+    prompt.thumb_url ||
+    "";
 
+  console.log("📸 NORMALIZED IMAGE:", normalizedImage); // ← ADICIONAR LOG
 
-    const formData = {
-      title: prompt.title || "",
-      content: prompt.content || "",
-      description: prompt.description || "",
-      tags: normalizeTags(prompt.tags),
-      category_id: categoryId,
-      platform: prompt.platform || "chatgpt",
-      is_favorite: prompt.is_favorite || false,
-      image_url: prompt.image_url || "",
-      video_url: prompt.video_url || "",
-      youtube_url: prompt.youtube_url || "",
-      imageFile: null,
-      videoFile: null,
-      selectedMedia: mediaType,
-    };
+  // ✅ DETECÇÃO DO TIPO DE MÍDIA (CRÍTICO!)
+  const mediaType = prompt.youtube_url
+    ? "youtube"
+    : prompt.video_url
+    ? "video"
+    : normalizedImage  // ← DEVE SER TRUE SE HOUVER IMAGEM
+    ? "image"
+    : "none";
 
-    setIsEditMode(true);
-    setPromptForm(formData);
-    setEditingPrompt(prompt);
-    setAttachments(prompt.attachments || []);
-    setFormErrors({ title: "", content: "" });
-    
-    setTimeout(() => {
-      setIsPromptDialogOpen(true);
-    }, 0);
-  }, [normalizeTags]);
+  console.log("📺 MEDIA TYPE DETECTADO:", mediaType); // ← ADICIONAR LOG
+
+  const formData = {
+    id: prompt.id || null,
+    title: prompt.title || "",
+    content: prompt.content || "",
+    description: prompt.description || "",
+    tags: prompt.tags || "",
+    category_id: String(prompt.category_id || "none"),
+
+    // ✅ GARANTIR QUE image_url ESTÁ DEFINIDA
+    image_url: normalizedImage,
+    thumb_url: prompt.thumb_url || "",
+
+    videoFile: null,
+    video_url: prompt.video_url || "",
+    youtube_url: prompt.youtube_url || "",
+    youtube_id: extractYouTubeId(prompt.youtube_url) || "",
+
+    is_favorite: prompt.is_favorite || false,
+    platform: prompt.platform || "chatgpt",
+
+    selectedMedia: mediaType, // ← DEVE SER "image" SE HOUVER IMAGEM
+  };
+
+  console.log("🟩 FORM DATA BEFORE SET:", formData);
+  console.log("  📸 image_url no formData:", formData.image_url);
+  console.log("  📺 selectedMedia no formData:", formData.selectedMedia);
+
+  setPromptForm(formData);
+  setIsPromptDialogOpen(true);
+}, [extractYouTubeId]);
+
 
   const editCategory = useCallback((category) => {
     setCategoryForm({
@@ -746,6 +764,10 @@ const savePrompt = async () => {
     
     // ✅ FECHA O MODAL SEMPRE (movido para cá)
     setIsPromptDialogOpen(false);
+
+setTimeout(() => {
+  resetPromptForm();
+}, 150);
     resetPromptForm();
     
     // Garantia extra
@@ -900,41 +922,56 @@ useEffect(() => {
 }, [promptForm, isSaving, isPromptDialogOpen]);
 
 
- useEffect(() => {
+useEffect(() => {
   if (!isPromptDialogOpen) return;
 
-  // Só recuperar rascunho ao criar um NOVO prompt
-  if (editingPrompt || isEditMode) return;
+  // ⛔ Se estiver editando, nunca restaurar rascunho
+  if (isEditMode || editingPrompt) {
+    isRestoringDraft.current = false;
+    return;
+  }
+
+  // ⛔ Evitar execuções duplas
+  if (isRestoringDraft.current) return;
+
+  // Só restaura se form estiver limpo
+  const isFormEmpty =
+    !promptForm.title &&
+    !promptForm.content &&
+    !promptForm.image_url &&
+    !promptForm.video_url &&
+    !promptForm.youtube_url;
+
+  if (!isFormEmpty) return;
 
   const draft = localStorage.getItem("prompt-draft");
   if (!draft) return;
 
   const parsed = JSON.parse(draft);
 
-  // Só mostrar alerta se o rascunho REALMENTE tiver conteúdo
   const hasContent =
     parsed.title?.trim() ||
     parsed.content?.trim() ||
     parsed.description?.trim() ||
     parsed.tags?.trim();
 
-  // NÃO apagar rascunho ao fechar modal — apenas limpar estado visual
-if (!open) {
-  setExtraFiles([]);
-  if (extraFilesInputRef.current) {
-    extraFilesInputRef.current.value = "";
-  }
-}
+  if (!hasContent) return;
 
+  isRestoringDraft.current = true;
 
-  // Mostrar alerta apenas uma vez
   const shouldRestore = confirm("Recuperar rascunho anterior?");
   if (shouldRestore) {
     setPromptForm(parsed);
   }
 
   localStorage.removeItem("prompt-draft");
-}, [isPromptDialogOpen, editingPrompt, isEditMode]);
+
+  setTimeout(() => {
+    isRestoringDraft.current = false;
+  }, 300);
+}, [isPromptDialogOpen]);
+
+
 
 
   useEffect(() => {
@@ -1123,602 +1160,47 @@ if (!open) {
         )}
       </Suspense>
 
-      {createPortal(
-  <Dialog
-    open={isPromptDialogOpen}
-    onOpenChange={(open) => {
-      setIsPromptDialogOpen(open);
-      if (!open) {
-        setExtraFiles([]);
-        if (extraFilesInputRef.current) {
-          extraFilesInputRef.current.value = "";
-        }
+<PromptModal
+  isOpen={isPromptDialogOpen}
+  onOpenChange={(open) => {
+    setIsPromptDialogOpen(open);
+    if (!open) {
+      setExtraFiles([]);
+      if (extraFilesInputRef.current) {
+        extraFilesInputRef.current.value = "";
       }
-    }}
-  >
-
-    <DialogContent
-      className="
-        max-w-4xl w-full max-h-[90vh]
-        overflow-y-auto rounded-xl
-        bg-white dark:bg-slate-900 shadow-2xl
-        border border-gray-200 dark:border-slate-700
-        p-6 z-[10051]
-      "
-    >
-    
-
-      <DialogHeader>
-        <DialogTitle>
-          {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
-        </DialogTitle>
-        <DialogDescription>
-          {editingPrompt
-            ? "Edite os detalhes do seu prompt"
-            : "Crie um novo prompt"}
-        </DialogDescription>
-      </DialogHeader>
-
-      <div className="space-y-4">
-        <div>
-          <Label>Título</Label>
-          <Input
-            value={promptForm.title}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPromptForm((prev) => ({ ...prev, title: value }));
-
-              if (!value.trim()) {
-                setFormErrors((prev) => ({
-                  ...prev,
-                  title: "Título é obrigatório",
-                }));
-              } else {
-                setFormErrors((prev) => ({ ...prev, title: "" }));
-              }
-            }}
-            placeholder="Título do prompt"
-            className={formErrors.title ? "border-red-500" : ""}
-          />
-          {formErrors.title && (
-            <p className="text-xs text-red-500 mt-1">{formErrors.title}</p>
-          )}
-        </div>
-
-        <div>
-          <Label>Conteúdo</Label>
-          <Textarea
-            value={promptForm.content}
-            onChange={(e) => {
-              const value = e.target.value;
-              setPromptForm((prev) => ({ ...prev, content: value }));
-
-              if (!value.trim()) {
-                setFormErrors((prev) => ({
-                  ...prev,
-                  content: "Conteúdo é obrigatório",
-                }));
-              } else {
-                setFormErrors((prev) => ({ ...prev, content: "" }));
-              }
-            }}
-            rows={10}
-            className={`w-full max-h-96 overflow-y-auto resize-y whitespace-pre-wrap break-words ${
-              formErrors.content ? "border-red-500" : ""
-            }`}
-          />
-          {formErrors.content && (
-            <p className="text-xs text-red-500 mt-1">{formErrors.content}</p>
-          )}
-        </div>
-
-        <div>
-          <Label>Descrição</Label>
-          <Textarea
-            value={promptForm.description}
-            onChange={(e) =>
-              setPromptForm((prev) => ({
-                ...prev,
-                description: e.target.value,
-              }))
-            }
-          />
-        </div>
-
-        <div>
-          <Label>Tags (separadas por vírgula)</Label>
-          <Input
-            value={promptForm.tags}
-            onChange={(e) =>
-              setPromptForm((prev) => ({ ...prev, tags: e.target.value }))
-            }
-            placeholder="ex: IA, automação, produtividade"
-          />
-        </div>
-
-        <div>
-          <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-            Tipo de mídia
-          </Label>
-          <div className="flex flex-wrap gap-2 mt-2">
-            {[
-              { key: "none", label: "Nenhum", icon: "❌" },
-              { key: "image", label: "Imagem", icon: "📷" },
-              { key: "video", label: "Vídeo", icon: "🎥" },
-              { key: "youtube", label: "YouTube", icon: "🔗" },
-            ].map(({ key, label, icon }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() =>
-  setPromptForm((prev) => {
-    const updated = { ...prev, selectedMedia: key };
-
-    // ▶️ Quando o usuário seleciona IMAGEM
-    // Não apagar imagem existente!! (correção do bug)
-    if (key === "image") {
-      updated.video_url = "";
-      updated.youtube_url = "";
-      updated.videoFile = null;
-      // ⭐ NÃO remover:
-      // updated.image_url
-      // updated.imageFile
     }
+  }}
 
-    // ▶️ Quando seleciona VÍDEO
-    // ▶️ Quando seleciona VÍDEO
-if (key === "video") {
-  updated.youtube_url = "";
-  // ❗ NÃO ZERAR image_url — ela contém a THUMB
+  promptForm={promptForm}
+  setPromptForm={setPromptForm}
+  formErrors={formErrors}
+  setFormErrors={setFormErrors}
 
-}
+  editingPrompt={editingPrompt}
+  isEditMode={isEditMode}
+  myCategories={myCategories}
 
+  handleImageUpload={handleImageUpload}
+  removeImage={removeImage}
+  handleVideoUpload={handleVideoUpload}
+  extractYouTubeId={extractYouTubeId}
+  getYouTubeThumbnail={getYouTubeThumbnail}
 
-    // ▶️ Quando seleciona YOUTUBE
-    if (key === "youtube") {
-      updated.image_url = "";
-      updated.video_url = "";
-      updated.imageFile = null;
-      updated.videoFile = null;
-    }
+  attachments={attachments}
+  removeAttachment={removeAttachment}
 
-    // ▶️ Quando seleciona NENHUM
-    if (key === "none") {
-      updated.image_url = "";
-      updated.video_url = "";
-      updated.youtube_url = "";
-      updated.imageFile = null;
-      updated.videoFile = null;
-    }
+  extraFiles={extraFiles}
+  extraFilesInputRef={extraFilesInputRef}
+  handleExtraFiles={handleExtraFiles}
+  removeExtraFile={removeExtraFile}
+  clearAllExtraFiles={clearAllExtraFiles}
 
-    return updated;
-  })
-}
-
-
-                className={`px-3 py-1.5 text-sm rounded-md border transition ${
-                  promptForm.selectedMedia === key
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-transparent border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                <span className="mr-1">{icon}</span> {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* === UPLOADS === */}
-        {promptForm.selectedMedia === "image" && (
-          <div className="mt-4 space-y-2">
-            <Label>Upload de imagem</Label>
-            {promptForm.image_url ? (
-              <div className="relative w-full h-48 rounded-lg overflow-hidden border">
-                {console.log("🟦 PREVIEW CHECK:", {
-  image_url: promptForm.image_url || p.image_url,
-  resolved: resolveMediaUrl(promptForm.image_url),
-  hasFile: !!promptForm.imageFile,
-})}
-                <img
-                  src={resolveMediaUrl(promptForm.image_url)}
-                  alt="Preview"
-                  className="object-contain w-full h-full"
-                />
-                <button
-                  type="button"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <label
-                htmlFor="prompt-image-upload"
-                className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-slate-800"
-              >
-                <span className="text-sm text-slate-600 dark:text-slate-300">
-                  Selecione uma imagem
-                </span>
-                <input
-                  id="prompt-image-upload"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-              </label>
-            )}
-          </div>
-        )}
-
-      {promptForm.selectedMedia === "video" && (
-  <div className="w-full space-y-3">
-
-    {/* INPUT DE UPLOAD DE VÍDEO */}
-    <input
-  type="file"
-  accept="video/mp4,video/webm,video/ogg"
-  onChange={handleVideoUpload}
-  className="border p-2 rounded-lg w-full bg-white dark:bg-slate-800"
+  isSaving={isSaving}
+  savePrompt={savePrompt}
+  resetPromptForm={resetPromptForm}
 />
-
-    {/* PREVIEW */}
-    <div className="w-full rounded-lg overflow-hidden bg-black flex justify-center items-center h-[260px]">
       
-      {/* 1. PREVIEW IMEDIATO (vídeo sendo enviado) */}
-      {promptForm.videoFile ? (
-        <video
-          src={URL.createObjectURL(promptForm.videoFile)}
-          controls
-          className="max-h-[260px] w-auto rounded-lg"
-        />
-      ) 
-      
-     : promptForm.image_url ? (
-  <img
-    src={resolveMediaUrl(promptForm.image_url)}
-    alt="Thumb do vídeo"
-    className="max-h-[260px] w-auto object-contain rounded-lg"
-  />
-
-      
-      /* 3. VÍDEO FINAL (DEPOIS DE SALVO) */
-      ) : promptForm.video_url ? (
-        <video
-          src={resolveMediaUrl(promptForm.video_url)}
-          controls
-          className="max-h-[260px] w-auto rounded-lg"
-        />
-      
-      /* 4. SEM VÍDEO */
-      ) : (
-        <div className="text-white text-sm">Nenhum vídeo selecionado</div>
-      )}
-
-    </div>
-
-  </div>
-)}
-
-
-
-
- {promptForm.selectedMedia === "youtube" && (
-  <div className="mt-4 space-y-3">
-
-    <Label>Link do YouTube</Label>
-
-   <Input
-  type="text"           // ← CORREÇÃO CRUCIAL
-  inputMode="url"       // ← Mantém teclado de URL no mobile
-  placeholder="https://www.youtube.com/watch?v=..."
-  value={promptForm.youtube_url || ""}
-  onChange={(e) =>
-    setPromptForm((prev) => ({
-      ...prev,
-      youtube_url: e.target.value.trim(),
-    }))
-  }
-/>
-
-
-    {/* PREVIEW DO YOUTUBE */}
-<div className="w-full rounded-lg overflow-hidden bg-black flex justify-center items-center h-[260px]">
-
-  {extractYouTubeId(promptForm.youtube_url) ? (
-    <div
-      onClick={() => window.open(promptForm.youtube_url, "_blank")}
-      className="cursor-pointer"
-    >
-      <img
-  src={getYouTubeThumbnail(promptForm.youtube_url) || ""}
-  alt="Preview do YouTube"
-  className="max-h-[260px] w-auto object-contain rounded-lg"
-  draggable={false}
-/>
-
-    </div>
-  ) : (
-    <div className="text-white text-sm select-none">
-      Cole um link válido do YouTube…
-    </div>
-  )}
-</div>
-
-
-  </div>
-)}
-
-
-        {/* === ANEXOS EXISTENTES === */}
-        {attachments.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <Label className="text-sm font-medium">Arquivos anexados</Label>
-
-            {attachments.map((file) => (
-              <div
-                key={file.id}
-                className="flex items-center justify-between px-3 py-2 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700"
-              >
-                <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  📎 {file.file_name}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <a
-                    href={resolveMediaUrl(file.file_url)}
-
-                    download={file.file_name}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-
-                      const link = document.createElement("a");
-                      link.href = resolveMediaUrl(file.file_url);
-
-                      link.download = file.file_name;
-                      link.style.display = "none";
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    }}
-                    className="text-blue-600 dark:text-blue-400 text-xs hover:underline cursor-pointer flex items-center gap-1"
-                  >
-                    <Download className="w-3 h-3" />
-                    Baixar
-                  </a>
-
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeAttachment(file.id, editingPrompt?.id);
-                    }}
-                    className="text-red-600 dark:text-red-400 text-xs hover:underline cursor-pointer flex items-center gap-1"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Remover
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* === ARQUIVOS EXTRAS === */}
-        <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Arquivos extras (PNG/JPG)</Label>
-            {extraFiles.length > 0 && (
-              <span className="text-xs text-slate-500">
-                {extraFiles.length} arquivo{extraFiles.length > 1 ? "s" : ""}
-              </span>
-            )}  
-          </div>
-
-          <input
-            ref={extraFilesInputRef}
-            type="file"
-            accept="image/png, image/jpeg"
-            multiple
-            onChange={handleExtraFiles}
-            className="hidden"
-          />
-
-          <Button
-            type="button"
-            variant="outline"
-            className="text-sm px-3 py-1 w-full"
-            onClick={() => extraFilesInputRef.current?.click()}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Adicionar arquivos
-          </Button>
-
-          {extraFiles.length > 0 && (
-            <div className="mt-3 space-y-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">
-                  Arquivos selecionados:
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearAllExtraFiles}
-                  className="text-xs text-red-500 hover:text-red-700"
-                >
-                  <Trash2 className="w-3 h-3 mr-1" />
-                  Limpar todos
-                </Button>
-              </div>
-
-              <div className="max-h-32 overflow-y-auto space-y-1 border rounded-lg p-2">
-                {extraFiles.map((file, index) => (
-                  <div
-                    key={`${file.name}-${index}`}
-                    className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800 rounded hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-lg">📎</span>
-                      <span className="text-xs text-slate-700 dark:text-slate-300 truncate">
-                        {file.name}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        ({(file.size / 1024).toFixed(1)}KB)
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => removeExtraFile(index)}
-                      className="ml-2 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                      title={`Remover ${file.name}`}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* === CATEGORIA === */}
-        <div className="mt-4">
-          <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-            Categoria
-          </Label>
-
-          <div className="hidden sm:block">
-            <Select
-              value={promptForm.category_id}
-              onValueChange={(value) =>
-                setPromptForm((prev) => ({ ...prev, category_id: value }))
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecione uma categoria" />
-              </SelectTrigger>
-
-              <SelectContent className="max-h-[220px] overflow-y-auto">
-                <SelectItem value="none">Sem categoria</SelectItem>
-                {myCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={String(cat.id)}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="block sm:hidden relative z-10">
-  <Select
-    value={promptForm.category_id}
-    onValueChange={(value) =>
-      setPromptForm((prev) => ({ ...prev, category_id: value }))
-    }
-  >
-    <SelectTrigger className="w-full">
-      <SelectValue placeholder="Selecione uma categoria" />
-    </SelectTrigger>
-
-    <SelectContent className="max-h-[220px] overflow-y-auto">
-      <SelectItem value="none">Sem categoria</SelectItem>
-      {myCategories.map((cat) => (
-        <SelectItem key={cat.id} value={String(cat.id)}>
-          {cat.name}
-        </SelectItem>
-      ))}
-    </SelectContent>
-  </Select>
-</div>
-
-        </div>
-
-        {/* === PLATAFORMA === */}
-        <div className="mt-4">
-          <Label className="text-sm font-medium text-slate-700 dark:text-slate-200">
-            Plataforma
-          </Label>
-
-          <Select
-            value={promptForm.platform}
-            onValueChange={(value) =>
-              setPromptForm((prev) => ({ ...prev, platform: value }))
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Selecione uma plataforma" />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="chatgpt">🤖 ChatGPT</SelectItem>
-              <SelectItem value="nanobanana">🍌 Nano Banana</SelectItem>
-              <SelectItem value="gemini">✨ Gemini</SelectItem>
-              <SelectItem value="veo3">🎥 VEO3</SelectItem>
-              <SelectItem value="manus">📝 Manus</SelectItem>
-              <SelectItem value="claude">🧠 Claude</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="prompt-favorite"
-            checked={promptForm.is_favorite}
-            onChange={(e) =>
-              setPromptForm((prev) => ({
-                ...prev,
-                is_favorite: e.target.checked,
-              }))
-            }
-            className="form-checkbox h-4 w-4 text-blue-600"
-          />
-          <Label htmlFor="prompt-favorite">Marcar como favorito</Label>
-        </div>
-
-        {/* === BOTÕES === */}
-        <div className="flex justify-end gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setIsPromptDialogOpen(false);
-              resetPromptForm();
-            }}
-          >
-            Cancelar
-          </Button>
-
-          <Button
-            disabled={isSaving}
-            onClick={async () => {
-              if (isSaving) return;
-              await savePrompt();
-            }}
-            className={isSaving ? "opacity-50 cursor-not-allowed" : ""}
-          >
-            {isSaving ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Salvando...
-              </div>
-            ) : editingPrompt ? (
-              "Salvar"
-            ) : (
-              "Criar"
-            )}
-          </Button>
-        </div>
-      </div>
-    </DialogContent>
-  </Dialog>,
-  document.body
-)}
 {/* === MODAL DE CATEGORIA === */}
 {createPortal(
   <Dialog
