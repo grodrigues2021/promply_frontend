@@ -96,10 +96,10 @@ export default function PromptModal({
       <style>{customScrollbarStyles}</style>
       
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
-<DialogContent 
-  className="custom-scrollbar max-w-7xl w-full max-h-[90vh] overflow-y-auto p-0 bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border-0"
-  style={{ border: 'none', outline: 'none' }}
->          
+        <DialogContent 
+          className="custom-scrollbar max-w-7xl w-full max-h-[90vh] overflow-y-auto p-0 bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border-0"
+          style={{ border: 'none', outline: 'none' }}
+        >          
           {/* HEADER COM GRADIENTE */}
           <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 p-6 rounded-t-2xl overflow-hidden">
             <div className="absolute inset-0 opacity-30" style={{
@@ -254,10 +254,10 @@ export default function PromptModal({
                                 📄 {file.file_name}
                               </span>
                               <div className="flex items-center gap-2">
-                                
+                                <a
                                   href={file.file_url}
                                   download={file.file_name}
-                                  className="text-blue-600 hover:text-blue-700 text-xs font-semibold"
+                                  className="text-blue-600 hover:text-blue-700 text-xs font-semibold cursor-pointer"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     const link = document.createElement("a");
@@ -267,7 +267,7 @@ export default function PromptModal({
                                     link.click();
                                     document.body.removeChild(link);
                                   }}
-                                <a>
+                                >
                                   Baixar
                                 </a>
                                 <button
@@ -556,7 +556,7 @@ export default function PromptModal({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="chatgpt">🤖 ChatGPT</SelectItem>
-                          <SelectItem value="nanobanana">🌐 Nano Banana</SelectItem>
+                          <SelectItem value="nanobanana">🌙 Nano Banana</SelectItem>
                           <SelectItem value="gemini">✨ Gemini</SelectItem>
                           <SelectItem value="veo3">🎥 VEO3</SelectItem>
                           <SelectItem value="manus">📝 Manus</SelectItem>

@@ -4,3 +4,5 @@ dist
 .env
 .env.*
 !.env.staging
+# Mídias locais
+src/media/
