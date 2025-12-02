@@ -133,7 +133,7 @@ export default function PromptManager({
     title: "",
     content: ""
   });
-  
+
 
   const [promptForm, setPromptForm] = useState({
     title: "",
@@ -410,36 +410,36 @@ const getYouTubeThumbnail = useCallback((url) => {
 
   
   const resetPromptForm = useCallback(() => {
-    setPromptForm({
-      title: "",
-      content: "",
-      description: "",
-      tags: "",
-      category_id: "none",
-      platform: "chatgpt",
-      is_favorite: false,
-      image_url: "",
-      video_url: "",
-      youtube_url: "",
-      videoFile: null,
-      imageFile: null,
-      selectedMedia: "none",
-    });
-    
-    // Só limpar editingPrompt quando NÃO estamos editando
-if (!isEditMode) {
-  setEditingPrompt(null);
-}
-setIsEditMode(false);
+  setPromptForm({
+    title: "",
+    content: "",
+    description: "",
+    tags: "",
+    category_id: "none",
+    platform: "chatgpt",
+    is_favorite: false,
+    image_url: "",
+    video_url: "",
+    youtube_url: "",
+    videoFile: null,
+    imageFile: null,
+    selectedMedia: "none",
+  });
+  
+  // Só limpar editingPrompt quando NÃO estamos editando
+  if (!isEditMode) {
+    setEditingPrompt(null);
+  }
+  setIsEditMode(false);
 
-    setExtraFiles([]);
-    setAttachments([]);
-    setFormErrors({ title: "", content: "" });
-    
-    if (extraFilesInputRef.current) {
-      extraFilesInputRef.current.value = "";
-    }
-  }, []);
+  setExtraFiles([]);
+  setAttachments([]);  // ✅ ADICIONAR ESTA LINHA
+  setFormErrors({ title: "", content: "" });
+  
+  if (extraFilesInputRef.current) {
+    extraFilesInputRef.current.value = "";
+  }
+}, [isEditMode]);
 
   const resetCategoryForm = useCallback(() => {
     setCategoryForm({
@@ -451,8 +451,8 @@ setIsEditMode(false);
     setEditingCategory(null);
   }, []);
 
-const editPrompt = useCallback((prompt) => {
- 
+const editPrompt = useCallback(async (prompt) => {
+  console.log("🟦 EDIT PROMPT RAW DATA:", prompt);
 
   setIsEditMode(true);
   setEditingPrompt(prompt);
@@ -464,16 +464,18 @@ const editPrompt = useCallback((prompt) => {
     prompt.thumb_url ||
     "";
 
+  console.log("📸 NORMALIZED IMAGE:", normalizedImage);
 
-  // ✅ DETECÇÃO DO TIPO DE MÍDIA (CRÍTICO!)
+  // ✅ DETECÇÃO DO TIPO DE MÍDIA
   const mediaType = prompt.youtube_url
     ? "youtube"
     : prompt.video_url
     ? "video"
-    : normalizedImage  // ← DEVE SER TRUE SE HOUVER IMAGEM
+    : normalizedImage
     ? "image"
     : "none";
 
+  console.log("📺 MEDIA TYPE DETECTADO:", mediaType);
 
   const formData = {
     id: prompt.id || null,
@@ -495,11 +497,33 @@ const editPrompt = useCallback((prompt) => {
     is_favorite: prompt.is_favorite || false,
     platform: prompt.platform || "chatgpt",
 
-    selectedMedia: mediaType, // ← DEVE SER "image" SE HOUVER IMAGEM
+    selectedMedia: mediaType,
   };
 
-
+  console.log("🟩 FORM DATA BEFORE SET:", formData);
   setPromptForm(formData);
+
+  // ============================================================
+  // 🔵 CARREGAR ANEXOS DO PROMPT (PromptFile)
+  // ============================================================
+  try {
+    console.log(`📎 Carregando anexos do prompt ${prompt.id}...`);
+    
+    const response = await api.get(`/prompts/${prompt.id}/files`);
+    
+    if (response.data?.data) {
+      const files = response.data.data;
+      console.log(`✅ ${files.length} anexo(s) carregado(s):`, files);
+      setAttachments(files);
+    } else {
+      console.log("⚠️ Nenhum anexo encontrado");
+      setAttachments([]);
+    }
+  } catch (error) {
+    console.error("❌ Erro ao carregar anexos:", error);
+    setAttachments([]);
+  }
+
   setIsPromptDialogOpen(true);
 }, [extractYouTubeId]);
 
