@@ -148,7 +148,7 @@ export default function PromptManager({
     youtube_url: "",
     videoFile: null,
     imageFile: null,
-    selectedMedia: "none",
+    selectedMedia: "image",
   });
 
   const [categoryForm, setCategoryForm] = useState({
@@ -423,7 +423,7 @@ const getYouTubeThumbnail = useCallback((url) => {
     youtube_url: "",
     videoFile: null,
     imageFile: null,
-    selectedMedia: "none",
+    selectedMedia: "image",
   });
   
   // Só limpar editingPrompt quando NÃO estamos editando
