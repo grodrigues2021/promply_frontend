@@ -9,27 +9,20 @@ import ChatWorkspace from "./components/ChatWorkspace.jsx";
 import { MessageSquare } from "lucide-react";
 import ChatContainer from "./components/ChatContainer.jsx";
 
-
-
-
-
-
 function App() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [currentPage, setCurrentPage] = useState("main");
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   useEffect(() => {
-    console.log("🔐 [APP] Estado:", { isAuthenticated, isLoading, user });
+    console.log("🔍 [APP] Estado:", { isAuthenticated, isLoading, user });
   }, [isAuthenticated, user, isLoading]);
 
   useEffect(() => {
-  console.log("🌐 DevTools flag:", import.meta.env.VITE_SHOW_QUERY_DEVTOOLS);
-}, []);
-
+    console.log("🌐 DevTools flag:", import.meta.env.VITE_SHOW_QUERY_DEVTOOLS);
+  }, []);
 
   useEffect(() => {
-
     const params = new URLSearchParams(window.location.search);
     const resetToken = params.get("reset_token");
     if (window.location.pathname === "/reset-password" || resetToken) {
@@ -38,8 +31,6 @@ function App() {
   }, []);
 
   if (isLoading) {
-    
-
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -51,43 +42,54 @@ function App() {
   }
 
   return (
-  <Router>
-    {/* ROTAS PRINCIPAIS */}
-    <Routes>
-      {/* Página inicial: autenticação */}
-      <Route
-        path="/"
-        element={
-          !isAuthenticated ? <AuthPage /> : <PromptManager user={user} />
-        }
+    <Router>
+      {/* ROTAS PRINCIPAIS */}
+      <Routes>
+        {/* Página inicial: autenticação */}
+        <Route
+          path="/"
+          element={!isAuthenticated ? <AuthPage /> : <PromptManager user={user} />}
+        />
+
+        {/* ✅ NOVA ROTA: /login */}
+        <Route
+          path="/login"
+          element={!isAuthenticated ? <AuthPage /> : <PromptManager user={user} />}
+        />
+
+        {/* ✅ NOVA ROTA: /register */}
+        <Route
+          path="/register"
+          element={!isAuthenticated ? <AuthPage /> : <PromptManager user={user} />}
+        />
+
+        {/* Rota de workspace (após login do Google) */}
+        <Route
+          path="/workspace"
+          element={!isAuthenticated ? <AuthPage /> : <PromptManager user={user} />}
+        />
+
+        {/* Página de redefinição de senha */}
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+        {/* Janela destacada do chat (nova aba) */}
+        <Route path="/chat-workspace" element={<ChatWorkspace />} />
+
+        {/* ✅ FALLBACK: Qualquer rota não encontrada vai para AuthPage ou PromptManager */}
+        <Route
+          path="*"
+          element={!isAuthenticated ? <AuthPage /> : <PromptManager user={user} />}
+        />
+      </Routes>
+
+      {/* 🟣 CONTAINER DO CHAT */}
+      <ChatContainer
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onPromptSaved={() => console.log("✅ Prompt salvo!")}
       />
-
-      {/* Rota de workspace (após login do Google) */}
-      <Route
-        path="/workspace"
-        element={
-          !isAuthenticated ? <AuthPage /> : <PromptManager user={user} />
-        }
-      />
-
-      {/* Página de redefinição de senha */}
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-
-      {/* Janela destacada do chat (nova aba) */}
-      <Route path="/chat-workspace" element={<ChatWorkspace />} />
-    </Routes>
-
-   
-
-    {/* 🟣 CONTAINER DO CHAT */}
-    <ChatContainer
-      isOpen={isChatOpen}
-      onClose={() => setIsChatOpen(false)}
-      onPromptSaved={() => console.log("✅ Prompt salvo!")}
-    />
-  </Router>
-);
-
+    </Router>
+  );
 }
 
 export default App;
