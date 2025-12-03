@@ -16,9 +16,7 @@ const API_URLS = {
   staging:
     import.meta.env.VITE_API_URL ||
     "https://promply-backend-staging.onrender.com/api",
-  production:
-    import.meta.env.VITE_API_URL ||
-    "https://promply-backend-production.onrender.com/api",
+  production: import.meta.env.VITE_API_URL || "https://api.promply.app/api",
 };
 
 const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
