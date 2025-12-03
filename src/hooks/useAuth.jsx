@@ -1,7 +1,7 @@
 // src/hooks/useAuth.jsx
 // Sistema Híbrido: JWT (dev/staging) + Session Cookies (production)
 
-import React, { useState, useCallback, createContext, useContext, useEffect } from "react";
+import React, { useState, useCallback, createContext, useContext, useEffect, useRef } from "react";
 import api, { currentEnv, isProduction, clearAuth, saveAuthToken, getAuthToken } from "../lib/api";
 
 const AuthContext = createContext();
@@ -10,14 +10,21 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const hasCheckedAuth = useRef(false);
 
-  // 🔐 Verifica autenticação inicial
+  // 🔐 Verifica autenticação no servidor
   const checkAuth = useCallback(async () => {
+    // Evita chamadas duplicadas
+    if (hasCheckedAuth.current) {
+      console.log("⏭️ [useAuth] checkAuth já executado, pulando...");
+      return;
+    }
+    
     console.group("🔐 [useAuth] Verificando autenticação");
     console.log(`📍 Ambiente: ${currentEnv}`);
     console.log(`🔑 Modo: ${isProduction ? "Session Cookies" : "JWT Token"}`);
 
-    // Em dev/staging, verifica se tem token
+    // Em dev/staging, verifica se tem token ANTES de chamar API
     if (!isProduction) {
       const token = getAuthToken();
       if (!token) {
@@ -25,6 +32,7 @@ export function AuthProvider({ children }) {
         setUser(null);
         setIsAuthenticated(false);
         setIsLoading(false);
+        hasCheckedAuth.current = true;
         console.groupEnd();
         return;
       }
@@ -33,6 +41,7 @@ export function AuthProvider({ children }) {
 
     try {
       // ✅ Requisição ao backend (cookie ou token enviado automaticamente)
+      console.log("📡 Chamando /auth/me...");
       const resp = await api.get("/auth/me");
       console.log("📨 Resposta /auth/me:", resp.data);
 
@@ -42,21 +51,29 @@ export function AuthProvider({ children }) {
         setIsAuthenticated(true);
       } else {
         console.warn("⚠️ Resposta inesperada de /auth/me:", resp.data);
+        clearAuth();
         setUser(null);
         setIsAuthenticated(false);
       }
     } catch (err) {
-      console.error("💥 Erro ao verificar autenticação:", err.response?.status, err.response?.data);
-      clearAuth(); // Limpa tokens se inválidos
+      const status = err.response?.status;
+      console.error("💥 Erro ao verificar autenticação:", status, err.response?.data);
+      
+      // Só limpa auth se for erro 401 (não autenticado)
+      if (status === 401) {
+        clearAuth();
+      }
+      
       setUser(null);
       setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
+      hasCheckedAuth.current = true;
       console.groupEnd();
     }
   }, []);
 
-  // ✅ Captura retorno do Google OAuth
+  // ✅ Captura retorno do Google OAuth (executa ANTES do checkAuth)
   useEffect(() => {
     console.group("🔍 [useAuth] Verificando retorno do Google OAuth");
 
@@ -65,9 +82,11 @@ export function AuthProvider({ children }) {
     // 🔑 DEV/STAGING: Token vem na URL
     const tokenFromUrl = params.get("token");
     
-    // 🍪 PRODUCTION: Apenas status vem na URL (cookie já foi setado)
+    // 🍪 PRODUCTION: Apenas status vem na URL (cookie já foi setado pelo backend)
     const authStatus = params.get("auth");
     const authError = params.get("error");
+
+    let shouldCheckAuth = true;
 
     if (tokenFromUrl && !isProduction) {
       // ✅ DEV/STAGING: Salva token JWT
@@ -80,8 +99,8 @@ export function AuthProvider({ children }) {
       console.log("🧹 URL limpa:", cleanUrl);
       
     } else if (authStatus === "success" && isProduction) {
-      // ✅ PRODUCTION: Sessão criada no servidor
-      console.log("✅ [Session] Login bem-sucedido - cookie de sessão ativo");
+      // ✅ PRODUCTION: Sessão criada no servidor, cookie já está no navegador
+      console.log("✅ [Session] Login Google bem-sucedido - verificando sessão...");
       
       // 🧹 Limpa a URL
       const cleanUrl = window.location.origin + window.location.pathname;
@@ -89,7 +108,9 @@ export function AuthProvider({ children }) {
       console.log("🧹 URL limpa:", cleanUrl);
       
     } else if (authError) {
-      console.error("❌ Erro no login:", authError);
+      console.error("❌ Erro no login Google:", authError);
+      shouldCheckAuth = false;
+      setIsLoading(false);
       
       // 🧹 Limpa a URL
       const cleanUrl = window.location.origin + window.location.pathname;
@@ -99,12 +120,12 @@ export function AuthProvider({ children }) {
     }
 
     console.groupEnd();
-  }, []);
 
-  // ⚙️ Executa verificação inicial
-  useEffect(() => {
-    console.log("🚀 [useAuth] Iniciando verificação automática de autenticação...");
-    checkAuth();
+    // ⚙️ Executa verificação de autenticação
+    if (shouldCheckAuth) {
+      console.log("🚀 [useAuth] Iniciando verificação de autenticação...");
+      checkAuth();
+    }
   }, [checkAuth]);
 
   // 🔑 Login manual (email/senha)
@@ -163,6 +184,7 @@ export function AuthProvider({ children }) {
       // Limpa estado local
       setUser(null);
       setIsAuthenticated(false);
+      hasCheckedAuth.current = false;
       
       // Limpa tokens (dev/staging)
       clearAuth();
