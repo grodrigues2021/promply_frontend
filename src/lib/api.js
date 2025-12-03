@@ -13,11 +13,11 @@ let ENV = VITE_ENV || MODE;
 const API_URLS = {
   development: import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api",
   staging:
-    import.meta.env.VITE_API_URL_STAGING ||
+    import.meta.env.VITE_API_URL ||
     "https://promply-backend-staging.onrender.com/api",
   production:
-    import.meta.env.VITE_API_URL_PROD ||
-    "https://promply-backend-prod.onrender.com/api",
+    import.meta.env.VITE_API_URL ||
+    "https://promply-backend-production.onrender.com/api",
 };
 
 const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
