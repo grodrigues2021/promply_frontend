@@ -1,90 +1,59 @@
 // socket.js
-// Configuração corrigida do Socket.IO para ambiente híbrido Promply
+// Configuração corrigida do Socket.IO para todos os ambientes Promply
 
 import { io } from "socket.io-client";
 
-// =====================================
-// 🌍 Detecta Ambiente
-// =====================================
+// Detecta ambiente
 const MODE = import.meta.env.MODE || "development";
 const VITE_ENV = import.meta.env.VITE_ENV;
-
-// Ambiente final
 let ENV = VITE_ENV || MODE;
 
-// =====================================
-// 🔗 URLs Fixas e Corretas por Ambiente
-// =====================================
-// NUNCA usar domínio onrender.com em produção — cookies e WebSocket falham
+// ================================
+// URLs por ambiente (CORRETAS)
+// ================================
 const BACKEND_URLS = {
   development: import.meta.env.VITE_BACKEND_URL || "http://127.0.0.1:5000",
+
   staging:
-    import.meta.env.VITE_BACKEND_URL_STAGING || "https://api.promply.app",
-  production: "https://api.promply.app", // 🔥 PRODUÇÃO SEMPRE USA CLOUDFLARE
+    import.meta.env.VITE_BACKEND_URL_STAGING ||
+    "https://promply-backend-staging.onrender.com",
+
+  production:
+    // PRODUÇÃO SEMPRE VIA CLOUDFLARE → COOKIES + WEBSOCKET OK
+    "https://api.promply.app",
 };
 
-// URL final
+// Seleção final
 const URL = BACKEND_URLS[ENV] || BACKEND_URLS.development;
 
-// Debug
 console.log("🌐 Socket.IO Configuração:");
 console.log(`   - Ambiente: ${ENV}`);
 console.log(`   - URL Backend: ${URL}`);
 
-// =====================================
-// 🔌 Inicializa Socket.IO (cliente)
-// =====================================
+// Inicialização do socket
 export const socket = io(URL, {
-  transports: ["websocket", "polling"], // websocket first
-  withCredentials: true, // 🔥 obrigatório para session cookie
+  transports: ["websocket", "polling"],
+  withCredentials: ENV === "production", // cookies só em produção
   autoConnect: true,
 
   reconnection: true,
   reconnectionDelay: 1000,
   reconnectionDelayMax: 5000,
   reconnectionAttempts: 8,
-
   timeout: 20000,
-
-  // Headers CORS (não bloqueia cookies)
-  extraHeaders: {
-    Accept: "application/json",
-  },
 });
 
-// =====================================
-// 📊 Event Listeners para Debug
-// =====================================
+// Debug
 socket.on("connect", () => {
   console.log(`✅ Socket conectado: ${socket.id}`);
-  console.log(`   - Transport: ${socket.io.engine.transport.name}`);
 });
 
-socket.on("disconnect", (reason) => {
-  console.warn(`⚠️ Socket desconectado: ${reason}`);
+socket.on("connect_error", (err) => {
+  console.error("❌ Erro Socket.IO:", err);
+  console.error("Tentando conectar em:", URL);
 });
 
-socket.on("connect_error", (error) => {
-  console.error(`❌ Erro na conexão Socket.IO:`, error);
-  console.log(`   - URL tentada: ${URL}`);
-  console.log(`   - Transport: ${socket.io.engine?.transport?.name || "N/A"}`);
-});
-
-socket.on("reconnect_attempt", (n) => {
-  console.log(`🔄 Tentando reconectar… tentativa ${n}`);
-});
-
-socket.on("reconnect", (n) => {
-  console.log(`🔄 Reconectado após ${n} tentativa(s)`);
-});
-
-socket.on("reconnect_failed", () => {
-  console.error("❌ Falha total ao reconectar WebSocket");
-});
-
-// =====================================
-// 📤 Exports
-// =====================================
+// Exports
 export const backendUrl = URL;
 export const currentEnv = ENV;
 
