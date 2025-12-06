@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import {
-  Star,
+  Heart,
   Copy,
   Edit,
   Trash2,
@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   AlertCircle,
   RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -128,7 +129,8 @@ const TemplateCard = React.memo(({
   onOpenVideo,
   className,
 }) => {
-  const item = template || prompt;
+  const item = template; 
+
 
   // PATCH 4 – Engine refinado de mídia
   const [mediaState, setMediaState] = useState({
@@ -244,6 +246,15 @@ const TemplateCard = React.memo(({
     return PLATFORMS[platformKey] || null;
   }, [item?.platform]);
 
+  // ============================================================
+  // ❤️ CONTAGEM DE FAVORITOS
+  // ============================================================
+  const favoritesCount = item?.favorites_count || 0;
+
+  // 📈 CONTAGEM DE USOS - ADICIONAR ESTA LINHA
+  const usageCount = item?.usage_count || 0;
+
+
   return (
     <div className={cn(cardVariants({ layout: "horizontal", hover: "lift" }), className)}>
       {/* CONTEÚDO À ESQUERDA */}
@@ -304,23 +315,74 @@ const TemplateCard = React.memo(({
               </div>
             </div>
 
-            {onToggleFavorite && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onToggleFavorite(item)}
-                className={cn(
-                  "flex-shrink-0 h-8 w-8 min-w-[32px] transition-all",
-                  item?.is_favorite
-                    ? "text-amber-500 hover:text-amber-600"
-                    : "text-gray-400 hover:text-amber-500"
-                )}
-              >
-                <Star
-                  className={cn("h-5 w-5 transition-all", item?.is_favorite && "fill-current")}
-                />
-              </Button>
+            {/* ❤️ FAVORITOS + 📈 USOS */}
+<div className="flex items-center gap-2">
+  
+  {/* 📈 INDICADOR DE USOS */}
+  <TooltipProvider delayDuration={100}>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">
+          <TrendingUp className="h-4 w-4" />
+          <span className="text-xs font-medium min-w-[12px]">
+            {usageCount >= 1000 
+              ? `${(usageCount / 1000).toFixed(1)}k` 
+              : usageCount}
+          </span>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
+      >
+        {usageCount} {usageCount === 1 ? 'uso' : 'usos'}
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+
+  {/* ❤️ BOTÃO FAVORITO */}
+  {onToggleFavorite && (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleFavorite(item);
+            }}
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200",
+              item?.is_favorite
+                ? "bg-red-50 text-red-500 hover:bg-red-100"
+                : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-400"
             )}
+          >
+            <Heart
+              className={cn(
+                "h-4 w-4 transition-all",
+                item?.is_favorite && "fill-current"
+              )}
+            />
+            <span 
+              className={cn(
+                "text-xs font-medium min-w-[12px]",
+                item?.is_favorite ? "text-red-500" : "text-gray-500"
+              )}
+            >
+              {favoritesCount}
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
+        >
+          {item?.is_favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )}
+</div>
           </div>
 
           <p className="text-sm text-gray-600 line-clamp-2 mb-3">
@@ -377,61 +439,67 @@ const TemplateCard = React.memo(({
         )}
 
         <div className="flex items-center gap-2 pt-3">
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare?.(item);
-            }}
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Usar Template
-          </Button>
 
-          {onCopy && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Copiar conteúdo"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCopy(item);
-              }}
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          )}
+  {/* Usar Template */}
+  <Button
+    size="sm"
+    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
+    onClick={(e) => {
+      e.stopPropagation();
+      onShare?.(item);
+    }}
+  >
+    <Sparkles className="w-4 h-4 mr-2" />
+    Usar Template
+  </Button>
 
-          {user?.is_admin && onEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Editar Template"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(item);
-              }}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          )}
+  {/* Copiar */}
+  {onCopy && (
+    <Button
+      variant="outline"
+      size="sm"
+      title="Copiar conteúdo"
+      onClick={(e) => {
+        e.stopPropagation();
+        onCopy(item);
+      }}
+    >
+      <Copy className="w-4 h-4" />
+    </Button>
+  )}
 
-          {user?.is_admin && onDelete && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Excluir Template"
-              className="text-red-600 hover:text-red-700"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item?.id);
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-        </div>
+  {/* Editar – somente admin */}
+  {user?.is_admin && onEdit && (
+    <Button
+      variant="outline"
+      size="sm"
+      title="Editar Template"
+      onClick={(e) => {
+        e.stopPropagation();
+        onEdit(item);
+      }}
+    >
+      <Edit className="w-4 h-4" />
+    </Button>
+  )}
+
+  {/* Excluir – somente admin */}
+  {user?.is_admin && onDelete && (
+    <Button
+      variant="outline"
+      size="sm"
+      title="Excluir Template"
+      className="text-red-600 hover:text-red-700"
+      onClick={(e) => {
+        e.stopPropagation();
+        onDelete(item?.id);
+      }}
+    >
+      <Trash2 className="w-4 h-4" />
+    </Button>
+  )}
+</div>
+
       </div>
 
       {/* MÍDIA À DIREITA */}
@@ -598,22 +666,8 @@ const TemplateCard = React.memo(({
       )}
     </div>
   );
-}, (prevProps, nextProps) => {
-  const prevItem = prevProps.template || prevProps.prompt;
-  const nextItem = nextProps.template || nextProps.prompt;
-  
-  return (
-    prevItem?.id === nextItem?.id &&
-    prevItem?.title === nextItem?.title &&
-    prevItem?.is_favorite === nextItem?.is_favorite &&
-    prevItem?.image_url === nextItem?.image_url &&
-    prevItem?.video_url === nextItem?.video_url &&
-    prevItem?.youtube_url === nextItem?.youtube_url &&
-    prevItem?.platform === nextItem?.platform &&
-    JSON.stringify(prevItem?.tags) === JSON.stringify(nextItem?.tags) &&
-    prevProps.user?.is_admin === nextProps.user?.is_admin
-  );
 });
+
 
 TemplateCard.displayName = 'TemplateCard';
 

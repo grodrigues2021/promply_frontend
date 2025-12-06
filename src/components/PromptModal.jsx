@@ -118,477 +118,473 @@ export default function PromptModal({
 
           <div className="p-8 space-y-6 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900">
 
-            {/* GRID 2 COLUNAS */}
+            {/* ========== TOPO - INFORMAÇÕES BÁSICAS (largura total) ========== */}
+            <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-blue-500">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                  <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                  Informações Básicas
+                </h3>
+              </div>
+
+              {/* Campos em coluna única */}
+              <div className="space-y-5">
+                {/* Título */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <span className="text-red-500">*</span> Título
+                  </Label>
+                  <Input
+                    value={promptForm.title}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPromptForm((prev) => ({ ...prev, title: value }));
+                      if (!value.trim()) {
+                        setFormErrors((prev) => ({ ...prev, title: "Título é obrigatório" }));
+                      } else {
+                        setFormErrors((prev) => ({ ...prev, title: "" }));
+                      }
+                    }}
+                    placeholder="Ex: Gerador de ideias criativas..."
+                    className={`transition-all duration-200 ${
+                      formErrors.title 
+                        ? "border-red-500 focus:ring-red-500" 
+                        : "focus:ring-blue-500 focus:border-blue-500"
+                    }`}
+                  />
+                  {formErrors.title && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <span>⚠️</span> {formErrors.title}
+                    </p>
+                  )}
+                </div>
+
+                {/* Descrição */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Descrição (opcional)
+                  </Label>
+                  <Textarea
+                    value={promptForm.description}
+                    onChange={(e) => setPromptForm((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Adicione uma breve descrição..."
+                    rows={2}
+                    className="focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Conteúdo do Prompt */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <span className="text-red-500">*</span> Conteúdo do Prompt
+                  </Label>
+                  <Textarea
+                    value={promptForm.content}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPromptForm((prev) => ({ ...prev, content: value }));
+                      if (!value.trim()) {
+                        setFormErrors((prev) => ({ ...prev, content: "Conteúdo é obrigatório" }));
+                      } else {
+                        setFormErrors((prev) => ({ ...prev, content: "" }));
+                      }
+                    }}
+                    rows={5}
+                    placeholder="Descreva o prompt em detalhes..."
+                    className={`custom-scrollbar-inner transition-all duration-200 font-mono text-sm ${
+                      formErrors.content 
+                        ? "border-red-500 focus:ring-red-500" 
+                        : "focus:ring-blue-500 focus:border-blue-500"
+                    }`}
+                  />
+                  {formErrors.content && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <span>⚠️</span> {formErrors.content}
+                    </p>
+                  )}
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <TagIcon className="w-4 h-4" />
+                    Tags
+                  </Label>
+                  <Input
+                    value={promptForm.tags}
+                    onChange={(e) => setPromptForm((prev) => ({ ...prev, tags: e.target.value }))}
+                    placeholder="Ex: marketing, criativo, redes sociais"
+                    className="focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-slate-500">Separe as tags com vírgula</p>
+                </div>
+              </div>
+            </section>
+
+            {/* ========== MEIO - GRID 2 COLUNAS (Arquivos + Mídia) ========== */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* ========== COLUNA ESQUERDA ========== */}
-              <div className="space-y-6">
+              {/* COLUNA ESQUERDA - ARQUIVOS EXTRAS */}
+              <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-purple-500 h-fit">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <Folder className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                    Arquivos Extras
+                  </h3>
+                </div>
 
-                {/* 📋 INFORMAÇÕES BÁSICAS */}
-                <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-blue-500">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                      <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="space-y-4">
+                  {/* Anexos Existentes */}
+                  {attachments.length > 0 && (
+                    <div className="space-y-3">
+                      <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        📎 Arquivos anexados ({attachments.length})
+                      </Label>
+                      <div className="custom-scrollbar-inner space-y-2 max-h-48 overflow-y-auto">
+                        {attachments.map((file) => (
+                          <div
+                            key={file.id}
+                            className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-700 dark:to-slate-750 rounded-xl hover:shadow-md transition-all"
+                          >
+                            <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate flex-1">
+                              📄 {file.file_name}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={file.file_url}
+                                download={file.file_name}
+                                className="text-blue-600 hover:text-blue-700 text-xs font-semibold cursor-pointer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  const link = document.createElement("a");
+                                  link.href = file.file_url;
+                                  link.download = file.file_name;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
+                              >
+                                Baixar
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => removeAttachment(file.id, editingPrompt?.id)}
+                                className="text-red-600 hover:text-red-700 text-xs font-semibold"
+                              >
+                                Remover
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                      Informações Básicas
-                    </h3>
-                  </div>
+                  )}
 
-                  {/* Título */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                      <span className="text-red-500">*</span> Título
-                    </Label>
-                    <Input
-                      value={promptForm.title}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setPromptForm((prev) => ({ ...prev, title: value }));
-                        if (!value.trim()) {
-                          setFormErrors((prev) => ({ ...prev, title: "Título é obrigatório" }));
-                        } else {
-                          setFormErrors((prev) => ({ ...prev, title: "" }));
-                        }
-                      }}
-                      placeholder="Ex: Gerador de ideias criativas..."
-                      className={`transition-all duration-200 ${
-                        formErrors.title 
-                          ? "border-red-500 focus:ring-red-500" 
-                          : "focus:ring-blue-500 focus:border-blue-500"
-                      }`}
+                  {/* Upload de Novos Arquivos */}
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 border-2 border-dashed border-purple-300 dark:border-slate-600 rounded-2xl p-5 space-y-3">
+                    <input
+                      ref={extraFilesInputRef}
+                      type="file"
+                      accept="image/png, image/jpeg"
+                      multiple
+                      onChange={handleExtraFiles}
+                      className="hidden"
                     />
-                    {formErrors.title && (
-                      <p className="text-xs text-red-500 flex items-center gap-1">
-                        <span>⚠️</span> {formErrors.title}
-                      </p>
-                    )}
-                  </div>
 
-                  {/* PROMPT */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                      <span className="text-red-500">*</span> Conteúdo do Prompt
-                    </Label>
-                    <Textarea
-                      value={promptForm.content}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setPromptForm((prev) => ({ ...prev, content: value }));
-                        if (!value.trim()) {
-                          setFormErrors((prev) => ({ ...prev, content: "Conteúdo é obrigatório" }));
-                        } else {
-                          setFormErrors((prev) => ({ ...prev, content: "" }));
-                        }
-                      }}
-                      rows={8}
-                      placeholder="Descreva o prompt em detalhes..."
-                      className={`custom-scrollbar-inner transition-all duration-200 font-mono text-sm ${
-                        formErrors.content 
-                          ? "border-red-500 focus:ring-red-500" 
-                          : "focus:ring-blue-500 focus:border-blue-500"
-                      }`}
-                    />
-                    {formErrors.content && (
-                      <p className="text-xs text-red-500 flex items-center gap-1">
-                        <span>⚠️</span> {formErrors.content}
-                      </p>
-                    )}
-                  </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full border-purple-300 hover:bg-purple-100 dark:hover:bg-slate-600 transition-all font-semibold"
+                      onClick={() => extraFilesInputRef.current?.click()}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar Arquivos (PNG/JPG)
+                    </Button>
 
-                  {/* Descrição */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      Descrição (opcional)
-                    </Label>
-                    <Textarea
-                      value={promptForm.description}
-                      onChange={(e) => setPromptForm((prev) => ({ ...prev, description: e.target.value }))}
-                      placeholder="Adicione uma breve descrição..."
-                      rows={3}
-                      className="focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
+                    {extraFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                            {extraFiles.length} arquivo(s) selecionado(s)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={clearAllExtraFiles}
+                            className="text-xs text-red-600 hover:underline font-semibold"
+                          >
+                            Limpar todos
+                          </button>
+                        </div>
 
-                  {/* Tags */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                      <TagIcon className="w-4 h-4" />
-                      Tags
-                    </Label>
-                    <Input
-                      value={promptForm.tags}
-                      onChange={(e) => setPromptForm((prev) => ({ ...prev, tags: e.target.value }))}
-                      placeholder="Ex: marketing, criativo, redes sociais"
-                      className="focus:ring-blue-500 focus:border-blue-500"
-                    />
-                    <p className="text-xs text-slate-500">Separe as tags com vírgula</p>
-                  </div>
-                </section>
-
-                {/* 📎 ARQUIVOS EXTRAS */}
-                <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-purple-500">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                      <Folder className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                      Arquivos Extras
-                    </h3>
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Anexos Existentes */}
-                    {attachments.length > 0 && (
-                      <div className="space-y-3">
-                        <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                          📎 Arquivos anexados ({attachments.length})
-                        </Label>
-                        <div className="custom-scrollbar-inner space-y-2 max-h-48 overflow-y-auto">
-                          {attachments.map((file) => (
+                        <div className="custom-scrollbar-inner max-h-32 overflow-y-auto space-y-2">
+                          {extraFiles.map((file, index) => (
                             <div
-                              key={file.id}
-                              className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-slate-700 dark:to-slate-750 rounded-xl hover:shadow-md transition-all"
+                              key={index}
+                              className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
                             >
-                              <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate flex-1">
-                                📄 {file.file_name}
+                              <span className="text-xs truncate flex-1 text-slate-700 dark:text-slate-300">
+                                {file.name}
                               </span>
-                              <div className="flex items-center gap-2">
-                                <a
-                                  href={file.file_url}
-                                  download={file.file_name}
-                                  className="text-blue-600 hover:text-blue-700 text-xs font-semibold cursor-pointer"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    const link = document.createElement("a");
-                                    link.href = file.file_url;
-                                    link.download = file.file_name;
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                  }}
-                                >
-                                  Baixar
-                                </a>
-                                <button
-                                  type="button"
-                                  onClick={() => removeAttachment(file.id, editingPrompt?.id)}
-                                  className="text-red-600 hover:text-red-700 text-xs font-semibold"
-                                >
-                                  Remover
-                                </button>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeExtraFile(index)}
+                                className="ml-2 text-red-600 hover:text-red-700"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
 
-                    {/* Upload de Novos Arquivos */}
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 border-2 border-dashed border-purple-300 dark:border-slate-600 rounded-2xl p-5 space-y-3">
-                      <input
-                        ref={extraFilesInputRef}
-                        type="file"
-                        accept="image/png, image/jpeg"
-                        multiple
-                        onChange={handleExtraFiles}
-                        className="hidden"
-                      />
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full border-purple-300 hover:bg-purple-100 dark:hover:bg-slate-600 transition-all font-semibold"
-                        onClick={() => extraFilesInputRef.current?.click()}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Adicionar Arquivos (PNG/JPG)
-                      </Button>
-
-                      {extraFiles.length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                              {extraFiles.length} arquivo(s) selecionado(s)
-                            </span>
-                            <button
-                              type="button"
-                              onClick={clearAllExtraFiles}
-                              className="text-xs text-red-600 hover:underline font-semibold"
-                            >
-                              Limpar todos
-                            </button>
-                          </div>
-
-                          <div className="custom-scrollbar-inner max-h-32 overflow-y-auto space-y-2">
-                            {extraFiles.map((file, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-between p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
-                              >
-                                <span className="text-xs truncate flex-1 text-slate-700 dark:text-slate-300">
-                                  {file.name}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeExtraFile(index)}
-                                  className="ml-2 text-red-600 hover:text-red-700"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {extraFiles.length === 0 && attachments.length === 0 && (
-                        <p className="text-xs text-center text-slate-500">
-                          Nenhum arquivo adicionado ainda
-                        </p>
-                      )}
-                    </div>
+                    {extraFiles.length === 0 && attachments.length === 0 && (
+                      <p className="text-xs text-center text-slate-500">
+                        Nenhum arquivo adicionado ainda
+                      </p>
+                    )}
                   </div>
-                </section>
-              </div>
+                </div>
+              </section>
 
-              {/* ========== COLUNA DIREITA ========== */}
-              <div className="space-y-6">
-
-                {/* 🎬 MÍDIA */}
-                <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-green-500">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-                      <ImageIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                      Mídia (opcional)
-                    </h3>
+              {/* COLUNA DIREITA - MÍDIA */}
+              <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-green-500 h-fit">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                    <ImageIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                    Mídia (opcional)
+                  </h3>
+                </div>
 
-                  {/* Botões de seleção */}
-                  <div className="flex gap-2">
-                    {[
-                      { type: "image", icon: ImageIcon, label: "Imagem", gradient: "from-blue-500 to-cyan-500" },
-                      { type: "video", icon: Video, label: "Vídeo", gradient: "from-purple-500 to-pink-500" },
-                      { type: "youtube", icon: Youtube, label: "YouTube", gradient: "from-red-500 to-orange-500" },
-                    ].map(({ type, icon: Icon, label, gradient }) => (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() => handleMediaTypeClick(type)}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all ${
-                          promptForm.selectedMedia === type
-                            ? `bg-gradient-to-r ${gradient} text-white shadow-lg scale-105`
-                            : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                {/* Botões de seleção */}
+                <div className="flex flex-wrap gap-2 md:flex-nowrap">
+                  {[
+                    { type: "image", icon: ImageIcon, label: "Imagem", gradient: "from-blue-500 to-cyan-500" },
+                    { type: "video", icon: Video, label: "Vídeo", gradient: "from-purple-500 to-pink-500" },
+                    { type: "youtube", icon: Youtube, label: "YouTube", gradient: "from-red-500 to-orange-500" },
+                  ].map(({ type, icon: Icon, label, gradient }) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleMediaTypeClick(type)}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all ${
+                        promptForm.selectedMedia === type
+                          ? `bg-gradient-to-r ${gradient} text-white shadow-lg scale-105`
+                          : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
-                  {/* Preview de Imagem */}
-                  {promptForm.selectedMedia === "image" && (
-                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
-                      {promptForm.image_url ? (
-                        <div className="relative group">
-                          <img
-                            src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
-                            alt="Preview"
-                            className="w-full rounded-xl shadow-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={removeImage}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-center py-12 text-slate-500">
-                          <ImageIcon className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Nenhuma imagem selecionada</p>
-                        </div>
-                      )}
-
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-gradient-to-r file:from-blue-600 file:to-cyan-600 file:text-white hover:file:from-blue-700 hover:file:to-cyan-700 file:cursor-pointer file:shadow-md"
-                      />
-                    </div>
-                  )}
-
-                  {/* Preview de Vídeo */}
-                  {promptForm.selectedMedia === "video" && (
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
-                      {promptForm.videoFile ? (
-                        <div className="relative group">
-                          <video controls src={URL.createObjectURL(promptForm.videoFile)} className="w-full rounded-xl shadow-lg" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPromptForm((prev) => ({
-                                ...prev,
-                                videoFile: null,
-                                video_url: "",
-                                image_url: "",
-                              }));
-                            }}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : promptForm.video_url ? (
-                        <div className="relative group">
-                          <video
-                            controls
-                            src={promptForm.video_url.startsWith("http") ? promptForm.video_url : `${apiBaseUrl}${promptForm.video_url}`}
-                            className="w-full rounded-xl shadow-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPromptForm((prev) => ({
-                                ...prev,
-                                video_url: "",
-                                videoFile: null,
-                              }));
-                            }}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-center py-12 text-slate-500">
-                          <Video className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Nenhum vídeo selecionado</p>
-                        </div>
-                      )}
-
-                      <input
-                        type="file"
-                        accept="video/mp4,video/webm,video/ogg"
-                        onChange={handleVideoUpload}
-                        className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-gradient-to-r file:from-purple-600 file:to-pink-600 file:text-white hover:file:from-purple-700 hover:file:to-pink-700 file:cursor-pointer file:shadow-md"
-                      />
-                    </div>
-                  )}
-
-                  {/* Preview de YouTube */}
-                  {promptForm.selectedMedia === "youtube" && (
-                    <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
-                      <Input
-                        type="text"
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        value={promptForm.youtube_url}
-                        onChange={(e) => setPromptForm((prev) => ({ ...prev, youtube_url: e.target.value }))}
-                        className="border-red-300 focus:ring-red-500 focus:border-red-500"
-                      />
-                      {promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url) ? (
+                {/* Preview de Imagem */}
+                {promptForm.selectedMedia === "image" && (
+                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
+                    {promptForm.image_url ? (
+                      <div className="relative group">
                         <img
-                          src={getYouTubeThumbnail(promptForm.youtube_url)}
-                          alt="YouTube Thumbnail"
+                          src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
+                          alt="Preview"
                           className="w-full rounded-xl shadow-lg"
                         />
-                      ) : (
-                        <div className="text-center py-12 text-slate-500">
-                          <Youtube className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Cole um link válido do YouTube</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </section>
+                        <button
+                          type="button"
+                          onClick={removeImage}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">Nenhuma imagem selecionada</p>
+                      </div>
+                    )}
 
-                {/* ⚡ DETALHES DO PROMPT */}
-                <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-yellow-500">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
-                      <Zap className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    </div>
-                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                      Detalhes do Prompt
-                    </h3>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-gradient-to-r file:from-blue-600 file:to-cyan-600 file:text-white hover:file:from-blue-700 hover:file:to-cyan-700 file:cursor-pointer file:shadow-md"
+                    />
                   </div>
+                )}
 
-                  <div className="grid grid-cols-1 gap-4">
-                    {/* Categoria */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        Categoria
-                      </Label>
-                      <Select
-                        value={promptForm.category_id}
-                        onValueChange={(value) => setPromptForm((prev) => ({ ...prev, category_id: value }))}
-                      >
-                        <SelectTrigger className="focus:ring-blue-500">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">Sem categoria</SelectItem>
-                          {myCategories.map((cat) => (
-                            <SelectItem key={cat.id} value={String(cat.id)}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Plataforma */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        Plataforma
-                      </Label>
-                      <Select
-                        value={promptForm.platform}
-                        onValueChange={(value) => setPromptForm((prev) => ({ ...prev, platform: value }))}
-                      >
-                        <SelectTrigger className="focus:ring-blue-500">
-                          <SelectValue placeholder="Selecione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="chatgpt">🤖 ChatGPT</SelectItem>
-                          <SelectItem value="nanobanana">🌙 Nano Banana</SelectItem>
-                          <SelectItem value="gemini">✨ Gemini</SelectItem>
-                          <SelectItem value="veo3">🎥 VEO3</SelectItem>
-                          <SelectItem value="manus">📝 Manus</SelectItem>
-                          <SelectItem value="claude">🧠 Claude</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Favorito */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                        Favorito
-                      </Label>
-                      <label className="flex items-center gap-3 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-slate-700 dark:to-slate-750 rounded-xl cursor-pointer hover:shadow-md transition-all">
-                        <input
-                          type="checkbox"
-                          checked={promptForm.is_favorite}
-                          onChange={(e) => setPromptForm((prev) => ({ ...prev, is_favorite: e.target.checked }))}
-                          className="form-checkbox h-5 w-5 text-yellow-600 rounded"
+                {/* Preview de Vídeo */}
+                {promptForm.selectedMedia === "video" && (
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
+                    {promptForm.videoFile ? (
+                      <div className="relative group">
+                        <video controls src={URL.createObjectURL(promptForm.videoFile)} className="w-full rounded-xl shadow-lg" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPromptForm((prev) => ({
+                              ...prev,
+                              videoFile: null,
+                              video_url: "",
+                              image_url: "",
+                            }));
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : promptForm.video_url ? (
+                      <div className="relative group">
+                        <video
+                          controls
+                          src={promptForm.video_url.startsWith("http") ? promptForm.video_url : `${apiBaseUrl}${promptForm.video_url}`}
+                          className="w-full rounded-xl shadow-lg"
                         />
-                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                          ⭐ Marcar como favorito
-                        </span>
-                      </label>
-                    </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPromptForm((prev) => ({
+                              ...prev,
+                              video_url: "",
+                              videoFile: null,
+                            }));
+                          }}
+                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <Video className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">Nenhum vídeo selecionado</p>
+                      </div>
+                    )}
+
+                    <input
+                      type="file"
+                      accept="video/mp4,video/webm,video/ogg"
+                      onChange={handleVideoUpload}
+                      className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-gradient-to-r file:from-purple-600 file:to-pink-600 file:text-white hover:file:from-purple-700 hover:file:to-pink-700 file:cursor-pointer file:shadow-md"
+                    />
                   </div>
-                </section>
-              </div>
+                )}
+
+                {/* Preview de YouTube */}
+                {promptForm.selectedMedia === "youtube" && (
+                  <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
+                    <Input
+                      type="text"
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      value={promptForm.youtube_url}
+                      onChange={(e) => setPromptForm((prev) => ({ ...prev, youtube_url: e.target.value }))}
+                      className="border-red-300 focus:ring-red-500 focus:border-red-500"
+                    />
+                    {promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url) ? (
+                      <img
+                        src={getYouTubeThumbnail(promptForm.youtube_url)}
+                        alt="YouTube Thumbnail"
+                        className="w-full rounded-xl shadow-lg"
+                      />
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <Youtube className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm font-medium">Cole um link válido do YouTube</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </section>
             </div>
 
-            {/* BOTÕES DE AÇÃO */}
-            <div className="flex justify-end gap-3 pt-6">
+            {/* ========== BAIXO - DETALHES DO PROMPT (largura total) ========== */}
+            <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-yellow-500">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
+                  <Zap className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">
+                  Detalhes do Prompt
+                </h3>
+              </div>
+
+              {/* Grid 3 colunas para os detalhes */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Categoria */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Categoria
+                  </Label>
+                  <Select
+                    value={promptForm.category_id}
+                    onValueChange={(value) => setPromptForm((prev) => ({ ...prev, category_id: value }))}
+                  >
+                    <SelectTrigger className="focus:ring-yellow-500">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem categoria</SelectItem>
+                      {myCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={String(cat.id)}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Plataforma */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Plataforma
+                  </Label>
+                  <Select
+                    value={promptForm.platform}
+                    onValueChange={(value) => setPromptForm((prev) => ({ ...prev, platform: value }))}
+                  >
+                    <SelectTrigger className="focus:ring-yellow-500">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chatgpt">🤖 ChatGPT</SelectItem>
+                      <SelectItem value="nanobanana">🌙 Nano Banana</SelectItem>
+                      <SelectItem value="gemini">✨ Gemini</SelectItem>
+                      <SelectItem value="veo3">🎥 VEO3</SelectItem>
+                      <SelectItem value="manus">📝 Manus</SelectItem>
+                      <SelectItem value="claude">🧠 Claude</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Favorito */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Favorito
+                  </Label>
+                  <label className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-slate-700 dark:to-slate-750 rounded-xl cursor-pointer hover:shadow-md transition-all h-10">
+                    <input
+                      type="checkbox"
+                      checked={promptForm.is_favorite}
+                      onChange={(e) => setPromptForm((prev) => ({ ...prev, is_favorite: e.target.checked }))}
+                      className="form-checkbox h-5 w-5 text-yellow-600 rounded"
+                    />
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                      ⭐ Marcar como favorito
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            {/* BOTÕES DE AÇÃO - FIXOS */}
+            <div className="flex justify-end gap-3 pt-6 sticky bottom-0 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900 pb-2 -mb-8 -mx-8 px-8">
               <Button
                 type="button"
                 variant="outline"

@@ -70,6 +70,7 @@ import { useStats } from "../hooks/useStats";
 import { debounce } from "lodash";
 import { resolveMediaUrl } from "../lib/media";
 import PromptModal from "./PromptModal";
+import { favoriteRequest } from "../lib/api";
 
 
 
@@ -148,7 +149,7 @@ export default function PromptManager({
     youtube_url: "",
     videoFile: null,
     imageFile: null,
-    selectedMedia: "image",
+    selectedMedia: "none",
   });
 
   const [categoryForm, setCategoryForm] = useState({
@@ -423,7 +424,7 @@ const getYouTubeThumbnail = useCallback((url) => {
     youtube_url: "",
     videoFile: null,
     imageFile: null,
-    selectedMedia: "image",
+    selectedMedia: "none",
   });
   
   // Só limpar editingPrompt quando NÃO estamos editando
@@ -879,31 +880,28 @@ const debouncedSavePrompt = useCallback(
 
   const handleToggleFavorite = async (prompt) => {
   try {
-    const response = await api.post(`/prompts/${prompt.id}/favorite`);
+    const res = await favoriteRequest(prompt.id);
 
-    if (response.data?.success) {
-      const newValue = response.data.data.is_favorite;
+    const updated = res.data?.data;
 
-      // Atualiza estado no frontend
-      setPrompts((prev) =>
-        prev.map((p) =>
-          p.id === prompt.id ? { ...p, is_favorite: newValue } : p
-        )
-      );
-
-      toast.success(
-        newValue
-          ? "⭐ Adicionado aos favoritos!"
-          : "☆ Removido dos favoritos!"
-      );
-    } else {
-      toast.error("Erro ao atualizar o favorito.");
+    if (!updated) {
+      console.warn("❌ favoriteRequest não retornou prompt atualizado");
+      return;
     }
-  } catch (error) {
-    console.error("Erro:", error);
-    toast.error("Falha ao atualizar o favorito.");
+
+    // Atualiza a lista
+    setPrompts((prev) =>
+      prev.map((p) =>
+        p.id === prompt.id ? { ...p, is_favorite: updated.is_favorite } : p
+      )
+    );
+
+  } catch (err) {
+    console.error("❌ Erro ao alternar favorito:", err);
+    toast.error("Erro ao atualizar favorito");
   }
 };
+
 
 
   const copyToClipboard = async (prompt) => {

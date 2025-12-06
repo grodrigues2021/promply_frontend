@@ -13,16 +13,17 @@ export function AuthProvider({ children }) {
   const hasCheckedAuth = useRef(false);
 
   // 🔐 Verifica autenticação no servidor
-  const checkAuth = useCallback(async () => {
-    // Evita chamadas duplicadas
-    if (hasCheckedAuth.current) {
+  const checkAuth = useCallback(async (forceCheck = false) => {
+    // Evita chamadas duplicadas (exceto quando forçado)
+    if (hasCheckedAuth.current && !forceCheck) {
       console.log("⏭️ [useAuth] checkAuth já executado, pulando...");
       return;
     }
     
     console.group("🔐 [useAuth] Verificando autenticação");
-    console.log(`📍 Ambiente: ${currentEnv}`);
+    console.log(`🌍 Ambiente: ${currentEnv}`);
     console.log(`🔑 Modo: ${isProduction ? "Session Cookies" : "JWT Token"}`);
+    console.log(`🔄 Force Check: ${forceCheck}`);
 
     // Em dev/staging, verifica se tem token ANTES de chamar API
     if (!isProduction) {
@@ -87,11 +88,16 @@ export function AuthProvider({ children }) {
     const authError = params.get("error");
 
     let shouldCheckAuth = true;
+    let forceCheck = false;
 
     if (tokenFromUrl && !isProduction) {
       // ✅ DEV/STAGING: Salva token JWT
       console.log("✅ [JWT] Token capturado da URL:", tokenFromUrl.slice(0, 25) + "...");
       saveAuthToken(tokenFromUrl);
+      
+      // 🔄 IMPORTANTE: Reseta o flag para permitir nova verificação
+      hasCheckedAuth.current = false;
+      forceCheck = true;
       
       // 🧹 Limpa a URL
       const cleanUrl = window.location.origin + window.location.pathname;
@@ -101,6 +107,10 @@ export function AuthProvider({ children }) {
     } else if (authStatus === "success" && isProduction) {
       // ✅ PRODUCTION: Sessão criada no servidor, cookie já está no navegador
       console.log("✅ [Session] Login Google bem-sucedido - verificando sessão...");
+      
+      // 🔄 IMPORTANTE: Reseta o flag para permitir nova verificação
+      hasCheckedAuth.current = false;
+      forceCheck = true;
       
       // 🧹 Limpa a URL
       const cleanUrl = window.location.origin + window.location.pathname;
@@ -123,8 +133,8 @@ export function AuthProvider({ children }) {
 
     // ⚙️ Executa verificação de autenticação
     if (shouldCheckAuth) {
-      console.log("🚀 [useAuth] Iniciando verificação de autenticação...");
-      checkAuth();
+      console.log(`🚀 [useAuth] Iniciando verificação de autenticação... (forceCheck: ${forceCheck})`);
+      checkAuth(forceCheck);
     }
   }, [checkAuth]);
 

@@ -37,7 +37,6 @@ const axiosConfig = {
   withCredentials: true, // ✅ SEMPRE true para permitir cookies (production) e funcionar em todos os ambientes
   headers: {
     Accept: "application/json",
-    "Content-Type": "application/json",
   },
 };
 
@@ -216,6 +215,14 @@ export const getAuthToken = () => {
     localStorage.getItem("authToken") ||
     null
   );
+};
+
+export const favoriteRequest = async (promptId) => {
+  // ✅ Usa diretamente o api.post que já tem o interceptor configurado
+  // O interceptor adiciona automaticamente:
+  // - JWT token (dev/staging) via Authorization header
+  // - withCredentials: true para cookies (production)
+  return api.post(`/prompts/${promptId}/favorite`, {});
 };
 
 // =====================================

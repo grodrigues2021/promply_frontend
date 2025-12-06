@@ -491,7 +491,7 @@ const handleDeleteExistingFile = async (fileId) => {
     // ============================================================
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white">
+            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-white flex flex-col">
                 <DialogHeader>
                     <DialogTitle className="text-xl">
                         {isEdit ? "Editar Template" : "Criar Template"}
@@ -507,12 +507,13 @@ const handleDeleteExistingFile = async (fileId) => {
                     {/* ========== COLUNA ESQUERDA - MÍDIA ========== */}
                     <div className="space-y-4">
                         {/* PREVIEW */}
-                        <div className="sticky top-0">
+                         <div>
                             {renderPreview()}
                         </div>
 
-                        {/* UPLOAD BUTTONS */}
-                        <div className="flex flex-col gap-3">
+                        
+                   {/* UPLOAD BUTTONS */}
+                        <div className="flex flex-col gap-3 relative z-10 bg-white pt-2">
                             <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:opacity-90 transition-opacity shadow-md">
                                 <ImageIcon className="w-5 h-5" />
                                 <span className="font-medium">Upload Imagem</span>
@@ -819,7 +820,7 @@ const handleDeleteExistingFile = async (fileId) => {
                 </div>  
 
                 {/* FOOTER - BOTÕES */}
-                <div className="flex justify-end mt-6 gap-3 pt-4 border-t border-gray-200">
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 sticky bottom-0 bg-white pb-2 -mb-6 -mx-6 px-6 mt-6">
                     <Button
                         variant="outline"
                         onClick={onClose}

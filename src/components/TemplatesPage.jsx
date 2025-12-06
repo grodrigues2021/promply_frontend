@@ -448,7 +448,8 @@ const handleExtraFilesChange = (event) => {
       const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
       const method = editingTemplate ? "PUT" : "POST";
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('access_token');
+
       if (!token) {
         toast.error("Sessão expirada. Faça login novamente.");
         return;
@@ -544,106 +545,125 @@ const handleExtraFilesChange = (event) => {
 
 const handleSaveTemplate = useCallback(async (payload, templateId) => {
 
-  // PATCH 2.2 — transformar payload em FormData se houver arquivos extras
-if (payload && ! (payload instanceof FormData)) {
-  if (Array.isArray(extraFiles) && extraFiles.length > 0) {
+  // 🔍 DEBUG 1 - Verificar se a função está sendo chamada
+  console.log("🔍 DEBUG 1 - handleSaveTemplate INICIADO");
+  console.log("🔍 DEBUG 2 - payload recebido:", payload);
+  console.log("🔍 DEBUG 3 - templateId:", templateId);
 
-    console.log("📦 PATCH 2.2 → Convertendo JSON para FormData por causa de extraFiles");
+  // PATCH 2.2 – transformar payload em FormData se houver arquivos extras
+  if (payload && !(payload instanceof FormData)) {
+    if (Array.isArray(extraFiles) && extraFiles.length > 0) {
+      console.log("📦 PATCH 2.2 → Convertendo JSON para FormData por causa de extraFiles");
 
-    const fd = new FormData();
+      const fd = new FormData();
 
-    // Transferir todos os campos do JSON para FormData
-    Object.keys(payload).forEach((key) => {
-      if (key === "tags" && Array.isArray(payload.tags)) {
-        fd.append("tags", payload.tags.join(","));
-      } else if (key === "category_id") {
-        fd.append("category_id", payload.category_id || "");
-      } else if (payload[key] !== undefined && payload[key] !== null) {
-        fd.append(key, payload[key]);
-      }
-    });
+      Object.keys(payload).forEach((key) => {
+        if (key === "tags" && Array.isArray(payload.tags)) {
+          fd.append("tags", payload.tags.join(","));
+        } else if (key === "category_id") {
+          fd.append("category_id", payload.category_id || "");
+        } else if (payload[key] !== undefined && payload[key] !== null) {
+          fd.append(key, payload[key]);
+        }
+      });
 
-    // 🔥 Adicionar os arquivos extras
-    extraFiles.forEach((file) => {
-      fd.append("extra_files", file);
-    });
+      extraFiles.forEach((file) => {
+        fd.append("extra_files", file);
+      });
 
-    // Substituir payload original
-    payload = fd;
-  }
-}
-
-    try {
-      console.log("🔍 DEBUG - handleSaveTemplate chamado:", { payload, templateId });
-
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast.error("Sessão expirada. Faça login novamente.");
-        return;
-      }
-
-      // ✅ Mostrar toast de loading
-      const toastId = toast.loading(templateId ? "Atualizando template..." : "Criando template...");
-
-      const isFormData = payload instanceof FormData;
-      const url = templateId ? `/templates/${templateId}` : "/templates";
-      const method = templateId ? "PUT" : "POST";
-
-      let response;
-      const headers = { 'Authorization': `Bearer ${token}` };
-
-      if (isFormData) {
-        // Upload com FormData (imagem/vídeo)
-        response = method === "PUT"
-          ? await api.put(url, payload, { headers })
-          : await api.post(url, payload, { headers });
-      } else {
-        // Envio JSON simples
-        headers["Content-Type"] = "application/json";
-        
-        const jsonPayload = {
-          title: payload.title,
-          content: payload.content,
-          description: payload.description,
-          tags: Array.isArray(payload.tags) ? payload.tags : [],
-          category_id: payload.categories?.[0] || null,
-          platform: payload.platform || null,  // ✅ ADICIONAR ESTA LINHA
-          image_url: payload.image_url || "",
-          video_url: payload.video_url || "",
-          youtube_url: payload.youtube_url || "",
-          thumb_url: payload.thumb_url || "",
-        };
-
-        response = method === "PUT"
-          ? await api.put(url, jsonPayload, { headers })
-          : await api.post(url, jsonPayload, { headers });
-      }
-
-      if (response.data.success) {
-        // ✅ RECARREGAR templates ANTES de fechar o modal
-        console.log("✅ Template salvo, recarregando lista...");
-        const res2 = await api.get("/templates");
-        console.log("✅ Templates recarregados:", res2.data?.data?.length);
-        setTemplates(res2.data?.data || []);
-        
-        // ✅ Atualizar toast
-        toast.success(templateId ? "Template atualizado!" : "Template criado!", {
-          id: toastId,
-        });
-        
-        // ✅ Fechar modal APÓS recarregar
-        setIsTemplateModalOpen(false);
-        setSelectedTemplateForModal(null);
-      } else {
-        toast.error(response.data.error || "Erro ao salvar template", {
-          id: toastId,
-        });
-      }
-    } catch (error) {
-      console.error("❌ Erro ao salvar template:", error);
-      toast.error(error.response?.data?.error || "Erro ao salvar template");
+      payload = fd;
     }
-  }, []);
+  }
+
+  try {
+    // 🔍 DEBUG 4 - Verificar token
+    const token = localStorage.getItem('access_token');
+    console.log("🔍 DEBUG 4 - Token encontrado:", token ? `${token.substring(0, 20)}...` : "NULO/UNDEFINED");
+    console.log("🔍 DEBUG 5 - Todas as chaves no localStorage:", Object.keys(localStorage));
+    
+    // 🔍 DEBUG 6 - Listar todos os itens do localStorage
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      const value = localStorage.getItem(key);
+      console.log(`🔍 DEBUG 6 - localStorage[${key}]:`, value ? value.substring(0, 50) + "..." : "vazio");
+    }
+
+    if (!token) {
+      console.error("❌ DEBUG - Token NÃO encontrado no localStorage!");
+      toast.error("Sessão expirada. Faça login novamente.");
+      return;
+    }
+
+    console.log("✅ DEBUG 7 - Token válido, prosseguindo...");
+
+    const toastId = toast.loading(templateId ? "Atualizando template..." : "Criando template...");
+
+    const isFormData = payload instanceof FormData;
+    const url = templateId ? `/templates/${templateId}` : "/templates";
+    const method = templateId ? "PUT" : "POST";
+
+    console.log("🔍 DEBUG 8 - URL:", url);
+    console.log("🔍 DEBUG 9 - Method:", method);
+    console.log("🔍 DEBUG 10 - isFormData:", isFormData);
+
+    let response;
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    if (isFormData) {
+      console.log("🔍 DEBUG 11 - Enviando como FormData...");
+      response = method === "PUT"
+        ? await api.put(url, payload, { headers })
+        : await api.post(url, payload, { headers });
+    } else {
+      headers["Content-Type"] = "application/json";
+
+      const jsonPayload = {
+        title: payload.title,
+        content: payload.content,
+        description: payload.description,
+        tags: Array.isArray(payload.tags) ? payload.tags : [],
+        category_id: payload.categories?.[0] || null,
+        platform: payload.platform || null,
+        image_url: payload.image_url || "",
+        video_url: payload.video_url || "",
+        youtube_url: payload.youtube_url || "",
+        thumb_url: payload.thumb_url || "",
+      };
+
+      console.log("🔍 DEBUG 12 - jsonPayload:", jsonPayload);
+
+      response = method === "PUT"
+        ? await api.put(url, jsonPayload, { headers })
+        : await api.post(url, jsonPayload, { headers });
+    }
+
+    console.log("🔍 DEBUG 13 - Response:", response);
+
+    if (response.data.success) {
+      console.log("✅ Template salvo, recarregando lista...");
+      const res2 = await api.get("/templates");
+      console.log("✅ Templates recarregados:", res2.data?.data?.length);
+      setTemplates(res2.data?.data || []);
+
+      toast.success(templateId ? "Template atualizado!" : "Template criado!", {
+        id: toastId,
+      });
+
+      setIsTemplateModalOpen(false);
+      setSelectedTemplateForModal(null);
+    } else {
+      console.error("❌ DEBUG 14 - Erro na resposta:", response.data);
+      toast.error(response.data.error || "Erro ao salvar template", {
+        id: toastId,
+      });
+    }
+  } catch (error) {
+    console.error("❌ DEBUG 15 - ERRO COMPLETO:", error);
+    console.error("❌ DEBUG 16 - error.response:", error.response);
+    console.error("❌ DEBUG 17 - error.message:", error.message);
+    toast.error(error.response?.data?.error || "Erro ao salvar template");
+  }
+}, [extraFiles]);
 
   // ===== USE TEMPLATE =====
   const openUseTemplateDialog = useCallback((template) => {
@@ -656,34 +676,51 @@ if (payload && ! (payload instanceof FormData)) {
     setIsUseTemplateDialogOpen(true);
   }, []);
 
-  const useTemplate = useCallback(async () => {
-    if (!selectedTemplate) return;
+  // ============================================================
+// 🔧 CORREÇÃO - TemplatesPage.jsx
+// 📍 Localizar a função useTemplate (aproximadamente linha 470)
+// ============================================================
 
-    try {
-      const res = await api.post(`/templates/${selectedTemplate.id}/use`, {
-        title: useTemplateForm.title || selectedTemplate.title,
-        category_id: useTemplateForm.category_id === "none" ? null : useTemplateForm.category_id,
-        is_favorite: useTemplateForm.is_favorite,
-      });
+// ✅ SUBSTITUIR a função useTemplate completa por esta versão:
 
-      if (res.data.success) {
-        toast.success("✅ Prompt criado com sucesso!");
-        
-        // ✅ ADICIONAR ESTAS LINHAS:
-        queryClient.invalidateQueries(["prompts"]);
-        queryClient.invalidateQueries(["stats"]);
-        
-        setIsUseTemplateDialogOpen(false);
-        setSelectedTemplate(null);
-        setUseTemplateForm(INITIAL_USE_TEMPLATE_FORM);
-      } else {
-        toast.error(res.data.error || "Erro ao usar template");
-      }
-    } catch (error) {
-      console.error("Erro ao usar template:", error);
-      toast.error("Erro ao usar template");
+const useTemplate = useCallback(async () => {
+  if (!selectedTemplate) return;
+
+  try {
+    const res = await api.post(`/templates/${selectedTemplate.id}/use`, {
+      title: useTemplateForm.title || selectedTemplate.title,
+      category_id: useTemplateForm.category_id === "none" ? null : useTemplateForm.category_id,
+      is_favorite: useTemplateForm.is_favorite,
+    });
+
+    if (res.data.success) {
+      toast.success("✅ Prompt criado com sucesso!");
+      
+      // ✅ ADICIONAR: Atualiza o usage_count localmente na hora
+      setTemplates((prev) =>
+        prev.map((t) =>
+          t.id === selectedTemplate.id
+            ? { ...t, usage_count: (t.usage_count || 0) + 1 }
+            : t
+        )
+      );
+      
+      // Invalida queries do React Query
+      queryClient.invalidateQueries(["prompts"]);
+      queryClient.invalidateQueries(["stats"]);
+      
+      // Fecha o modal
+      setIsUseTemplateDialogOpen(false);
+      setSelectedTemplate(null);
+      setUseTemplateForm(INITIAL_USE_TEMPLATE_FORM);
+    } else {
+      toast.error(res.data.error || "Erro ao usar template");
     }
-  }, [selectedTemplate, useTemplateForm, queryClient]); // ✅ Adicionar queryClient nas dependências
+  } catch (error) {
+    console.error("Erro ao usar template:", error);
+    toast.error("Erro ao usar template");
+  }
+}, [selectedTemplate, useTemplateForm, queryClient]);
 
   // ===== PREVIEW HANDLERS =====
   const handleOpenImage = useCallback((url, title = "") => {
@@ -704,6 +741,44 @@ if (payload && ! (payload instanceof FormData)) {
       toast.error("Erro ao copiar conteúdo");
     }
   }, []);
+
+// ============================================================
+// ❤️ FAVORITAR / DESFAVORITAR TEMPLATE
+// ============================================================
+const handleToggleFavorite = useCallback(async (template) => {
+  if (!template?.id) return;
+
+  try {
+    const res = await api.post(`/templates/${template.id}/favorite`);
+
+    const updated = res.data;
+
+    if (!updated || !updated.success) {
+      toast.error("Erro ao atualizar favorito");
+      return;
+    }
+
+    const { is_favorite, favorites_count } = updated;
+
+    // Atualiza o estado local dos templates
+    setTemplates((prev) =>
+      prev.map((t) =>
+        t.id === template.id
+          ? {
+              ...t,
+              is_favorite,
+              favorites_count,
+            }
+          : t
+      )
+    );
+  } catch (err) {
+    console.error("❌ Erro no toggle de favorito:", err);
+    toast.error("Erro ao alternar favorito");
+  }
+}, []);
+
+
 
   // ===== FILTERED TEMPLATES =====
   const filteredTemplates = useMemo(() => {
@@ -907,18 +982,32 @@ if (payload && ! (payload instanceof FormData)) {
             </div>
 
             <PromptGrid
-              prompts={filteredTemplates}
-              isLoading={loading}
-              CardComponent={({ prompt, ...rest }) => (
-                <TemplateCard template={prompt} {...rest} user={user} />
-              )}
-              onEdit={openEditTemplate}
-              onDelete={deleteTemplate}
-              onShare={openUseTemplateDialog}
-              onCopy={handleCopyTemplate}
-              onOpenImage={handleOpenImage}
-              onOpenVideo={handleOpenVideo}
-            />
+  prompts={filteredTemplates}
+  isLoading={loading}
+  CardComponent={({ prompt }) => {
+    const template = prompt;
+    return (
+      <TemplateCard
+        template={template}
+        user={user}
+        // 🔵 Botão "Usar Template"
+        onShare={() => openUseTemplateDialog(template)}
+        // 🔵 Botão Copiar
+        onCopy={() => handleCopyTemplate(template)}
+        // 🔵 Botão Editar (admin)
+        onEdit={() => openEditTemplate(template)}
+        // 🔵 Botão Excluir (admin)
+        onDelete={() => deleteTemplate(template.id)}
+        // 🔵 Preview de Imagem
+        onOpenImage={handleOpenImage}
+        // 🔵 Preview de Vídeo
+        onOpenVideo={handleOpenVideo}
+        // ❤️ Favoritar
+        onToggleFavorite={() => handleToggleFavorite(template)}
+      />
+    );
+  }}
+/>
           </main>
         </div>
       </div>
