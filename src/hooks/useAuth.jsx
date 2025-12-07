@@ -3,10 +3,37 @@
 // Suporta JWT (dev/staging) e Session Cookies (production)
 // ============================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api, { clearAuth, hasValidAuth, currentEnv } from '../lib/api';
 
+// ============================================================
+// Context
+// ============================================================
+const AuthContext = createContext(null);
+
+// ============================================================
+// Provider Component
+// ============================================================
+export function AuthProvider({ children }) {
+  const auth = useAuthLogic();
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
+}
+
+// ============================================================
+// Hook para consumir o contexto
+// ============================================================
 export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
+
+// ============================================================
+// Lógica do hook
+// ============================================================
+function useAuthLogic() {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
