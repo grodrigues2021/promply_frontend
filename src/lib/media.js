@@ -1,57 +1,48 @@
 // ==========================================
-// src/lib/media.js  (ou o caminho que você usa)
+// src/utils/media.js
 // NORMALIZAÇÃO GLOBAL DE URL DE MÍDIA
+// Usa a API_BASE_URL vinda do api.js
 // ==========================================
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import { apiBaseUrl } from "./api";
 
-// Remove "/api" do backend (ex: http://localhost:5000)
-const BACKEND_BASE = API_BASE_URL.replace("/api", "");
+// Remove "/api" do backend (ex: https://backend.com)
+const BACKEND_BASE = apiBaseUrl.replace("/api", "");
 
-// Detectar domínio do B2 (qualquer variação)
+// Detecta URL absoluta (já começa com http/https)
+const isAbsoluteUrl = (url) => /^https?:\/\//i.test(url);
+
+// Detecta base64
+const isBase64 = (url) => url.startsWith("data:");
+
+// Detecta domínio do B2 (independente de bucket)
 const isB2Url = (url) => {
   return (
     url.includes("backblazeb2.com") ||
-    url.includes("f005.backblazeb2.com") ||
-    url.includes("s3.us-east-005.backblazeb2.com") ||
-    url.includes("file/prompt") // múltiplos buckets possíveis
+    url.includes("s3") ||
+    url.includes("file/prompt")
   );
 };
 
-// Detectar se é URL absoluta válida
-const isAbsoluteUrl = (url) => /^https?:\/\//i.test(url);
-
-// Detectar base64
-const isBase64 = (url) => url.startsWith("data:");
-
 /**
  * NORMALIZA QUALQUER URL DE MÍDIA
- * Regras:
- * 🔹 Se a URL já for absoluta → retorna como está
- * 🔹 Se for base64 → retorna como está
- * 🔹 Se vier do B2 → retorna como está
- * 🔹 Se vier com caminhos antigos (/media/images/) → corrigir
- * 🔹 Se for relativa → prefixar BACKEND_BASE
  */
 export const resolveMediaUrl = (url = "") => {
   try {
     if (!url) return "";
 
-    // Base64 → retorna
+    // Base64 → retorna como está
     if (isBase64(url)) return url;
 
-    // URLs absolutas (http/https) → retorna
+    // URLs absolutas (http/https) → retorna como está
     if (isAbsoluteUrl(url)) return url;
 
-    // URLs do B2 detectadas (backup de segurança)
+    // URLs do B2 → manter como está
     if (isB2Url(url)) return url;
 
     let finalUrl = url.trim();
 
-    // ===========================
-    // CORREÇÕES DE CAMINHOS ANTIGOS
-    // ===========================
+    // Correções antigas
     if (finalUrl.startsWith("/media/images/")) {
       finalUrl = finalUrl.replace("/media/images/", "/media/image/");
     }
@@ -60,14 +51,12 @@ export const resolveMediaUrl = (url = "") => {
       finalUrl = finalUrl.replace("/media/thumbs/", "/media/thumb/");
     }
 
-    // Evitar "//" duplicado
+    // Evita "//" duplicado
     if (finalUrl.startsWith("//")) {
       finalUrl = finalUrl.replace("//", "/");
     }
 
-    // ===========================
-    // PREFIXO FINAL PARA DEV
-    // ===========================
+    // Prefixo final com o backend correto
     return `${BACKEND_BASE}${finalUrl}`;
   } catch (err) {
     console.error("❌ resolveMediaUrl ERRO:", err);
