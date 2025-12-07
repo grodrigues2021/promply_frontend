@@ -17,7 +17,7 @@ const MODE = import.meta.env.MODE || "development";
 const ENV = import.meta.env.VITE_ENV || MODE;
 
 // =====================================
-// 🌐 Configuração de URLs por ambiente
+// 🌍 Configuração de URLs por ambiente
 // Sempre preferir variáveis de ambiente (Render)
 // =====================================
 
@@ -69,7 +69,7 @@ api.interceptors.request.use(
     }
 
     // ============================================================
-    //  JWT → Apenas DEVELOPMENT e STAGING usam Authorization header
+    //  JWT → SEMPRE em DEVELOPMENT e STAGING
     // ============================================================
     if (ENV !== "production") {
       const token =
@@ -78,13 +78,16 @@ api.interceptors.request.use(
         localStorage.getItem("authToken");
 
       if (token) {
+        // 🔥 CRÍTICO: Garantir que o header Authorization seja sempre incluído
         config.headers.Authorization = `Bearer ${token}`;
 
         if (ENV === "development") {
-          console.log("🔑 JWT enviado:", token.slice(0, 15) + "...");
+          console.log("🔑 JWT enviado:", token.slice(0, 30) + "...");
         }
       } else {
-        if (ENV === "development") console.warn("⚠️ Nenhum JWT encontrado.");
+        if (ENV === "development") {
+          console.warn("⚠️ Nenhum JWT encontrado no localStorage");
+        }
       }
     } else {
       // ============================================================
@@ -119,12 +122,19 @@ api.interceptors.response.use(
     // ============================================================
     // Salva JWT automaticamente se vier em dev/staging
     // ============================================================
-    if (ENV !== "production" && response.data?.access_token) {
-      const token = response.data.access_token;
-      localStorage.setItem("access_token", token);
+    if (ENV !== "production") {
+      // Verifica múltiplos formatos de resposta
+      const token =
+        response.data?.access_token ||
+        response.data?.token ||
+        response.data?.data?.access_token;
 
-      if (ENV === "development") {
-        console.log("💾 JWT salvo no localStorage");
+      if (token) {
+        localStorage.setItem("access_token", token);
+
+        if (ENV === "development") {
+          console.log("💾 JWT salvo no localStorage");
+        }
       }
     }
 
@@ -151,7 +161,10 @@ api.interceptors.response.use(
       }
 
       // Redirecionar apenas se não estivermos na página de login
-      if (!window.location.pathname.includes("/login")) {
+      if (
+        !window.location.pathname.includes("/login") &&
+        !window.location.pathname.includes("/workspace")
+      ) {
         console.warn("🔄 Redirecionando para login...");
         window.location.href = "/login";
       }
@@ -182,11 +195,16 @@ export const hasValidAuth = () => {
     return true; // backend valida cookies
   }
 
-  return !!(
+  const token =
     localStorage.getItem("access_token") ||
     localStorage.getItem("token") ||
-    localStorage.getItem("authToken")
-  );
+    localStorage.getItem("authToken");
+
+  if (ENV === "development" && token) {
+    console.log("✅ Token JWT encontrado:", token.slice(0, 30) + "...");
+  }
+
+  return !!token;
 };
 
 /**
@@ -208,7 +226,7 @@ export const clearAuth = () => {
 export const saveAuthToken = (token) => {
   if (ENV !== "production" && token) {
     localStorage.setItem("access_token", token);
-    console.log("💾 JWT salvo no localStorage");
+    console.log("💾 JWT salvo:", token.slice(0, 30) + "...");
   }
 };
 
@@ -228,10 +246,45 @@ export const getAuthToken = () => {
 };
 
 // =====================================
-// ⭐ FAVORITAR PROMPTS — Compatível com JWT & Cookies
+// ⭐ FAVORITAR PROMPTS – Compatível com JWT & Cookies
 // =====================================
 export const favoriteRequest = async (promptId) => {
   return api.post(`/prompts/${promptId}/favorite`, {});
+};
+
+// =====================================
+// 🔐 HELPER: Processar callback do Google OAuth
+// =====================================
+export const handleGoogleCallback = () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get("token");
+  const error = urlParams.get("error");
+  const authSuccess = urlParams.get("auth");
+
+  // Erro do Google OAuth
+  if (error) {
+    console.error("❌ Erro no Google OAuth:", error);
+    return { success: false, error };
+  }
+
+  // Token JWT recebido (dev/staging)
+  if (token && ENV !== "production") {
+    console.log("✅ Token JWT recebido do Google OAuth");
+    saveAuthToken(token);
+
+    // Limpar URL
+    window.history.replaceState({}, "", window.location.pathname);
+
+    return { success: true, token };
+  }
+
+  // Auth success (production com cookies)
+  if (authSuccess === "success") {
+    console.log("✅ Autenticação via Google bem-sucedida (Session Cookies)");
+    return { success: true };
+  }
+
+  return { success: false };
 };
 
 // =====================================
