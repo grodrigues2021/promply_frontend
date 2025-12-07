@@ -12,7 +12,7 @@ import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "./ui/select";
 import { X, Trash2, Download, Plus, Image as ImageIcon, Video, Youtube, FileText, Tag as TagIcon, Folder, Zap, Sparkles } from "lucide-react";
-import { apiBaseUrl } from "../lib/api";
+
 // ✅ SCROLLBAR CUSTOMIZADA
 const customScrollbarStyles = `
   .custom-scrollbar::-webkit-scrollbar {
@@ -85,11 +85,7 @@ export default function PromptModal({
   resetPromptForm,
 }) {
 
-  
-
-// Remove "/api" para montar corretamente URLs de mídia
-const backendBase = apiBaseUrl.replace("/api", "");
-
+  const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
   const handleMediaTypeClick = (type) => {
     setPromptForm((prev) => ({ ...prev, selectedMedia: type }));
@@ -395,11 +391,10 @@ const backendBase = apiBaseUrl.replace("/api", "");
                     {promptForm.image_url ? (
                       <div className="relative group">
                         <img
-                          src={promptForm.image_url.startsWith("http") 
-                              ? promptForm.image_url 
-                              : `${backendBase}${promptForm.image_url}`}
+                          src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
+                          alt="Preview"
+                          className="w-full rounded-xl shadow-lg"
                         />
-                     
                         <button
                           type="button"
                           onClick={removeImage}
@@ -449,8 +444,7 @@ const backendBase = apiBaseUrl.replace("/api", "");
                       <div className="relative group">
                         <video
                           controls
-                          src={promptForm.video_url.startsWith("http") ? promptForm.video_url : `${backendBase}${promptForm.video_url}`
-}
+                          src={promptForm.video_url.startsWith("http") ? promptForm.video_url : `${apiBaseUrl}${promptForm.video_url}`}
                           className="w-full rounded-xl shadow-lg"
                         />
                         <button

@@ -1,7 +1,1 @@
-// src/config.js
-// Configuração unificada – sempre consistente com api.js
-
-import { apiBaseUrl } from "./lib/api";
-
-// Exporta a mesma URL base usada por toda a aplicação
-export const API_BASE_URL = apiBaseUrl;
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
