@@ -4,7 +4,7 @@
 // ============================================================
 
 import { useState, useEffect, useCallback } from 'react';
-import api, { clearAuth, hasValidAuth, currentEnv } from '../api/api';
+import api, { clearAuth, hasValidAuth, currentEnv } from '../lib/api';
 
 export function useAuth() {
   const [user, setUser] = useState(null);

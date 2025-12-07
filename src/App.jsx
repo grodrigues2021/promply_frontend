@@ -8,7 +8,7 @@ import { useAuth } from "./hooks/useAuth.jsx";
 import ChatWorkspace from "./components/ChatWorkspace.jsx";
 import { MessageSquare } from "lucide-react";
 import ChatContainer from "./components/ChatContainer.jsx";
-import { saveAuthToken } from "./api/api.js";
+import { saveAuthToken } from "./lib/api.js";
 
 // ============================================================
 // 🔐 Componente para processar callback do Google OAuth
