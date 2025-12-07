@@ -76,15 +76,24 @@ export function useAuth() {
   // 🔐 Login com Google
   // ============================================================
   const loginWithGoogle = useCallback(() => {
-    const backendUrl = import.meta.env.VITE_API_BASE_URL || 'https://promply-backend-staging.onrender.com/api';
+    // Obter URL base da API
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://promply-backend-staging.onrender.com/api';
     
-    // Remove /api do final se existir, pois a rota já inclui /api/auth
-    const baseUrl = backendUrl.replace(/\/api$/, '');
+    console.log('🔑 [useAuth] VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+    console.log('🔑 [useAuth] apiBaseUrl:', apiBaseUrl);
+    
+    // Remove /api do final se existir, pois vamos adicionar manualmente
+    const baseUrl = apiBaseUrl.replace(/\/api$/, '');
+    
+    // Monta URL completa do OAuth
+    const oauthUrl = `${baseUrl}/api/auth/login/google`;
     
     console.log('🔑 [useAuth] Iniciando login Google...');
-    console.log('🔑 [useAuth] URL:', `${baseUrl}/api/auth/login/google`);
+    console.log('🔑 [useAuth] Base URL:', baseUrl);
+    console.log('🔑 [useAuth] OAuth URL:', oauthUrl);
     
-    window.location.href = `${baseUrl}/api/auth/login/google`;
+    // Redirecionar para o backend
+    window.location.href = oauthUrl;
   }, []);
 
   // ============================================================
