@@ -83,7 +83,14 @@ const SharePromptModal = React.lazy(() =>
   )
 );
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+import { apiBaseUrl } from "../lib/api";
+
+// Sempre usar a URL base definitiva do api.js
+const API_BASE_URL = apiBaseUrl;
+
+// Remove "/api" para construir URLs de mídia e vídeo
+const backendBase = API_BASE_URL.replace("/api", "");
+
 
 export default function PromptManager({
   setIsAuthenticated,

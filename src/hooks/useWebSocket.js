@@ -1,49 +1,46 @@
-// src/hooks/useWebSocket.js — versão final sem looping
+// ===============================================
+// src/hooks/useWebSocket.js
+// HOOK OFICIAL DO WEBSOCKET – ARQUITETURA UNIFICADA
+// Não cria conexão nova. Usa SEMPRE o socket global.
+// ===============================================
+
 import { useEffect, useRef } from "react";
-import { io } from "socket.io-client";
+import { socket } from "../socket";
 
-const SOCKET_URL = import.meta.env.VITE_BACKEND_URL?.replace("/api", "") || "http://localhost:5000";
+/**
+ * Hook de WebSocket padronizado
+ * - Nunca cria nova conexão
+ * - Usa a conexão global definida em socket.js
+ * - Garante listeners seguros e sem duplicação
+ */
+export function useWebSocket(eventName, callback) {
+  const savedCallback = useRef(null);
 
-let globalSocket = null; // conexão global única
-
-export function useWebSocket(onMessage) {
-  const messageHandlerRef = useRef(onMessage);
+  // Mantém a referência da callback sempre atualizada
+  useEffect(() => {
+    savedCallback.current = callback;
+  }, [callback]);
 
   useEffect(() => {
-    messageHandlerRef.current = onMessage;
-  }, [onMessage]);
+    if (!eventName) return;
 
-  useEffect(() => {
-    if (!globalSocket) {
-      console.log("🔌 Criando conexão WebSocket global:", SOCKET_URL);
-      globalSocket = io(SOCKET_URL, {
-        transports: ["websocket"],
-        reconnection: true,
-      });
-
-      globalSocket.on("connect", () => {
-        console.log("✅ WebSocket conectado:", globalSocket.id);
-      });
-
-      globalSocket.on("disconnect", (reason) => {
-        console.warn("⚠️ WebSocket desconectado:", reason);
-      });
-
-      globalSocket.on("connect_error", (err) => {
-        console.error("❌ Erro WebSocket:", err.message);
-      });
-    }
-
-    const handleMessage = (data) => {
-      messageHandlerRef.current?.(data);
+    const handler = (data) => {
+      if (savedCallback.current) {
+        savedCallback.current(data);
+      }
     };
 
-    globalSocket.on("new_message", handleMessage);
+    // Registra listener
+    socket.on(eventName, handler);
 
+    console.log(`🔌 Listener WebSocket registrado → ${eventName}`);
+
+    // Remove listener ao desmontar
     return () => {
-      globalSocket.off("new_message", handleMessage);
+      socket.off(eventName, handler);
+      console.log(`❌ Listener WebSocket removido → ${eventName}`);
     };
-  }, []);
+  }, [eventName]);
 
-  return globalSocket;
+  return socket;
 }
