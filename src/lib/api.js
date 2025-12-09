@@ -1,4 +1,4 @@
-// api.js - VERSÃO COM AUTENTICAÇÃO UNIFICADA
+// api.js - VERSÃO COM AUTENTICAÇÃO UNIFICADA + DEBUG DETALHADO
 // Suporta JWT (dev/staging) e Session Cookies (production)
 
 import axios from "axios";
@@ -11,6 +11,13 @@ const VITE_ENV = import.meta.env.VITE_ENV;
 
 let ENV = VITE_ENV || MODE;
 
+console.log("🔍 ========== DEBUG API.JS ==========");
+console.log("📊 Variáveis de Ambiente RAW:");
+console.log("   - import.meta.env.MODE:", MODE);
+console.log("   - import.meta.env.VITE_ENV:", VITE_ENV);
+console.log("   - import.meta.env.VITE_API_URL:", import.meta.env.VITE_API_URL);
+console.log("   - ENV detectado:", ENV);
+
 const API_URLS = {
   development: import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api",
   staging:
@@ -19,14 +26,55 @@ const API_URLS = {
   production: import.meta.env.VITE_API_URL || "https://api.promply.app/api",
 };
 
-const API_BASE_URL = API_URLS[ENV] || API_URLS.development;
+console.log("📋 URLs por Ambiente:");
+console.log("   - development:", API_URLS.development);
+console.log("   - staging:", API_URLS.staging);
+console.log("   - production:", API_URLS.production);
 
-console.log("🌍 Axios Configuração:");
+let API_BASE_URL = API_URLS[ENV] || API_URLS.development;
+
+console.log("🎯 URL Selecionada ANTES de validação:");
+console.log("   - API_BASE_URL:", API_BASE_URL);
+console.log(
+  "   - Protocolo:",
+  API_BASE_URL.startsWith("https://") ? "✅ HTTPS" : "❌ HTTP"
+);
+
+// ✅ CRÍTICO: Força HTTPS em staging/production
+if (ENV === "staging" || ENV === "production") {
+  console.log("🔒 Forçando HTTPS para ambiente:", ENV);
+
+  const urlAntes = API_BASE_URL;
+
+  // Se a URL estiver com HTTP, troca para HTTPS
+  API_BASE_URL = API_BASE_URL.replace(/^http:\/\//, "https://");
+
+  // Se não tiver protocolo, adiciona HTTPS
+  if (!API_BASE_URL.startsWith("http")) {
+    API_BASE_URL = `https://${API_BASE_URL}`;
+  }
+
+  if (urlAntes !== API_BASE_URL) {
+    console.warn("⚠️ URL foi corrigida!");
+    console.warn("   - ANTES:", urlAntes);
+    console.warn("   - DEPOIS:", API_BASE_URL);
+  } else {
+    console.log("✅ URL já estava com HTTPS");
+  }
+}
+
+console.log("🌍 Axios Configuração FINAL:");
 console.log(`   - Ambiente: ${ENV}`);
 console.log(`   - Base URL: ${API_BASE_URL}`);
 console.log(
+  `   - Protocolo: ${
+    API_BASE_URL.startsWith("https://") ? "✅ HTTPS" : "❌ HTTP"
+  }`
+);
+console.log(
   `   - Auth Mode: ${ENV === "production" ? "Session Cookies" : "JWT Token"}`
 );
+console.log("====================================\n");
 
 // ======================================
 // ⚙️ Configuração Base do Axios
@@ -34,30 +82,42 @@ console.log(
 const axiosConfig = {
   baseURL: API_BASE_URL,
   timeout: 30000,
-  withCredentials: true, // ✅ SEMPRE true para permitir cookies (production) e funcionar em todos os ambientes
+  withCredentials: true,
   headers: {
     Accept: "application/json",
   },
 };
+
+console.log("⚙️ Configuração do Axios criada:");
+console.log("   - baseURL:", axiosConfig.baseURL);
+console.log("   - timeout:", axiosConfig.timeout);
+console.log("   - withCredentials:", axiosConfig.withCredentials);
 
 // =====================================
 // 📡 Cria instância do Axios
 // =====================================
 export const api = axios.create(axiosConfig);
 
+console.log("✅ Instância do Axios criada com sucesso");
+console.log("🔍 Verificação final da baseURL:", api.defaults.baseURL);
+console.log("====================================\n");
+
 // =====================================
 // 🔒 Interceptor de Requisição
 // =====================================
 api.interceptors.request.use(
   (config) => {
-    if (ENV === "development") {
-      console.log(
-        `🌐 [API Request] ${config.method?.toUpperCase()} ${config.url}`
-      );
-    }
+    console.log("📤 [INTERCEPTOR REQUEST]");
+    console.log("   - Method:", config.method?.toUpperCase());
+    console.log("   - URL:", config.url);
+    console.log("   - baseURL:", config.baseURL);
+    console.log("   - Full URL:", `${config.baseURL}${config.url}`);
+    console.log(
+      "   - Protocolo:",
+      config.baseURL?.startsWith("https://") ? "✅ HTTPS" : "❌ HTTP"
+    );
 
     // 🔑 JWT Token (apenas dev/staging)
-    // Production usa cookies automaticamente, não precisa adicionar token
     if (ENV !== "production") {
       const token =
         localStorage.getItem("access_token") ||
@@ -66,14 +126,11 @@ api.interceptors.request.use(
 
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-
-        if (ENV === "development") {
-          console.log("🔑 Token JWT adicionado:", token.slice(0, 20) + "...");
-        }
-      } else if (ENV === "development") {
+        console.log("🔐 Token JWT adicionado:", token.slice(0, 20) + "...");
+      } else {
         console.warn("⚠️ Nenhum token encontrado no localStorage");
       }
-    } else if (ENV === "development") {
+    } else {
       console.log("🍪 Production mode - usando Session Cookies");
     }
 
@@ -90,21 +147,15 @@ api.interceptors.request.use(
 // =====================================
 api.interceptors.response.use(
   (response) => {
-    if (ENV === "development") {
-      console.log(
-        `✅ [API Response] ${response.status} ${response.config.url}`
-      );
-    }
+    console.log("✅ [INTERCEPTOR RESPONSE]");
+    console.log("   - Status:", response.status);
+    console.log("   - URL:", response.config.url);
 
     // 🔑 Salva token JWT se vier na resposta (apenas dev/staging)
-    // Em production, os cookies são gerenciados automaticamente pelo navegador
     if (ENV !== "production" && response.data?.access_token) {
       const token = response.data.access_token;
       localStorage.setItem("access_token", token);
-
-      if (ENV === "development") {
-        console.log("💾 Token JWT salvo no localStorage");
-      }
+      console.log("💾 Token JWT salvo no localStorage");
     }
 
     return response;
@@ -113,20 +164,21 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const url = error.config?.url;
 
-    console.error(`❌ [API Error] ${status} ${url}`, error.response?.data);
+    console.error("❌ [INTERCEPTOR ERROR]");
+    console.error("   - Status:", status);
+    console.error("   - URL:", url);
+    console.error("   - Data:", error.response?.data);
 
     switch (status) {
       case 401:
         console.warn("⚠️ Não autenticado (401)");
 
-        // Limpa tokens (dev/staging) ou cookies (production é automático)
         if (ENV !== "production") {
           localStorage.removeItem("access_token");
           localStorage.removeItem("token");
           localStorage.removeItem("authToken");
         }
 
-        // Redireciona para login se não estiver já na página de login
         if (!window.location.pathname.includes("/login")) {
           console.warn("🔄 Redirecionando para login...");
           window.location.href = "/login";
@@ -157,17 +209,10 @@ api.interceptors.response.use(
 // 🛠️ Helper Functions
 // =====================================
 
-/**
- * Verifica se há um token válido (dev/staging) ou sessão ativa (production)
- * @returns {boolean}
- */
 export const hasValidAuth = () => {
   if (ENV === "production") {
-    // Em production, assume que o navegador gerencia cookies
-    // A validação real será feita no backend
     return true;
   } else {
-    // Em dev/staging, verifica se há token no localStorage
     return !!(
       localStorage.getItem("access_token") ||
       localStorage.getItem("token") ||
@@ -176,9 +221,6 @@ export const hasValidAuth = () => {
   }
 };
 
-/**
- * Remove autenticação (logout)
- */
 export const clearAuth = () => {
   if (ENV !== "production") {
     localStorage.removeItem("access_token");
@@ -186,13 +228,8 @@ export const clearAuth = () => {
     localStorage.removeItem("authToken");
     console.log("🗑️ Tokens JWT removidos");
   }
-  // Em production, o logout é feito via API que limpa os cookies no servidor
 };
 
-/**
- * Salva token JWT (apenas dev/staging)
- * @param {string} token
- */
 export const saveAuthToken = (token) => {
   if (ENV !== "production" && token) {
     localStorage.setItem("access_token", token);
@@ -200,13 +237,9 @@ export const saveAuthToken = (token) => {
   }
 };
 
-/**
- * Pega token do localStorage (dev/staging) ou null (production usa cookies)
- * @returns {string|null}
- */
 export const getAuthToken = () => {
   if (ENV === "production") {
-    return null; // Production usa cookies gerenciados pelo navegador
+    return null;
   }
 
   return (
@@ -218,10 +251,6 @@ export const getAuthToken = () => {
 };
 
 export const favoriteRequest = async (promptId) => {
-  // ✅ Usa diretamente o api.post que já tem o interceptor configurado
-  // O interceptor adiciona automaticamente:
-  // - JWT token (dev/staging) via Authorization header
-  // - withCredentials: true para cookies (production)
   return api.post(`/prompts/${promptId}/favorite`, {});
 };
 
