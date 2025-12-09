@@ -99,9 +99,20 @@ function AuthPage() {
   }
 
   const handleGoogleLogin = () => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
-    window.location.href = `${API_BASE_URL}/auth/login/google`
-  }
+  // ✅ CORREÇÃO: Usa URL COMPLETA do backend
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://promply-backend-staging.onrender.com/api'
+  
+  // Remove /api duplicado se já estiver na base URL
+  const baseUrl = API_BASE_URL.replace(/\/api$/, '')
+  
+  // URL completa para OAuth
+  const googleAuthUrl = `${baseUrl}/api/auth/login/google`
+  
+  console.log('🔵 Redirecionando para Google OAuth:', googleAuthUrl)
+  
+  // Redirect direto (não usa axios/fetch)
+  window.location.href = googleAuthUrl
+}
 
   if (showForgotPassword) {
     return <ForgotPasswordPage onBackToLogin={() => setShowForgotPassword(false)} />
