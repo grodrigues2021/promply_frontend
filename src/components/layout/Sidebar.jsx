@@ -33,29 +33,26 @@ export default function Sidebar({
   isMobileSidebarOpen,
   user,
   handleLogout,
-
   openNewPromptModal,
   openTemplates,
   openChat
 }) {
 
-  // Estado para controlar se as categorias estão abertas/fechadas (padrão: ABERTO)
+  // Estados
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState("name"); // 'name' ou 'prompts'
+  const [sortBy, setSortBy] = useState("name");
 
   // Filtrar e ordenar categorias
   const filteredAndSortedCategories = useMemo(() => {
     let result = [...myCategories];
 
-    // Filtrar por busca
     if (searchQuery) {
       result = result.filter(cat =>
         cat.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
-    // Ordenar
     result.sort((a, b) => {
       if (sortBy === "name") {
         return a.name.localeCompare(b.name);
@@ -68,7 +65,7 @@ export default function Sidebar({
     return result;
   }, [myCategories, searchQuery, sortBy]);
 
-  // Bloqueia rolagem do body quando a sidebar móvel estiver aberta
+  // Bloqueia rolagem do body quando sidebar móvel aberta
   useEffect(() => {
     if (isMobileSidebarOpen) {
       document.body.style.overflow = "hidden";
@@ -95,11 +92,11 @@ export default function Sidebar({
       )}
 
       {/* Sidebar */}
-<aside
-  className={`fixed top-0 left-0 h-[100dvh] lg:h-auto w-[80%] max-w-sm lg:w-[260px] lg:relative z-[9999] lg:z-[30] flex flex-col bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out lg:transform-none ${
-    isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-  }`}
->
+      <aside
+        className={`fixed top-0 left-0 h-[100dvh] lg:h-auto w-[80%] max-w-sm lg:w-[260px] lg:relative z-[9999] lg:z-[30] flex flex-col bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out lg:transform-none ${
+          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
         {/* Botão de fechar - só no mobile */}
         <div className="lg:hidden flex justify-end px-4 py-1.5 flex-shrink-0">
           <button
@@ -111,7 +108,7 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Conteúdo principal - SEM overflow geral, deixa cada seção controlar seu scroll */}
+        {/* Conteúdo principal */}
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
           
           {/* Estatísticas Desktop - COMPACTAS */}
@@ -147,205 +144,191 @@ export default function Sidebar({
             </Card>
           </div>
 
-          {/* Card de Categorias - CRESCIMENTO DINÂMICO */}
+          {/* Card de Categorias */}
           <div className="flex-1 lg:flex-none flex flex-col min-h-0 px-3 pb-1.5">
-{/* --- BOTÕES PRINCIPAIS DO MOBILE --- */}
-<div className="flex lg:hidden flex-col px-3 gap-2 mb-3">
+            
+            {/* BOTÕES PRINCIPAIS DO MOBILE */}
+            <div className="flex lg:hidden flex-col px-3 gap-2 mb-3">
 
-  {/* Novo Prompt */}
-  {/* Novo Prompt — CORRIGIDO */}
-<Button
-  onClick={(e) => {
-    e.stopPropagation();            // evita evento escalar e abrir categorias
-    openNewPromptModal();           // abre modal de prompt (a função correta)
-    setIsMobileSidebarOpen(false);  // fecha menu mobile
-  }}
-  className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
->
-  <Plus className="w-4 h-4" />
-  Novo Prompt
-</Button>
+              {/* Novo Prompt */}
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openNewPromptModal();
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="flex items-center gap-2 bg-blue-600 text-white hover:bg-blue-700"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Prompt
+              </Button>
 
+              {/* Templates */}
+              <Button
+                onClick={() => {
+                  openTemplates();
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700"
+              >
+                <BookText className="w-4 h-4" />
+                Templates
+              </Button>
 
-  {/* Templates */}
-  <Button
-    onClick={() => {
-      openTemplates();
-      setIsMobileSidebarOpen(false);
-    }}
-    className="flex items-center gap-2 bg-green-600 text-white hover:bg-green-700"
-  >
-    <BookText className="w-4 h-4" />
-    Templates
-  </Button>
-
-  {/* Chat da Comunidade */}
-  <Button
-    onClick={() => {
-      openChat();
-      setIsMobileSidebarOpen(false);
-    }}
-    className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700"
-  >
-    <MessageSquare className="w-4 h-4" />
-    Chat da Comunidade
-  </Button>
-</div>
-
-
-
+              {/* Chat da Comunidade */}
+              <Button
+                onClick={() => {
+                  openChat();
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Chat da Comunidade
+              </Button>
+            </div>
 
             {/* Stats mobile (chips compactos) */}
-<div className="mt-3 mb-4 flex flex-wrap items-center justify-center gap-3 px-2 lg:hidden">
-  <div className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 
-      text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded-full">
-    <BookOpen className="w-3 h-3" />
-    <span>{stats.total_prompts || 0}</span>
-  </div>
+            <div className="mt-3 mb-4 flex flex-wrap items-center justify-center gap-3 px-2 lg:hidden">
+              <div className="flex items-center gap-1 bg-blue-100 dark:bg-blue-900/30 
+                  text-blue-700 dark:text-blue-300 text-xs px-2 py-1 rounded-full">
+                <BookOpen className="w-3 h-3" />
+                <span>{stats.total_prompts || 0}</span>
+              </div>
 
-  <div className="flex items-center gap-1 bg-purple-100 dark:bg-purple-900/30 
-      text-purple-700 dark:text-purple-300 text-xs px-2 py-1 rounded-full">
-    <Tag className="w-3 h-3" />
-    <span>{stats.total_categories || 0}</span>
-  </div>
+              <div className="flex items-center gap-1 bg-purple-100 dark:bg-purple-900/30 
+                  text-purple-700 dark:text-purple-300 text-xs px-2 py-1 rounded-full">
+                <Tag className="w-3 h-3" />
+                <span>{stats.total_categories || 0}</span>
+              </div>
 
-  <div className="flex items-center gap-1 bg-pink-100 dark:bg-pink-900/30
-      text-pink-700 dark:text-pink-300 text-xs px-2 py-1 rounded-full">
-    <Heart className="w-3 h-3" />
-    <span>{stats.favorite_prompts || 0}</span>
-  </div>
-</div>
+              <div className="flex items-center gap-1 bg-pink-100 dark:bg-pink-900/30
+                  text-pink-700 dark:text-pink-300 text-xs px-2 py-1 rounded-full">
+                <Heart className="w-3 h-3" />
+                <span>{stats.favorite_prompts || 0}</span>
+              </div>
+            </div>
 
-  {/* Header minimalista */}
-<div className="flex items-center justify-between mb-3">
-  <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-    Categorias 
-  </h2>
+            {/* Header minimalista */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Categorias 
+              </h2>
 
-  <Button
-  size="sm"
-  variant="ghost"
-  onClick={(e) => {
-    e.preventDefault();
-    e.stopPropagation();   // ⭐ IMPEDIR O EVENTO DE SUBIR
+              {/* ✅ BOTÃO CORRIGIDO */}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  resetCategoryForm();
+                  setIsCategoryDialogOpen(true);  // ✅ USA A MESMA FUNÇÃO PARA DESKTOP E MOBILE
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs flex items-center gap-1"
+              >
+                <FolderPlus className="w-4 h-4" />
+                Adicionar
+              </Button>
+            </div>
 
-    resetCategoryForm();
+            {/* Lista minimalista + color bullets */}
+            <ul className="space-y-2 pl-2">
 
-    if (window.innerWidth < 768) {
-      setShowCategoryModal(true);     // MOBILE
-    } else {
-      setIsCategoryDialogOpen(true);  // DESKTOP
-    }
+              {/* ITEM ESPECIAL: TODOS */}
+              <li
+                className={`
+                  group flex items-center justify-between gap-2 cursor-pointer 
+                  transition-colors
+                  ${
+                    selectedCategory === null
+                      ? "text-blue-600 dark:text-blue-400 font-medium"
+                      : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
+                  }
+                `}
+                onClick={() => {
+                  setSelectedCategory(null);
+                  setIsMobileSidebarOpen(false);
+                }}
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-slate-400 dark:bg-slate-500"
+                  ></span>
 
-    setIsMobileSidebarOpen(false);
-  }}
-  className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs flex items-center gap-1"
->
-  <FolderPlus className="w-4 h-4" />
-  Adicionar
-</Button>
+                  <span className="truncate text-sm">
+                    Todos ({stats.total_prompts || 0})
+                  </span>
+                </div>
+              </li>
 
-</div>
+              {filteredAndSortedCategories.map((category) => (
+                <li
+                  key={category.id}
+                  className={`
+                    group flex items-center justify-between gap-2 cursor-pointer 
+                    transition-colors
+                    ${
+                      selectedCategory === category.id
+                        ? "text-blue-600 dark:text-blue-400 font-medium"
+                        : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
+                    }
+                  `}
+                >
+                  {/* Clique para selecionar categoria */}
+                  <div
+                    className="flex items-center gap-2 flex-1 min-w-0"
+                    onClick={() => {
+                      setSelectedCategory(category.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                  >
+                    {/* bolinha colorida */}
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: category.color || "#3B82F6",
+                      }}
+                    ></span>
 
-{/* Lista minimalista + color bullets */}
-<ul className="space-y-2 pl-2">
+                    {/* nome + contador */}
+                    <span className="truncate text-sm">
+                      {category.name} ({category.prompt_count})
+                    </span>
+                  </div>
 
-  {/* --- ITEM ESPECIAL: TODOS --- */}
-  <li
-    className={`
-      group flex items-center justify-between gap-2 cursor-pointer 
-      transition-colors
-      ${
-        selectedCategory === null
-          ? "text-blue-600 dark:text-blue-400 font-medium"
-          : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
-      }
-    `}
-    onClick={() => {
-      setSelectedCategory(null);
-      setIsMobileSidebarOpen(false);
-    }}
-  >
-    <div className="flex items-center gap-2 flex-1 min-w-0">
-      <span
-        className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-slate-400 dark:bg-slate-500"
-      ></span>
+                  {/* Ações (EDITAR / APAGAR) */}
+                  <div className="flex items-center gap-1 
+                    opacity-100 lg:opacity-0 lg:group-hover:opacity-100 
+                    transition-opacity">
 
-      <span className="truncate text-sm">
-        Todos ({stats.total_prompts || 0})
-      </span>
-    </div>
-  </li>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        editCategory(category);
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title="Editar categoria"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
 
-  {filteredAndSortedCategories.map((category) => (
-
-    <li
-      key={category.id}
-      className={`
-        group flex items-center justify-between gap-2 cursor-pointer 
-        transition-colors
-        ${
-          selectedCategory === category.id
-            ? "text-blue-600 dark:text-blue-400 font-medium"
-            : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
-        }
-      `}
-    >
-      {/* Clique para selecionar categoria */}
-      <div
-        className="flex items-center gap-2 flex-1 min-w-0"
-        onClick={() => {
-          setSelectedCategory(category.id);
-          setIsMobileSidebarOpen(false);
-        }}
-      >
-        {/* bolinha colorida */}
-        <span
-          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-          style={{
-            backgroundColor: category.color || "#3B82F6",
-          }}
-        ></span>
-
-        {/* nome + contador */}
-        <span className="truncate text-sm">
-          {category.name} ({category.prompt_count})
-        </span>
-      </div>
-
-      {/* Ações (EDITAR / APAGAR) — apenas no hover */}
-      <div className="flex items-center gap-1 
-  opacity-100 lg:opacity-0 lg:group-hover:opacity-100 
-  transition-opacity">
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            editCategory(category);
-            setIsMobileSidebarOpen(false);
-          }}
-          className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-          title="Editar categoria"
-        >
-          <Edit3 className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteCategory(category.id);
-          }}
-          className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-          title="Apagar categoria"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-    </li>
-  ))}
-</ul>
-
-
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCategory(category.id);
+                      }}
+                      className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      title="Apagar categoria"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
 
           </div>
         </div>
