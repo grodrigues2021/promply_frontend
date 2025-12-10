@@ -16,7 +16,7 @@ const isB2Url = (url) => {
     url.includes("f005.backblazeb2.com") ||
     url.includes("s3.us-east-005.backblazeb2.com") ||
     url.includes("cdn.promply.app") ||
-    url.includes("file/prompt") // múltiplos buckets possíveis
+    url.includes("file/promply") // bucket específico
   );
 };
 
@@ -41,14 +41,28 @@ export const resolveMediaUrl = (url = "") => {
 
     const trimmedUrl = url.trim();
 
+    // Log para debug
+    console.log("🔍 resolveMediaUrl recebeu:", trimmedUrl.substring(0, 100));
+
     // Base64 → retorna direto
-    if (isBase64(trimmedUrl)) return trimmedUrl;
+    if (isBase64(trimmedUrl)) {
+      console.log("✅ Detectado como Base64");
+      return trimmedUrl;
+    }
 
     // URLs absolutas (http/https) → retorna direto
-    if (isAbsoluteUrl(trimmedUrl)) return trimmedUrl;
+    if (isAbsoluteUrl(trimmedUrl)) {
+      console.log("✅ Detectado como URL absoluta");
+      return trimmedUrl;
+    }
 
-    // URLs do B2 detectadas → retorna direto
-    if (isB2Url(trimmedUrl)) return trimmedUrl;
+    // URLs do B2 detectadas → retorna direto (backup de segurança)
+    if (isB2Url(trimmedUrl)) {
+      console.log("✅ Detectado como B2 URL");
+      return trimmedUrl;
+    }
+
+    console.log("🔧 Processando como path relativo");
 
     let finalUrl = trimmedUrl;
 
@@ -90,7 +104,10 @@ export const resolveMediaUrl = (url = "") => {
     // ===========================
     // PREFIXO FINAL COM BACKEND
     // ===========================
-    return `${BACKEND_BASE}${finalUrl}`;
+    const result = `${BACKEND_BASE}${finalUrl}`;
+    console.log("✅ URL final:", result.substring(0, 100));
+
+    return result;
   } catch (err) {
     console.error("❌ resolveMediaUrl ERRO:", err, "URL original:", url);
     return url;
