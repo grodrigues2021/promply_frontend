@@ -1,4 +1,4 @@
-// src/components/PromptCard.jsx - VERSÃO CORRIGIDA
+// src/components/PromptCard.jsx - VERSÃO CORRIGIDA E OTIMIZADA
 import React, { useMemo, useState, useEffect } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
@@ -20,9 +20,7 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
-import { resolveMediaUrl } from "../lib/media";
-
-
+import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
 
 const cardVariants = cva(
   "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
@@ -67,10 +65,7 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
 });
 
 const detectVideoType = (url) => {
-  if (!url) {
-    console.log("⚠️ detectVideoType: URL vazia");
-    return null;
-  }
+  if (!url) return null;
   
   const normalized = url.toLowerCase().trim();
   console.log("🔍 detectVideoType analisando:", normalized);
@@ -285,7 +280,7 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-  // ✅ CORREÇÃO CRÍTICA: Declarar attachments ANTES do useMemo
+  // Estado dos anexos
   const [attachments, setAttachments] = useState([]);
   const [loadingAttachments, setLoadingAttachments] = useState(true);
 
@@ -302,135 +297,48 @@ const PromptCard = React.memo(({
     return String(prompt.id).startsWith('temp-') || prompt._isOptimistic;
   }, [prompt.id, prompt._isOptimistic]);
 
-  // ✅ AGORA o useMemo pode usar attachments com segurança
+  // ✅ VERSÃO SIMPLIFICADA - Usando funções helper do media.js
   const mediaInfo = useMemo(() => {
-    // Garantir que attachments seja sempre um array
     const safeAttachments = Array.isArray(attachments) ? attachments : [];
     
     const videoUrl = prompt.video_url || null;
     const youtubeUrl = prompt.youtube_url || null;
-    const hasImage = prompt.image_url;
+    const hasImage = !!prompt.image_url;
     
-    // 🔍 DEBUG: Ver o que está chegando
-    console.log("🎬 DEBUG PromptCard:", {
+    console.log("🎬 DEBUG PromptCard mediaInfo:", {
       promptId: prompt.id,
-      promptTitle: prompt.title,
-      video_url: prompt.video_url,
-      youtube_url: prompt.youtube_url,
+      video_url: videoUrl,
+      youtube_url: youtubeUrl,
       image_url: prompt.image_url,
       thumb_url: prompt.thumb_url,
-      videoUrl: videoUrl,
-      hasImage: !!hasImage,
     });
     
     const videoType = detectVideoType(videoUrl);
-    
-    console.log("🎯 Tipo de vídeo detectado:", videoType);
-    
-const hasYouTubeVideo =
-  !!prompt.youtube_url ||
-  videoType === "youtube";
+    const hasYouTubeVideo = !!youtubeUrl || videoType === "youtube";
     const hasLocalVideo = prompt._hasLocalVideo || videoType === 'local';
     const hasVideo = hasYouTubeVideo || hasLocalVideo;
     const hasMedia = hasVideo || hasImage;
     
-    console.log("✅ Flags finais:", {
-      hasYouTubeVideo,
-      hasLocalVideo,
-      hasVideo,
-      hasImage: !!hasImage,
-      hasMedia,
-    });
-    
-const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
-    
+    const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
     const youtubeThumbnail = videoId 
       ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
       : null;
     
-    // 🖼️ Construir imageUrlWithCacheBuster
-    let imageUrlWithCacheBuster = null;
-    if (hasImage && prompt.image_url) {
-      let fixedUrl = prompt.image_url;
-      
-      // Corrigir caminhos antigos
-      if (fixedUrl.startsWith("/media/images/")) {
-        fixedUrl = fixedUrl.replace("/media/images/", "/media/image/");
-      }
-
-      if (fixedUrl.startsWith("data:image")) {
-        imageUrlWithCacheBuster = fixedUrl;
-      } else if (prompt.updated_at) {
-        const timestamp = new Date(prompt.updated_at).getTime();
-        let normalizedUrl = fixedUrl;
-
-        // Garantir domínio do backend
-        let backendHost = api.defaults.baseURL.replace("/api", "");
-
-        if (!normalizedUrl.startsWith("http")) {
-          normalizedUrl = `${backendHost}${normalizedUrl}`;
-        }
-
-
-        imageUrlWithCacheBuster = `${normalizedUrl}?v=${timestamp}`;
-      } else {
-        imageUrlWithCacheBuster = fixedUrl;
-      }
+    // 🎯 SIMPLIFICADO: Construir thumbnailUrl usando resolveMediaUrl
+    let thumbnailUrl = null;
+    
+    // Prioridade: YouTube thumb > Image > Video thumb > Attachment
+    if (youtubeThumbnail) {
+      thumbnailUrl = youtubeThumbnail;
+    } else if (prompt.image_url) {
+      thumbnailUrl = resolveMediaUrlWithCache(prompt.image_url, prompt.updated_at);
+    } else if (prompt.thumb_url) {
+      thumbnailUrl = resolveMediaUrlWithCache(prompt.thumb_url, prompt.updated_at);
+    } else if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
+      thumbnailUrl = resolveMediaUrl(safeAttachments[0].file_url);
     }
-
-    // 📸 Construir thumbUrlWithCache
-    let thumbUrlWithCache = null;
-    if (prompt.thumb_url) {
-      let fixedThumb = prompt.thumb_url;
-
-      // Corrigir caminhos antigos
-      if (fixedThumb.startsWith("/media/images/")) {
-        fixedThumb = fixedThumb.replace("/media/images/", "/media/image/");
-      }
-
-      // Normalizar URL absoluta
-      let backendHost = api.defaults.baseURL.replace("/api", "");
-
-      if (!fixedThumb.startsWith("http")) {
-        fixedThumb = `${backendHost}${fixedThumb}`;
-      }
-
-
-      // Cache-buster
-      const t = prompt.updated_at
-        ? new Date(prompt.updated_at).getTime()
-        : Date.now();
-
-      thumbUrlWithCache = `${fixedThumb}?v=${t}`;
-    }
-
-    // 📎 Construir attachmentUrl
-    let attachmentUrl = null;
-    if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
-      attachmentUrl = safeAttachments[0].file_url;
-
-      // Corrigir caminhos antigos
-      if (attachmentUrl.startsWith("/media/images/")) {
-        attachmentUrl = attachmentUrl.replace("/media/images/", "/media/image/");
-      }
-
-      // Montar URL absoluta
-      let backendHost = api.defaults.baseURL.replace("/api", "");
-      // Se for URL ABSOLUTA (B2 ou outro CDN), NÃO prefixa o backend
-      if (!attachmentUrl.startsWith("http")) {
-        attachmentUrl = `${backendHost}${attachmentUrl}`;
-      }
-
-    }
-
-    // 🎯 Prioridade final do preview
-    const thumbnailUrl = resolveMediaUrl(
-    youtubeThumbnail ||
-    imageUrlWithCacheBuster ||
-    thumbUrlWithCache ||
-    attachmentUrl
-  );
-
+    
+    console.log("✅ thumbnailUrl final:", thumbnailUrl);
 
     return { 
       hasVideo,
@@ -450,18 +358,18 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
     prompt.updated_at, 
     prompt._hasYouTube, 
     prompt._hasLocalVideo,
-    attachments  // ✅ Agora está seguro
+    attachments
   ]);
 
- const tagsArray = useMemo(() => {
-  console.log("🏷️ Tags recebidas:", prompt.tags, "Tipo:", typeof prompt.tags);
-  
-  if (Array.isArray(prompt.tags)) return prompt.tags;
-  if (typeof prompt.tags === 'string') {
-    return prompt.tags.split(',').map(t => t.trim()).filter(Boolean);
-  }
-  return [];
-}, [prompt.tags]);
+  const tagsArray = useMemo(() => {
+    console.log("🏷️ Tags recebidas:", prompt.tags, "Tipo:", typeof prompt.tags);
+    
+    if (Array.isArray(prompt.tags)) return prompt.tags;
+    if (typeof prompt.tags === 'string') {
+      return prompt.tags.split(',').map(t => t.trim()).filter(Boolean);
+    }
+    return [];
+  }, [prompt.tags]);
 
   // 🔵 Ícones por plataforma
   const platformIcons = {
@@ -517,14 +425,14 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
 
   // Função para abrir modal
   const openModal = (type, src = null, videoId = null) => {
-     console.log("🎬 ABRINDO MODAL:", {
-    type: type,
-    src: src,
-    videoId: videoId,
-    hasVideo: mediaInfo.hasVideo,
-    hasLocalVideo: mediaInfo.hasLocalVideo,
-    videoUrl: mediaInfo.videoUrl
-  });
+    console.log("🎬 ABRINDO MODAL:", {
+      type: type,
+      src: src,
+      videoId: videoId,
+      hasVideo: mediaInfo.hasVideo,
+      hasLocalVideo: mediaInfo.hasLocalVideo,
+      videoUrl: mediaInfo.videoUrl
+    });
     setModalState({
       isOpen: true,
       type,
@@ -588,16 +496,9 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
             ) : (
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
-                 <h3
-  className="
-    text-lg font-semibold text-gray-900
-    whitespace-nowrap overflow-hidden text-ellipsis
-    line-clamp-1
-  "
->
-  {prompt.title}
-</h3>
-
+                  <h3 className="text-lg font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis line-clamp-1">
+                    {prompt.title}
+                  </h3>
                   
                   <div className="flex items-center justify-between mt-1 w-full">
                     {/* TAG DE CATEGORIA */}
@@ -620,34 +521,18 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
 
                     {/* TAG DE PLATAFORMA - APENAS ÍCONE COM TOOLTIP */}
                     {platformLabel && (
-  <div className="relative">
-  <div
-    className="
-      peer   /* <- ICON BECOMES PEER */
-      flex items-center justify-center w-7 h-7 rounded-full
-      bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300
-      cursor-pointer transition-all duration-200 hover:scale-110 hover:shadow-md
-    "
-  >
-    <span className="text-base">{platformIcon}</span>
-  </div>
+                      <div className="relative">
+                        <div className="peer flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border border-gray-300 cursor-pointer transition-all duration-200 hover:scale-110 hover:shadow-md">
+                          <span className="text-base">{platformIcon}</span>
+                        </div>
 
-  <div
-    className="
-      absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5
-      bg-gray-900 text-white text-xs font-medium rounded-lg
-      opacity-0 invisible
-      peer-hover:opacity-100 peer-hover:visible   /* <- WORKS! */
-      transition-all duration-200 whitespace-nowrap pointer-events-none z-10
-    "
-  >
-    {platformLabel}
-
-                           <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
-      <div className="border-4 border-transparent border-t-gray-900"></div>
-    </div>
-  </div>
-</div>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 invisible peer-hover:opacity-100 peer-hover:visible transition-all duration-200 whitespace-nowrap pointer-events-none z-10">
+                          {platformLabel}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-px">
+                            <div className="border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -872,23 +757,19 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
 
             {/* VÍDEO LOCAL - Apenas thumbnail clicável */}
             {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
-            <button
-              type="button"
-              onClick={() => {
-                const backend = api.defaults.baseURL.replace("/api", "");
-
-                const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
-
-
-                openModal("video", finalVideoUrl);
-              }}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-
-
+              <button
+                type="button"
+                onClick={() => {
+                  // ✅ Usar resolveMediaUrl para construir a URL correta
+                  const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
+                  console.log("🎬 Abrindo vídeo local:", finalVideoUrl);
+                  openModal("video", finalVideoUrl);
+                }}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
                 {mediaInfo.thumbnailUrl ? (
                   <img
-                    src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
+                    src={mediaInfo.thumbnailUrl}
                     alt={prompt.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
@@ -917,16 +798,18 @@ const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
             {!mediaInfo.hasVideo && mediaInfo.hasImage && (
               <button
                 type="button"
-                onClick={() => openModal('image', mediaInfo.thumbnailUrl)}
+                onClick={() => {
+                  // ✅ thumbnailUrl já está resolvido corretamente
+                  openModal('image', mediaInfo.thumbnailUrl)
+                }}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-              <img
-  src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
-  alt={prompt.title}
-  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-  loading="lazy"
-/>
-
+                <img
+                  src={mediaInfo.thumbnailUrl}
+                  alt={prompt.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                  loading="lazy"
+                />
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
