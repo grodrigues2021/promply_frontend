@@ -15,9 +15,6 @@ import { X, Upload, ImageIcon, Video, Youtube } from "lucide-react";
 
 import api from "../../lib/api";
 
-
-
-
 // ============================================================
 // 🔵 PLATAFORMAS DISPONÍVEIS
 // ============================================================
@@ -33,16 +30,13 @@ const PLATFORMS = [
 ];
 
 // ============================================================
-// 🔵 Helpers
+// 🔵 HELPERS
 // ============================================================
 
-// Extrai ID de YouTube de qualquer URL
 function extractYouTubeId(url) {
     if (!url) return null;
-
     try {
-        let regExp =
-            /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|youtube.com\/watch\?v=)([^#&?]*).*/;
+        let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|youtube.com\/watch\?v=)([^#&?]*).*/;
         let match = url.match(regExp);
         return match && match[2].length === 11 ? match[2] : null;
     } catch {
@@ -50,7 +44,6 @@ function extractYouTubeId(url) {
     }
 }
 
-// Detecta se uma string é URL completa
 function isValidHttpUrl(str) {
     try {
         let url = new URL(str);
@@ -60,7 +53,6 @@ function isValidHttpUrl(str) {
     }
 }
 
-// Detecta MIME do arquivo
 function detectFileType(file) {
     if (!file) return null;
     if (file.type.startsWith("image/")) return "image";
@@ -69,57 +61,52 @@ function detectFileType(file) {
 }
 
 // ============================================================
-// 🔵 Componente TemplateModal
+// 🔵 COMPONENTE TEMPLATEMODAL
 // ============================================================
 
 export default function TemplateModal({
-  isOpen,
-  onClose,
-  onSave,
-  template,
-  categories = [],
-  extraFiles,
-  setExtraFiles,
-  handleExtraFilesChange,
+    isOpen,
+    onClose,
+    onSave,
+    template,
+    categories = [],
+    extraFiles,
+    setExtraFiles,
+    handleExtraFilesChange,
 }) {
+    // ============================================================
+    // 🟡 ESTADOS
+    // ============================================================
 
-    // ------------------------------------------------------------
-    // 🟡 ESTADOS – UNIFICADOS
-    // ------------------------------------------------------------
-
-    const [title, setTitle] = useState(template?.title || "");
-    const [description, setDescription] = useState(template?.description || "");
-    const [content, setContent] = useState(template?.content || "");
-
-    const [selectedCategories, setSelectedCategories] = useState(
-        template?.categories_ids || []
-    );
+    const [title, setTitle] = useState("");
+    const [description, setDescription] = useState("");
+    const [content, setContent] = useState("");
+    const [selectedCategories, setSelectedCategories] = useState([]);
     const [tagsInput, setTagsInput] = useState("");
-    const [platform, setPlatform] = useState(template?.platform || "");
+    const [platform, setPlatform] = useState("");
     
-    const [imageUrl, setImageUrl] = useState(template?.image_url || null);
-    const [videoUrl, setVideoUrl] = useState(template?.video_url || null);
-    const [youtubeUrl, setYoutubeUrl] = useState(template?.youtube_url || "");
+    const [imageUrl, setImageUrl] = useState(null);
+    const [videoUrl, setVideoUrl] = useState(null);
+    const [youtubeUrl, setYoutubeUrl] = useState("");
+    const [thumbUrl, setThumbUrl] = useState(null);
 
     const [imageFile, setImageFile] = useState(null);
     const [videoFile, setVideoFile] = useState(null);
 
-    const [thumbUrl, setThumbUrl] = useState(template?.thumb_url || null);
-
     const [preview, setPreview] = useState(null);
-
     const [isSaving, setIsSaving] = useState(false);
-
-    // 🔵 Arquivos extras já existentes no template (TemplateFile)
     const [existingFiles, setExistingFiles] = useState([]);
 
     const isEdit = !!template?.id;
 
-    // ------------------------------------------------------------
-    // 🟡 RESET – ao abrir modal
-    // ------------------------------------------------------------
+    // ============================================================
+    // 🟡 RESET - Ao abrir modal
+    // ============================================================
     useEffect(() => {
         if (!isOpen) return;
+
+        console.log("🔄 [TemplateModal] Reset - Modal aberto");
+        console.log("   📝 Template:", template?.id ? `ID ${template.id}` : "NOVO");
 
         setTitle(template?.title || "");
         setDescription(template?.description || "");
@@ -127,32 +114,23 @@ export default function TemplateModal({
         setSelectedCategories(template?.categories_ids || []);
         setPlatform(template?.platform || "");
         
-        // ✅ Converter tags para string
-        // 🟣 Normalização definitiva das tags (corrige JSON, aspas internas e arrays)
+        // 🟣 Normalização de tags
         const templateTags = template?.tags || [];
-
         if (Array.isArray(templateTags)) {
-            // ex: ["teste 1", "teste 2"]
             setTagsInput(templateTags.join(", "));
-        }
-        else if (typeof templateTags === "string") {
+        } else if (typeof templateTags === "string") {
             const raw = templateTags.trim();
-
             if (raw.startsWith("[")) {
-                // ex: "["teste 1","teste 2"]"
                 try {
                     const parsed = JSON.parse(raw);
                     setTagsInput(parsed.join(", "));
                 } catch {
-                    // remove aspas e brackets por segurança
                     setTagsInput(raw.replace(/[\[\]"]/g, "").trim());
                 }
             } else {
-                // string comum (ex: "teste 1, teste 2")
                 setTagsInput(raw.replace(/[\[\]"]/g, "").trim());
             }
-        }
-        else {
+        } else {
             setTagsInput("");
         }
 
@@ -165,19 +143,20 @@ export default function TemplateModal({
         setVideoFile(null);
         setPreview(null);
 
-        // 🔥 CORREÇÃO: limpar anexos ao criar novo template
-if (template?.id) {
-    loadExistingFiles(template.id);
-} else {
-    setExistingFiles([]);      // ← ZERA ANEXOS ANTIGOS
-    setExtraFiles([]);         // ← ZERA ARQUIVOS SELECIONADOS
-}
-
+        // 🔵 ARQUIVOS EXTRAS
+        if (template?.id) {
+            console.log("   📎 Carregando arquivos extras existentes...");
+            loadExistingFiles(template.id);
+        } else {
+            console.log("   📎 Zerando arquivos extras (novo template)");
+            setExistingFiles([]);
+            setExtraFiles([]);
+        }
     }, [isOpen, template]);
 
-    // ------------------------------------------------------------
-    // 🟣 Atualiza preview automaticamente
-    // ------------------------------------------------------------
+    // ============================================================
+    // 🟣 ATUALIZA PREVIEW AUTOMATICAMENTE
+    // ============================================================
     useEffect(() => {
         if (videoFile) {
             const url = URL.createObjectURL(videoFile);
@@ -210,29 +189,29 @@ if (template?.id) {
         setPreview(null);
     }, [videoFile, youtubeUrl, videoUrl, imageFile, imageUrl, thumbUrl]);
 
-
-
     // ============================================================
-    // 🔵 Carrega arquivos extras existentes do Template (GET)
+    // 🔵 CARREGA ARQUIVOS EXTRAS EXISTENTES
     // ============================================================
     const loadExistingFiles = async (templateId) => {
-    try {
-        const response = await api.get(`/templates/${templateId}/files`);
-        setExistingFiles(response.data.data || []);
-    } catch (error) {
-        console.error("Erro ao carregar arquivos extras:", error);
-    }
+        try {
+            const response = await api.get(`/templates/${templateId}/files`);
+            const files = response.data.data || [];
+            console.log(`   ✅ ${files.length} arquivo(s) extra(s) carregado(s)`);
+            setExistingFiles(files);
+        } catch (error) {
+            console.error("   ❌ Erro ao carregar arquivos extras:", error);
+        }
     };
-    // ------------------------------------------------------------
-    // 🔵 handleFileSelect
-    // ------------------------------------------------------------
+
+    // ============================================================
+    // 🔵 HANDLE FILE SELECT (Imagem/Vídeo principal)
+    // ============================================================
     const handleFileSelect = useCallback((event) => {
-
-
         const file = event.target.files?.[0];
         if (!file) return;
 
         const type = detectFileType(file);
+        console.log(`📎 Arquivo selecionado: ${file.name} (${type})`);
 
         if (type === "image") {
             setImageFile(file);
@@ -252,7 +231,7 @@ if (template?.id) {
     }, []);
 
     // ============================================================
-    // 🟦 PREVIEW INTELIGENTE – JSX
+    // 🟦 RENDER PREVIEW
     // ============================================================
     const renderPreview = () => {
         if (!preview) {
@@ -298,7 +277,6 @@ if (template?.id) {
                         title="YouTube video"
                         allowFullScreen
                     ></iframe>
-
                     <button
                         type="button"
                         className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
@@ -321,7 +299,6 @@ if (template?.id) {
                         alt="Preview"
                         className="w-full h-full object-contain bg-muted"
                     />
-
                     <button
                         type="button"
                         className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
@@ -344,10 +321,12 @@ if (template?.id) {
         );
     };
 
-        // ============================================================
-    // 🟦 HANDLE SAVE – PATCH FINAL E CORRIGIDO
+    // ============================================================
+    // 🟦 HANDLE SAVE - VERSÃO FINAL E CORRIGIDA
     // ============================================================
     const handleSave = async () => {
+        console.log("💾 [TemplateModal] handleSave INICIADO");
+
         if (!title.trim()) {
             alert("Título é obrigatório.");
             return;
@@ -360,32 +339,36 @@ if (template?.id) {
         setIsSaving(true);
 
         try {
-            // ---------------------------------------------------------
             // 🔵 PREPARAR TAGS
-            // ---------------------------------------------------------
             const tagsArray = tagsInput
                 .split(",")
                 .map((t) => t.trim())
                 .filter(Boolean);
 
-            // ---------------------------------------------------------
-            // 🔵 IDENTIFICADORES
-            // ---------------------------------------------------------
-            const hasNewMedia = imageFile || videoFile;              // imagem/vídeo novos
-            const hasYouTube = extractYouTubeId(youtubeUrl);         // youtube ativo
-            const hasExtraFiles = extraFiles && extraFiles.length > 0; // arquivos extras novos
+            console.log("   📋 Tags processadas:", tagsArray);
 
-            // ---------------------------------------------------------
+            // 🔵 IDENTIFICADORES
+            const hasNewMedia = imageFile || videoFile;
+            const hasYouTube = extractYouTubeId(youtubeUrl);
+            const hasExtraFiles = extraFiles && extraFiles.length > 0;
+
+            console.log("   🔍 Detecção de mídia:");
+            console.log("      - hasNewMedia:", hasNewMedia);
+            console.log("      - hasYouTube:", hasYouTube);
+            console.log("      - hasExtraFiles:", hasExtraFiles);
+
             // 🔵 NECESSIDADE DE FORMDATA
-            // ---------------------------------------------------------
             const mustUseFormData = hasNewMedia || hasYouTube || hasExtraFiles;
+
+            console.log("   📦 Usar FormData:", mustUseFormData);
 
             let payload;
 
             // ============================================================
-            // 🔵 CASO 1 — FORM DATA (upload de qualquer arquivo)
+            // 🔵 CASO 1 - FORMDATA (upload de qualquer arquivo)
             // ============================================================
             if (mustUseFormData) {
+                console.log("   📤 Construindo FormData...");
                 payload = new FormData();
 
                 payload.append("title", title);
@@ -395,43 +378,53 @@ if (template?.id) {
                 payload.append("tags", JSON.stringify(tagsArray));
                 payload.append("platform", platform || "");
 
-                // 🔵 MÍDIA NOVA (somente novas!)
+                // 🔵 MÍDIA NOVA
                 if (imageFile) {
                     payload.append("image", imageFile);
+                    console.log("      ✅ Imagem adicionada:", imageFile.name);
                 }
                 if (videoFile) {
                     payload.append("video", videoFile);
+                    console.log("      ✅ Vídeo adicionado:", videoFile.name);
                 }
 
-                // 🔵 YouTube → inclui URL e gera thumbnail
+                // 🔵 YOUTUBE
                 if (hasYouTube) {
                     payload.append("youtube_url", youtubeUrl);
-
                     const ytId = extractYouTubeId(youtubeUrl);
                     if (ytId) {
                         const ytThumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
                         payload.append("thumb_url", ytThumb);
+                        console.log("      ✅ YouTube URL adicionada:", youtubeUrl);
                     }
                 }
 
-                // 🔵 ARQUIVOS EXTRAS (somente os novos)
+                // 🔵 ARQUIVOS EXTRAS (CRÍTICO!)
                 if (hasExtraFiles) {
-                    extraFiles.forEach((file) => {
+                    console.log(`      📎 Adicionando ${extraFiles.length} arquivo(s) extra(s):`);
+                    extraFiles.forEach((file, index) => {
                         payload.append("extra_files", file);
+                        console.log(`         ${index + 1}. ${file.name} (${file.size} bytes)`);
                     });
                 }
 
-                // ❌ NÃO ENVIAR image_url / video_url / thumb_url NO PUT
-                //    O backend mantém tudo automaticamente.
-
+                // 📋 LOG FINAL - Listar todo o FormData
+                console.log("   📋 FormData final - conteúdo completo:");
+                for (let [key, value] of payload.entries()) {
+                    if (value instanceof File) {
+                        console.log(`      🔑 ${key}: [File] ${value.name} (${value.size} bytes)`);
+                    } else {
+                        console.log(`      🔑 ${key}: ${value}`);
+                    }
+                }
             }
-
             // ============================================================
-            // 🔵 CASO 2 — JSON (nenhuma mídia envolvida)
+            // 🔵 CASO 2 - JSON (nenhuma mídia envolvida)
             // ============================================================
             else {
+                console.log("   📤 Construindo JSON...");
+                
                 let finalThumbUrl = thumbUrl;
-
                 if (youtubeUrl) {
                     const ytId = extractYouTubeId(youtubeUrl);
                     if (ytId) {
@@ -448,18 +441,20 @@ if (template?.id) {
                     platform: platform || null,
                     youtube_url: youtubeUrl || null,
                     thumb_url: finalThumbUrl || null,
-
-                    // 🔴 NÃO ENVIAR mídias existentes → backend já mantém
                     image_url: imageUrl || null,
                     video_url: videoUrl || null,
                 };
+
+                console.log("   📋 JSON payload:", payload);
             }
 
             // ============================================================
             // 🔵 EXECUTAR SALVAMENTO
             // ============================================================
+            console.log("   🚀 Chamando onSave...");
             await onSave(payload, template?.id || null);
 
+            console.log("   ✅ Template salvo com sucesso!");
             setIsSaving(false);
             onClose();
         } catch (err) {
@@ -469,25 +464,24 @@ if (template?.id) {
         }
     };
 
+    // ============================================================
+    // 🔴 REMOVER ARQUIVO EXTRA EXISTENTE
+    // ============================================================
+    const handleDeleteExistingFile = async (fileId) => {
+        if (!window.confirm("Deseja remover este arquivo?")) return;
 
-// ============================================================
-// 🔴 Remover arquivo extra existente (DELETE)
-// ============================================================
-const handleDeleteExistingFile = async (fileId) => {
-  if (!window.confirm("Deseja remover este arquivo?")) return;
-
-  try {
-    await api.delete(`/templates/files/${fileId}`);
-    setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
-  } catch (error) {
-    console.error("Erro ao remover arquivo extra:", error);
-  }
-};
-
-
+        try {
+            console.log(`🗑️ Removendo arquivo ID ${fileId}...`);
+            await api.delete(`/templates/files/${fileId}`);
+            setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
+            console.log("   ✅ Arquivo removido com sucesso");
+        } catch (error) {
+            console.error("   ❌ Erro ao remover arquivo:", error);
+        }
+    };
 
     // ============================================================
-    // 🟦 JSX FINAL – FORMULÁRIO + BOTÕES
+    // 🟦 JSX - FORMULÁRIO COMPLETO
     // ============================================================
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -507,12 +501,9 @@ const handleDeleteExistingFile = async (fileId) => {
                     {/* ========== COLUNA ESQUERDA - MÍDIA ========== */}
                     <div className="space-y-4">
                         {/* PREVIEW */}
-                         <div>
-                            {renderPreview()}
-                        </div>
+                        <div>{renderPreview()}</div>
 
-                        
-                   {/* UPLOAD BUTTONS */}
+                        {/* UPLOAD BUTTONS */}
                         <div className="flex flex-col gap-3 relative z-10 bg-white pt-2">
                             <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:opacity-90 transition-opacity shadow-md">
                                 <ImageIcon className="w-5 h-5" />
@@ -537,121 +528,110 @@ const handleDeleteExistingFile = async (fileId) => {
                             </label>
                         </div>
 
-{/* ===== ARQUIVOS EXTRAS (PNG/JPG) ===== */}
-<div className="mt-4">
-  <label className="text-sm font-semibold mb-2 block">
-    Arquivos Extras (PNG/JPG)
-  </label>
+                        {/* ===== ARQUIVOS EXTRAS (PNG/JPG) ===== */}
+                        <div className="mt-4">
+                            <label className="text-sm font-semibold mb-2 block">
+                                Arquivos Extras (PNG/JPG)
+                            </label>
 
-  <input
-    type="file"
-    accept="image/png, image/jpeg"
-    multiple
-    onChange={handleExtraFilesChange}
-    className="block w-full border border-gray-300 rounded-lg p-2"
-  />
+                            <input
+                                type="file"
+                                accept="image/png, image/jpeg"
+                                multiple
+                                onChange={handleExtraFilesChange}
+                                className="block w-full border border-gray-300 rounded-lg p-2"
+                            />
 
-{/* 🔵 LISTA DE ARQUIVOS JÁ EXISTENTES NO TEMPLATE */}
-{existingFiles.length > 0 && (
-  <div className="mt-3 space-y-2">
-    <label className="text-sm font-semibold block">
-      Arquivos já anexados:
-    </label>
+                            {/* 🔵 ARQUIVOS JÁ EXISTENTES */}
+                            {existingFiles.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                    <label className="text-sm font-semibold block">
+                                        Arquivos já anexados:
+                                    </label>
 
-    {existingFiles.map((file) => (
-  <div
-    key={file.id}
-    className="flex items-center justify-between w-full py-1 px-2 border rounded-md bg-gray-50"
-  >
-    <span className="text-sm truncate">{file.file_name}</span>
+                                    {existingFiles.map((file) => (
+                                        <div
+                                            key={file.id}
+                                            className="flex items-center justify-between w-full py-1 px-2 border rounded-md bg-gray-50"
+                                        >
+                                            <span className="text-sm truncate">{file.file_name}</span>
 
-    <div className="flex items-center gap-3">
-      {/* Botão Baixar */}
-      {/* Botão Baixar - SEM PISCADA */}
-{/* Botão Baixar - CORRIGIDO */}
-<button
-  onClick={async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
 
-    try {
-      // ✅ CORREÇÃO: file.file_url (não file.url)
-      const response = await fetch(file.file_url, { method: "GET" });
-      const blob = await response.blob();
+                                                        try {
+                                                            const response = await fetch(file.file_url, { method: "GET" });
+                                                            const blob = await response.blob();
+                                                            const blobUrl = window.URL.createObjectURL(blob);
 
-      const blobUrl = window.URL.createObjectURL(blob);
+                                                            const a = document.createElement("a");
+                                                            a.href = blobUrl;
+                                                            a.download = file.file_name;
+                                                            document.body.appendChild(a);
+                                                            a.click();
+                                                            a.remove();
+                                                            window.URL.revokeObjectURL(blobUrl);
+                                                        } catch (error) {
+                                                            console.error("Erro ao baixar arquivo:", error);
+                                                        }
+                                                    }}
+                                                    className="text-blue-600 hover:text-blue-800 text-sm underline cursor-pointer bg-transparent border-0 p-0"
+                                                >
+                                                    Baixar
+                                                </button>
 
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = file.file_name;  // ✅ Também corrigir: file_name
-      document.body.appendChild(a);
-      a.click();
+                                                <button
+                                                    onClick={() => handleDeleteExistingFile(file.id)}
+                                                    className="text-red-500 hover:text-red-700 text-sm"
+                                                >
+                                                    Remover
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
-      a.remove();
-      window.URL.revokeObjectURL(blobUrl);
-    } catch (error) {
-      console.error("Erro ao baixar arquivo:", error);
-    }
-  }}
-  className="text-blue-600 hover:text-blue-800 text-sm underline cursor-pointer bg-transparent border-0 p-0"
->
-  Baixar
-</button>
+                            {/* LISTA DOS ARQUIVOS SELECIONADOS (NOVOS) */}
+                            {extraFiles && extraFiles.length > 0 && (
+                                <div className="mt-3 space-y-2">
+                                    <label className="text-sm font-semibold block">
+                                        Novos arquivos a adicionar:
+                                    </label>
 
+                                    {extraFiles.map((file, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm"
+                                        >
+                                            <span className="truncate max-w-[70%]">📎 {file.name}</span>
 
-      {/* Botão Remover */}
-      <button
-        onClick={() => handleDeleteExistingFile(file.id)}
-        className="text-red-500 hover:text-red-700 text-sm"
-      >
-        Remover
-      </button>
-    </div>
-  </div>
-))}
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const updated = extraFiles.filter((_, idx) => idx !== i);
+                                                    setExtraFiles(updated);
+                                                }}
+                                                className="text-red-500 hover:text-red-700 text-xs"
+                                            >
+                                                Remover
+                                            </button>
+                                        </div>
+                                    ))}
 
-  </div>
-)}
-
-
-
-  {/* LISTA DOS ARQUIVOS SELECIONADOS */}
-  {extraFiles && extraFiles.length > 0 && (
-    <div className="mt-3 space-y-2">
-      {extraFiles.map((file, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between bg-gray-50 border rounded-lg px-3 py-2 text-sm"
-        >
-          <span className="truncate max-w-[70%]">📎 {file.name}</span>
-
-          <button
-            type="button"
-            onClick={() => {
-              const updated = extraFiles.filter((_, idx) => idx !== i);
-              setExtraFiles(updated);
-            }}
-            className="text-red-500 hover:text-red-700 text-xs"
-          >
-            Remover
-          </button>
-        </div>
-      ))}
-
-      {/* BOTÃO LIMPAR TODOS */}
-      <button
-        type="button"
-        onClick={() => setExtraFiles([])}
-        className="text-xs text-red-600 hover:text-red-800 mt-1"
-      >
-        Limpar Todos
-      </button>
-    </div>
-  )}
-</div>
-
-
-
+                                    <button
+                                        type="button"
+                                        onClick={() => setExtraFiles([])}
+                                        className="text-xs text-red-600 hover:text-red-800 mt-1"
+                                    >
+                                        Limpar Todos
+                                    </button>
+                                </div>
+                            )}
+                        </div>
 
                         {/* YOUTUBE URL */}
                         <div>
@@ -715,7 +695,7 @@ const handleDeleteExistingFile = async (fileId) => {
                             />
                         </div>
 
-                        {/* PLATFORM DROPDOWN */}
+                        {/* PLATFORM */}
                         <div>
                             <label className="text-sm font-semibold mb-2 block">
                                 Plataforma
@@ -727,7 +707,6 @@ const handleDeleteExistingFile = async (fileId) => {
                                 className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-all"
                             >
                                 <option value="">Selecione uma plataforma</option>
-                                
                                 {PLATFORMS.map((p) => (
                                     <option key={p.value} value={p.value}>
                                         {p.icon} {p.label}
@@ -735,7 +714,6 @@ const handleDeleteExistingFile = async (fileId) => {
                                 ))}
                             </select>
                             
-                            {/* Preview da plataforma selecionada */}
                             {platform && PLATFORMS.find(p => p.value === platform) && (
                                 <div className="mt-3 flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
                                     <span className="text-lg">
@@ -773,7 +751,6 @@ const handleDeleteExistingFile = async (fileId) => {
                                 <option value="none" className="text-gray-500">
                                     Sem categoria
                                 </option>
-                                
                                 {categories.length > 0 ? (
                                     categories.map((cat) => (
                                         <option key={cat.id} value={cat.id}>
@@ -785,7 +762,6 @@ const handleDeleteExistingFile = async (fileId) => {
                                 )}
                             </select>
                             
-                            {/* Preview da categoria selecionada */}
                             {selectedCategories.length > 0 && categories.find(c => c.id === selectedCategories[0]) && (
                                 <div className="mt-3 flex items-center gap-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
                                     <div 
@@ -819,7 +795,7 @@ const handleDeleteExistingFile = async (fileId) => {
                             </p>
                         </div>
                     </div>
-                </div>  
+                </div>
 
                 {/* FOOTER - BOTÕES */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 sticky bottom-0 bg-white pb-2 -mb-6 -mx-6 px-6 mt-6">
