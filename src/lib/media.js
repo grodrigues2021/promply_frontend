@@ -15,8 +15,7 @@ const isB2Url = (url) => {
     url.includes("backblazeb2.com") ||
     url.includes("f005.backblazeb2.com") ||
     url.includes("s3.us-east-005.backblazeb2.com") ||
-    url.includes("cdn.promply.app") ||
-    url.includes("file/promply") // bucket específico
+    url.includes("file/prompt") // múltiplos buckets possíveis
   );
 };
 
@@ -29,119 +28,126 @@ const isBase64 = (url) => url.startsWith("data:");
 /**
  * NORMALIZA QUALQUER URL DE MÍDIA
  * Regras:
- * 🔹 Base64 → retorna como está
- * 🔹 URLs absolutas (http/https) → retorna como está
- * 🔹 URLs do B2 → retorna como está
- * 🔹 Paths relativos → prefixar com BACKEND_BASE/media/
- * 🔹 Paths com /media/ duplicado → corrigir
+ * 🔹 Se a URL já for absoluta → retorna como está
+ * 🔹 Se for base64 → retorna como está
+ * 🔹 Se vier do B2 → retorna como está
+ * 🔹 Se vier com caminhos antigos (/media/images/) → corrigir
+ * 🔹 Se for relativa → prefixar BACKEND_BASE
  */
 export const resolveMediaUrl = (url = "") => {
   try {
     if (!url) return "";
 
-    const trimmedUrl = url.trim();
+    // Base64 → retorna
+    if (isBase64(url)) return url;
 
-    // Log para debug
-    console.log("🔍 resolveMediaUrl recebeu:", trimmedUrl.substring(0, 100));
+    // URLs absolutas (http/https) → retorna
+    if (isAbsoluteUrl(url)) return url;
 
-    // Base64 → retorna direto
-    if (isBase64(trimmedUrl)) {
-      console.log("✅ Detectado como Base64");
-      return trimmedUrl;
-    }
+    // URLs do B2 detectadas (backup de segurança)
+    if (isB2Url(url)) return url;
 
-    // URLs absolutas (http/https) → retorna direto
-    if (isAbsoluteUrl(trimmedUrl)) {
-      console.log("✅ Detectado como URL absoluta");
-      return trimmedUrl;
-    }
-
-    // URLs do B2 detectadas → retorna direto (backup de segurança)
-    if (isB2Url(trimmedUrl)) {
-      console.log("✅ Detectado como B2 URL");
-      return trimmedUrl;
-    }
-
-    console.log("🔧 Processando como path relativo");
-
-    let finalUrl = trimmedUrl;
+    let finalUrl = url.trim();
 
     // ===========================
-    // CORREÇÃO: Remover /media/ duplicado
+    // CORREÇÃO: Remover duplicações de /media/
     // ===========================
-    if (finalUrl.startsWith("/media/media/")) {
-      finalUrl = finalUrl.replace("/media/media/", "/media/");
-    }
-
-    // ===========================
-    // CORREÇÃO: Adicionar /media/ se não tiver
-    // ===========================
-    if (!finalUrl.startsWith("/media/") && !finalUrl.startsWith("media/")) {
-      // Se começa com barra, remove
-      if (finalUrl.startsWith("/")) {
-        finalUrl = finalUrl.substring(1);
-      }
-      finalUrl = `/media/${finalUrl}`;
-    } else if (finalUrl.startsWith("media/")) {
-      // Se começar sem barra, adiciona
-      finalUrl = `/${finalUrl}`;
-    }
+    // Remove /media//media/ ou //media/
+    finalUrl = finalUrl.replace(/\/media\/\/media\//g, "/media/");
+    finalUrl = finalUrl.replace(/\/media\/media\//g, "/media/");
+    finalUrl = finalUrl.replace(/\/\/media\//g, "/media/");
 
     // ===========================
     // CORREÇÕES DE CAMINHOS ANTIGOS
     // ===========================
-    if (finalUrl.includes("/media/images/")) {
+    if (finalUrl.startsWith("/media/images/")) {
       finalUrl = finalUrl.replace("/media/images/", "/media/image/");
     }
 
-    if (finalUrl.includes("/media/thumbs/")) {
+    if (finalUrl.startsWith("/media/thumbs/")) {
       finalUrl = finalUrl.replace("/media/thumbs/", "/media/thumb/");
     }
 
     // Evitar "//" duplicado
-    finalUrl = finalUrl.replace(/\/\//g, "/");
+    if (finalUrl.startsWith("//")) {
+      finalUrl = finalUrl.replace("//", "/");
+    }
 
     // ===========================
-    // PREFIXO FINAL COM BACKEND
+    // PREFIXO FINAL PARA DEV
     // ===========================
-    const result = `${BACKEND_BASE}${finalUrl}`;
-    console.log("✅ URL final:", result.substring(0, 100));
+    // Se já começa com /media/, não adicionar BACKEND_BASE
+    if (finalUrl.startsWith("/media/")) {
+      return `${BACKEND_BASE}${finalUrl}`;
+    }
 
-    return result;
+    return `${BACKEND_BASE}${finalUrl}`;
   } catch (err) {
-    console.error("❌ resolveMediaUrl ERRO:", err, "URL original:", url);
+    console.error("❌ resolveMediaUrl ERRO:", err);
     return url;
   }
 };
 
 /**
- * Adiciona cache buster a uma URL
+ * Extrai ID do vídeo do YouTube de uma URL
+ * @param {string} url - URL do YouTube
+ * @returns {string|null} - ID do vídeo ou null
  */
-export const addCacheBuster = (url, timestamp) => {
-  if (!url) return "";
+export const extractYouTubeId = (url) => {
+  if (!url) return null;
 
-  try {
-    const resolvedUrl = resolveMediaUrl(url);
-    const separator = resolvedUrl.includes("?") ? "&" : "?";
-    return `${resolvedUrl}${separator}v=${timestamp}`;
-  } catch (err) {
-    console.error("❌ addCacheBuster ERRO:", err);
-    return resolveMediaUrl(url);
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /^([a-zA-Z0-9_-]{11})$/,
+  ];
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) return match[1];
   }
+
+  return null;
 };
 
 /**
- * Resolve URL de mídia com cache buster
+ * Detecta o tipo de vídeo baseado na URL
+ * @param {string} url - URL do vídeo
+ * @returns {'youtube'|'local'|null} - Tipo do vídeo
  */
-export const resolveMediaUrlWithCache = (url, updatedAt) => {
+export const detectVideoType = (url) => {
+  if (!url) return null;
+
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    return "youtube";
+  }
+
+  if (
+    url.startsWith("data:video/") ||
+    url.startsWith("blob:") ||
+    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)
+  ) {
+    return "local";
+  }
+
+  return null;
+};
+
+/**
+ * Resolve URL de mídia com cache-busting baseado em timestamp
+ * @param {string} url - URL da mídia
+ * @param {string} timestamp - Timestamp para cache-busting (ex: updated_at)
+ * @returns {string} - URL completa com parâmetro de versão
+ */
+export const resolveMediaUrlWithCache = (url, timestamp) => {
   if (!url) return "";
 
-  try {
-    const timestamp = updatedAt ? new Date(updatedAt).getTime() : Date.now();
+  const resolvedUrl = resolveMediaUrl(url);
 
-    return addCacheBuster(url, timestamp);
-  } catch (err) {
-    console.error("❌ resolveMediaUrlWithCache ERRO:", err);
-    return resolveMediaUrl(url);
-  }
+  // Se já tem query string, adiciona &v=, senão adiciona ?v=
+  const separator = resolvedUrl.includes("?") ? "&" : "?";
+  const cacheParam = timestamp
+    ? `v=${new Date(timestamp).getTime()}`
+    : `v=${Date.now()}`;
+
+  return `${resolvedUrl}${separator}${cacheParam}`;
 };

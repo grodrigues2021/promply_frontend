@@ -563,25 +563,27 @@ const handleDeleteExistingFile = async (fileId) => {
     key={file.id}
     className="flex items-center justify-between w-full py-1 px-2 border rounded-md bg-gray-50"
   >
-    <span className="text-sm truncate">{file.filename}</span>
+    <span className="text-sm truncate">{file.file_name}</span>
 
     <div className="flex items-center gap-3">
       {/* Botão Baixar */}
       {/* Botão Baixar - SEM PISCADA */}
+{/* Botão Baixar - CORRIGIDO */}
 <button
   onClick={async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     try {
-      const response = await fetch(file.url, { method: "GET" });
+      // ✅ CORREÇÃO: file.file_url (não file.url)
+      const response = await fetch(file.file_url, { method: "GET" });
       const blob = await response.blob();
 
       const blobUrl = window.URL.createObjectURL(blob);
 
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = file.filename;
+      a.download = file.file_name;  // ✅ Também corrigir: file_name
       document.body.appendChild(a);
       a.click();
 

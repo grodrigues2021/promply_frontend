@@ -1,5 +1,5 @@
 // src/components/TemplateCard.jsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import {
@@ -10,8 +10,6 @@ import {
   Sparkles,
   Play,
   Image as ImageIcon,
-  AlertCircle,
-  RefreshCw,
   TrendingUp,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -22,6 +20,7 @@ import {
   TooltipContent,
   TooltipProvider,
 } from "./ui/tooltip";
+import { resolveMediaUrl, extractYouTubeId, detectVideoType } from '../lib/media';
 
 // ============================================================
 // 🔵 PLATAFORMAS DISPONÍVEIS
@@ -80,39 +79,6 @@ const contentVariants = cva("flex flex-col p-4 min-w-0", {
 });
 
 /* ==========================================
-   🔧 HELPER: EXTRAIR ID DO YOUTUBE
-   ========================================== */
-const extractYouTubeId = (url) => {
-  if (!url) return null;
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-    /^([a-zA-Z0-9_-]{11})$/
-  ];
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match && match[1]) return match[1];
-  }
-  return null;
-};
-
-/* ==========================================
-   🔧 HELPER: DETECTAR TIPO DE VÍDEO
-   ========================================== */
-const detectVideoType = (url) => {
-  if (!url) return null;
-  
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
-    return 'youtube';
-  }
-  
-  if (url.startsWith('data:video/') || url.startsWith('blob:') || /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) {
-    return 'local';
-  }
-  
-  return null;
-};
-
-/* ==========================================
    📦 COMPONENTE TEMPLATE CARD (OTIMIZADO)
    ========================================== */
 
@@ -129,69 +95,43 @@ const TemplateCard = React.memo(({
   onOpenVideo,
   className,
 }) => {
-  const item = template; 
+  const item = template;
 
+  // Estado para gerenciar erros de carregamento de imagem
+  const [imageError, setImageError] = useState(false);
 
-  // PATCH 4 – Engine refinado de mídia
-  const [mediaState, setMediaState] = useState({
-    loading: true,
-    error: false,
-    finalMediaUrl: null,
-  });
-
-  // resolve URL final de forma estável
-  useEffect(() => {
-    let resolved = null;
-
-    if (item?.video_url && item.video_url.trim() !== "") {
-      resolved = item.video_url; // prioridade total para vídeo
-    } else if (item?.image_url && item.image_url.trim() !== "") {
-      resolved = item.image_url;
-    } else if (item?.thumb_url && item.thumb_url.trim() !== "") {
-      resolved = item.thumb_url;
-    }
-
-    setMediaState({
-      loading: !resolved,
-      error: false,
-      finalMediaUrl: resolved,
-    });
-  }, [item]);
-
+  // ============================================================
+  // 🎯 LÓGICA UNIFICADA DE MÍDIA
+  // ============================================================
   const mediaInfo = useMemo(() => {
+    // Detectar tipo de vídeo
     const videoUrl = item?.video_url || item?.youtube_url;
-    const hasImage = !!item?.thumb_url || !!item?.image_url;
-    
     const videoType = detectVideoType(videoUrl);
     
     const hasYouTubeVideo = videoType === 'youtube';
     const hasLocalVideo = videoType === 'local';
     const hasVideo = hasYouTubeVideo || hasLocalVideo;
-    const hasMedia = hasVideo || hasImage;
     
+    // Gerar thumbnail do YouTube se aplicável
     const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
     const youtubeThumbnail = videoId 
       ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
       : null;
     
-    const thumbnailUrl =
-      item?.thumb_url ||
-      item?.image_url ||
-      youtubeThumbnail ||
-      null;
-
-    const isBackblazeUrl =
-      thumbnailUrl?.includes("backblazeb2.com") ||
-      thumbnailUrl?.includes("f005.backblazeb2.com") ||
-      thumbnailUrl?.includes("s3.us-east-005.backblazeb2.com");
-
-    /* === PATCH 2B – FALLBACKS PARA IMAGEM === */
-    const imageUrlFallback =
-      item?.image_url?.split("?")[0] || null;
-
-    const thumbUrlFallback =
-      item?.thumb_url?.split("?")[0] || null;
-
+    // Determinar URL da thumbnail/imagem
+    // Prioridade: thumb_url > image_url > youtubeThumbnail
+    let thumbnailUrl = null;
+    if (hasVideo) {
+      // Para vídeos: usar thumb_url gerado ou thumbnail do YouTube
+      thumbnailUrl = item?.thumb_url || youtubeThumbnail;
+    } else {
+      // Para imagens: usar image_url diretamente
+      thumbnailUrl = item?.image_url;
+    }
+    
+    const hasImage = !!thumbnailUrl;
+    const hasMedia = hasVideo || hasImage;
+    
     return { 
       hasVideo,
       hasYouTubeVideo,
@@ -201,9 +141,6 @@ const TemplateCard = React.memo(({
       videoUrl,
       videoId, 
       thumbnailUrl,
-      thumbUrl: item?.thumb_url || null,
-      imageUrlFallback,
-      thumbUrlFallback,
       youtubeThumbnail,
     };
   }, [
@@ -213,16 +150,12 @@ const TemplateCard = React.memo(({
     item?.thumb_url
   ]);
 
+  // Tags processadas
   const tagsArray = useMemo(() => {
-    const rawTags =
-      item?.tags ||
-      item?.prompt?.tags ||
-      prompt?.tags ||
-      [];
+    const rawTags = item?.tags || item?.prompt?.tags || prompt?.tags || [];
 
     if (Array.isArray(rawTags)) return rawTags;
     if (typeof rawTags === "string") {
-      // ✅ Tentar parse se for JSON string
       if (rawTags.startsWith('[')) {
         try {
           const parsed = JSON.parse(rawTags);
@@ -237,23 +170,16 @@ const TemplateCard = React.memo(({
     return [];
   }, [item, prompt]);
 
-  // ============================================================
-  // 🆕 PLATFORM INFO
-  // ============================================================
+  // Informações da plataforma
   const platformInfo = useMemo(() => {
     const platformKey = item?.platform;
     if (!platformKey) return null;
     return PLATFORMS[platformKey] || null;
   }, [item?.platform]);
 
-  // ============================================================
-  // ❤️ CONTAGEM DE FAVORITOS
-  // ============================================================
+  // Contadores
   const favoritesCount = item?.favorites_count || 0;
-
-  // 📈 CONTAGEM DE USOS - ADICIONAR ESTA LINHA
   const usageCount = item?.usage_count || 0;
-
 
   return (
     <div className={cn(cardVariants({ layout: "horizontal", hover: "lift" }), className)}>
@@ -316,73 +242,72 @@ const TemplateCard = React.memo(({
             </div>
 
             {/* ❤️ FAVORITOS + 📈 USOS */}
-<div className="flex items-center gap-2">
-  
-  {/* 📈 INDICADOR DE USOS */}
-  <TooltipProvider delayDuration={100}>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">
-          <TrendingUp className="h-4 w-4" />
-          <span className="text-xs font-medium min-w-[12px]">
-            {usageCount >= 1000 
-              ? `${(usageCount / 1000).toFixed(1)}k` 
-              : usageCount}
-          </span>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
-      >
-        {usageCount} {usageCount === 1 ? 'uso' : 'usos'}
-      </TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
+            <div className="flex items-center gap-2">
+              {/* 📈 INDICADOR DE USOS */}
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">
+                      <TrendingUp className="h-4 w-4" />
+                      <span className="text-xs font-medium min-w-[12px]">
+                        {usageCount >= 1000 
+                          ? `${(usageCount / 1000).toFixed(1)}k` 
+                          : usageCount}
+                      </span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
+                  >
+                    {usageCount} {usageCount === 1 ? 'uso' : 'usos'}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
 
-  {/* ❤️ BOTÃO FAVORITO */}
-  {onToggleFavorite && (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleFavorite(item);
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200",
-              item?.is_favorite
-                ? "bg-red-50 text-red-500 hover:bg-red-100"
-                : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-400"
-            )}
-          >
-            <Heart
-              className={cn(
-                "h-4 w-4 transition-all",
-                item?.is_favorite && "fill-current"
+              {/* ❤️ BOTÃO FAVORITO */}
+              {onToggleFavorite && (
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleFavorite(item);
+                        }}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2 py-1 rounded-full transition-all duration-200",
+                          item?.is_favorite
+                            ? "bg-red-50 text-red-500 hover:bg-red-100"
+                            : "bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-red-400"
+                        )}
+                      >
+                        <Heart
+                          className={cn(
+                            "h-4 w-4 transition-all",
+                            item?.is_favorite && "fill-current"
+                          )}
+                        />
+                        <span 
+                          className={cn(
+                            "text-xs font-medium min-w-[12px]",
+                            item?.is_favorite ? "text-red-500" : "text-gray-500"
+                          )}
+                        >
+                          {favoritesCount}
+                        </span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
+                    >
+                      {item?.is_favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
-            />
-            <span 
-              className={cn(
-                "text-xs font-medium min-w-[12px]",
-                item?.is_favorite ? "text-red-500" : "text-gray-500"
-              )}
-            >
-              {favoritesCount}
-            </span>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
-        >
-          {item?.is_favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )}
-</div>
+            </div>
           </div>
 
           <p className="text-sm text-gray-600 line-clamp-2 mb-3">
@@ -395,8 +320,7 @@ const TemplateCard = React.memo(({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex gap-2 mb-3 mt-auto cursor-pointer">
-                  
-                  {/* === TAGS VISÍVEIS (ATÉ 3) === */}
+                  {/* TAGS VISÍVEIS (ATÉ 3) */}
                   {tagsArray.slice(0, 3).map((tag, index) => (
                     <div
                       key={index}
@@ -406,22 +330,21 @@ const TemplateCard = React.memo(({
                     </div>
                   ))}
 
-                  {/* === +N (somente se houver mais de 3 tags) === */}
+                  {/* +N (somente se houver mais de 3 tags) */}
                   {tagsArray.length > 3 && (
                     <div className="text-xs px-2 py-0.5 rounded-full bg-purple-100/70 text-purple-700 border border-purple-300/50 shadow-sm">
                       +{tagsArray.length - 3}
                     </div>
                   )}
-
                 </div>
               </TooltipTrigger>
 
-              {/* === TOOLTIP COM TODAS AS TAGS === */}
+              {/* TOOLTIP COM TODAS AS TAGS */}
               <TooltipContent
                 side="top"
                 align="center"
                 sideOffset={8}
-                className="rounded-2xl bg-purple-100/80 border border-purple-300/50 backdrop-blur-md shadow-xl p-3 max-w-[260px] animate-in fade-in zoom-in-95 [&::before]:hidden [&::after]:hidden"
+                className="rounded-2xl bg-purple-100/80 border border-purple-300/50 backdrop-blur-md shadow-xl p-3 max-w-[260px] animate-in fade-in zoom-in-95"
               >
                 <div className="flex flex-wrap gap-2">
                   {tagsArray.map((tag, idx) => (
@@ -439,163 +362,155 @@ const TemplateCard = React.memo(({
         )}
 
         <div className="flex items-center gap-2 pt-3">
+          {/* Usar Template */}
+          <Button
+            size="sm"
+            className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare?.(item);
+            }}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Usar Template
+          </Button>
 
-  {/* Usar Template */}
-  <Button
-    size="sm"
-    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
-    onClick={(e) => {
-      e.stopPropagation();
-      onShare?.(item);
-    }}
-  >
-    <Sparkles className="w-4 h-4 mr-2" />
-    Usar Template
-  </Button>
+          {/* Copiar */}
+          {onCopy && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Copiar conteúdo"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopy(item);
+              }}
+            >
+              <Copy className="w-4 h-4" />
+            </Button>
+          )}
 
-  {/* Copiar */}
-  {onCopy && (
-    <Button
-      variant="outline"
-      size="sm"
-      title="Copiar conteúdo"
-      onClick={(e) => {
-        e.stopPropagation();
-        onCopy(item);
-      }}
-    >
-      <Copy className="w-4 h-4" />
-    </Button>
-  )}
+          {/* Editar — somente admin */}
+          {user?.is_admin && onEdit && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Editar Template"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(item);
+              }}
+            >
+              <Edit className="w-4 h-4" />
+            </Button>
+          )}
 
-  {/* Editar – somente admin */}
-  {user?.is_admin && onEdit && (
-    <Button
-      variant="outline"
-      size="sm"
-      title="Editar Template"
-      onClick={(e) => {
-        e.stopPropagation();
-        onEdit(item);
-      }}
-    >
-      <Edit className="w-4 h-4" />
-    </Button>
-  )}
-
-  {/* Excluir – somente admin */}
-  {user?.is_admin && onDelete && (
-    <Button
-      variant="outline"
-      size="sm"
-      title="Excluir Template"
-      className="text-red-600 hover:text-red-700"
-      onClick={(e) => {
-        e.stopPropagation();
-        onDelete(item?.id);
-      }}
-    >
-      <Trash2 className="w-4 h-4" />
-    </Button>
-  )}
-</div>
-
+          {/* Excluir — somente admin */}
+          {user?.is_admin && onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              title="Excluir Template"
+              className="text-red-600 hover:text-red-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(item?.id);
+              }}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* MÍDIA À DIREITA */}
       {mediaInfo.hasMedia ? (
         <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
           
-          {/* Badge de tipo de vídeo */}
-          {mediaInfo.hasYouTubeVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700">
-                YouTube
-              </Badge>
-            </div>
-          )}
-          
-          {mediaInfo.hasLocalVideo && (
-            <div className="absolute top-2 right-2 z-20">
-              <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
-                Vídeo
-              </Badge>
-            </div>
-          )}
-
           {/* 🎬 VÍDEO LOCAL */}
           {mediaInfo.hasLocalVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={item?.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-                  <Play className="h-16 w-16 text-purple-400" />
-                </div>
-              )}
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-8 w-8 text-purple-600 fill-current" />
-                </div>
+            <>
+              {/* Badge de tipo */}
+              <div className="absolute top-2 right-2 z-20">
+                <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
+                  Vídeo
+                </Badge>
               </div>
 
-              <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                  Clique para assistir
-                </span>
-              </div>
-            </button>
+              <button
+                type="button"
+                onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
+                {mediaInfo.thumbnailUrl ? (
+                  <img
+                    src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
+                    alt={item?.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+                    <Play className="h-16 w-16 text-purple-400" />
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                    <Play className="h-8 w-8 text-purple-600 fill-current" />
+                  </div>
+                </div>
+
+                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                    Clique para assistir
+                  </span>
+                </div>
+              </button>
+            </>
           )}
 
           {/* 🎥 YOUTUBE */}
           {mediaInfo.hasYouTubeVideo && (
-            <button
-              type="button"
-              onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {mediaInfo.thumbnailUrl ? (
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={item?.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full">
-                  <Play className="h-12 w-12 text-slate-400" />
-                </div>
-              )}
-
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                  <Play className="h-6 w-6 text-slate-800 fill-current" />
-                </div>
+            <>
+              {/* Badge de tipo */}
+              <div className="absolute top-2 right-2 z-20">
+                <Badge className="gap-1 text-xs shadow-md bg-red-600 text-white font-semibold px-2 py-0.5 rounded-md border border-red-700">
+                  YouTube
+                </Badge>
               </div>
-            </button>
+
+              <button
+                type="button"
+                onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
+                {mediaInfo.thumbnailUrl ? (
+                  <img
+                    src={mediaInfo.thumbnailUrl}
+                    alt={item?.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full">
+                    <Play className="h-12 w-12 text-slate-400" />
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                    <Play className="h-6 w-6 text-slate-800 fill-current" />
+                  </div>
+                </div>
+              </button>
+            </>
           )}
 
-          {/* 🖼️ IMAGEM – PATCH 4 (engine refinada) */}
+          {/* 🖼️ IMAGEM SIMPLES */}
           {!mediaInfo.hasVideo && mediaInfo.hasImage && (
-            <button
-              type="button"
-              onClick={() =>
-                !mediaState.error &&
-                onOpenImage?.(mediaState.finalMediaUrl, item?.title)
-              }
-              className="relative w-full h-full group/media overflow-hidden"
-            >
-              {/* BADGE IMAGEM */}
+            <>
+              {/* Badge de tipo */}
               <div className="absolute top-2 right-2 z-20">
                 <Badge className="bg-blue-600 text-white border-0 shadow-md gap-1 px-2 py-0.5 rounded-md text-xs font-semibold">
                   <ImageIcon className="w-3 h-3" />
@@ -603,55 +518,33 @@ const TemplateCard = React.memo(({
                 </Badge>
               </div>
 
-              {/* LOADING */}
-              {mediaState.loading && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 z-10">
-                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => onOpenImage?.(mediaInfo.thumbnailUrl, item?.title)}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
+                {!imageError ? (
+                  <img
+                    src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
+                    alt={item?.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-100 to-blue-200">
+                    <ImageIcon className="h-12 w-12 text-blue-400" />
+                  </div>
+                )}
 
-              {/* FINAL IMAGE */}
-              {!mediaState.loading && !mediaState.error && (
-                <img
-                  src={mediaState.finalMediaUrl}
-                  alt={item?.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                  onError={() =>
-                    setMediaState(prev => ({
-                      ...prev,
-                      error: true,
-                      loading: false,
-                    }))
-                  }
-                />
-              )}
-
-              {/* FALLBACK FINAL */}
-              {!mediaState.loading && mediaState.error && (
-                <img
-                  src={
-                    mediaInfo.imageUrlFallback ||
-                    mediaInfo.thumbUrlFallback ||
-                    mediaInfo.youtubeThumbnail ||
-                    "/placeholder-image.png"
-                  }
-                  alt={item?.title}
-                  className="w-full h-full object-cover opacity-90"
-                />
-              )}
-
-              {/* overlay */}
-              {!mediaState.loading && !mediaState.error && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
                     <ImageIcon className="h-6 w-6 text-slate-800" />
                   </div>
                 </div>
-              )}
-            </button>
+              </button>
+            </>
           )}
-
         </div>
       ) : (
         <div className={cn(
@@ -668,9 +561,7 @@ const TemplateCard = React.memo(({
   );
 });
 
-
 TemplateCard.displayName = 'TemplateCard';
 
 export default TemplateCard;
-
 export { cardVariants, mediaVariants, contentVariants };
