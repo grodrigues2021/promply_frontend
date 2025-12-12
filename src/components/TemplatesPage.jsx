@@ -438,84 +438,93 @@ const handleExtraFilesChange = (event) => {
     setIsTemplateDialogOpen(true);
   }, []);
 
-  const saveTemplate = useCallback(async () => {
-    if (!templateForm.title.trim()) {
-      toast.error("Informe o título do template");
-      return;
+  // ============================================================
+// 🔧 CORREÇÃO - TemplatesPage.jsx
+// 📍 Localizar a função saveTemplate (aproximadamente linha 394)
+// ✅ SUBSTITUIR a função completa por esta versão corrigida
+// ============================================================
+
+const saveTemplate = useCallback(async () => {
+  if (!templateForm.title.trim()) {
+    toast.error("Informe o título do template");
+    return;
+  }
+
+  try {
+    // ✅ CORREÇÃO: Remover toda verificação manual de token
+    // O api.js já cuida disso automaticamente
+    console.log("✅ Salvando template via saveTemplate (dialog antigo)...");
+
+    const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
+    const method = editingTemplate ? "PUT" : "POST";
+
+    let body;
+
+    if (templateForm.videoFile || templateForm.imageFile) {
+      // FormData para arquivos
+      body = new FormData();
+      body.append("title", templateForm.title);
+      body.append("content", templateForm.content);
+      body.append("description", templateForm.description);
+      body.append(
+        "tags",
+        Array.isArray(templateForm.tags) ? templateForm.tags.join(",") : templateForm.tags
+      );
+      body.append(
+        "category_id",
+        templateForm.category_id === "none" ? "" : templateForm.category_id
+      );
+
+      if (templateForm.video_url && !templateForm.videoFile) {
+        body.append("video_url", templateForm.video_url);
+      }
+
+      if (templateForm.imageFile) body.append("file", templateForm.imageFile);
+      if (templateForm.videoFile) body.append("video", templateForm.videoFile);
+    } else {
+      // JSON para dados sem arquivos
+      body = {
+        title: templateForm.title,
+        content: templateForm.content,
+        description: templateForm.description,
+        tags: typeof templateForm.tags === "string"
+          ? templateForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
+          : templateForm.tags,
+        category_id: templateForm.category_id === "none" ? null : templateForm.category_id,
+        image_url: templateForm.image_url || "",
+        video_url: templateForm.video_url || "",
+      };
     }
 
-    try {
-      const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
-      const method = editingTemplate ? "PUT" : "POST";
+    // ✅ CORREÇÃO: Usar api diretamente - sem headers manuais
+    const response = method === "PUT" 
+      ? await api.put(url, body)
+      : await api.post(url, body);
 
-      const token = localStorage.getItem('access_token');
-
-      if (!token) {
-        toast.error("Sessão expirada. Faça login novamente.");
-        return;
-      }
-
-      let body;
-      const headers = { 'Authorization': `Bearer ${token}` };
-
-      if (templateForm.videoFile || templateForm.imageFile) {
-        body = new FormData();
-        body.append("title", templateForm.title);
-        body.append("content", templateForm.content);
-        body.append("description", templateForm.description);
-        body.append(
-          "tags",
-          Array.isArray(templateForm.tags) ? templateForm.tags.join(",") : templateForm.tags
-        );
-        body.append(
-          "category_id",
-          templateForm.category_id === "none" ? "" : templateForm.category_id
-        );
-
-        if (templateForm.video_url && !templateForm.videoFile) {
-          body.append("video_url", templateForm.video_url);
-        }
-
-        if (templateForm.imageFile) body.append("file", templateForm.imageFile);
-        if (templateForm.videoFile) body.append("video", templateForm.videoFile);
-      } else {
-        headers["Content-Type"] = "application/json";
-        body = JSON.stringify({
-          title: templateForm.title,
-          content: templateForm.content,
-          description: templateForm.description,
-          tags: typeof templateForm.tags === "string"
-            ? templateForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-            : templateForm.tags,
-          category_id: templateForm.category_id === "none" ? null : templateForm.category_id,
-          image_url: templateForm.image_url || "",
-          video_url: templateForm.video_url || "",
-        });
-      }
-
-      const response = method === "PUT" 
-        ? await api.put(url, body, { headers })
-        : await api.post(url, body, { headers });
-
-      if (response.data.success) {
-        toast.success(editingTemplate ? "Template atualizado!" : "Template criado!");
-        setIsTemplateDialogOpen(false);
-        setEditingTemplate(null);
-        setTemplateForm(INITIAL_TEMPLATE_FORM);
-        
-        // Recarregar templates
-        const res2 = await api.get("/templates");
-        setTemplates(res2.data?.data || []);
-        setExtraFiles([]);   // limpa anexos após salvar template
-
-      } else {
-        toast.error(response.data.error || "Erro ao salvar template");
-      }
-    } catch (error) {
-      console.error("Erro ao salvar template:", error);
-      toast.error("Erro ao salvar template");
+    if (response.data.success) {
+      toast.success(editingTemplate ? "Template atualizado!" : "Template criado!");
+      setIsTemplateDialogOpen(false);
+      setEditingTemplate(null);
+      setTemplateForm(INITIAL_TEMPLATE_FORM);
+      
+      // Recarregar templates
+      const res2 = await api.get("/templates");
+      setTemplates(res2.data?.data || []);
+      setExtraFiles([]);
+    } else {
+      toast.error(response.data.error || "Erro ao salvar template");
     }
-  }, [templateForm, editingTemplate]);
+  } catch (error) {
+    console.error("Erro ao salvar template:", error);
+    
+    // ✅ Mensagem de erro mais específica
+    const errorMessage = error.response?.status === 401 
+      ? "Sua sessão expirou. Por favor, faça login novamente."
+      : error.response?.data?.error || "Erro ao salvar template";
+    
+    toast.error(errorMessage);
+  }
+}, [templateForm, editingTemplate, setTemplates, setIsTemplateDialogOpen, setEditingTemplate, setExtraFiles]);
 
   const deleteTemplate = useCallback(async (id) => {
     if (!window.confirm("Tem certeza que deseja excluir este template?")) return;
