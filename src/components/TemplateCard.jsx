@@ -69,14 +69,15 @@ const mediaVariants = cva(
   }
 );
 
-const contentVariants = cva("flex flex-col p-4 min-w-0", {
+const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   variants: {
     layout: {
       vertical: "flex-1",
-      horizontal: "flex-1 h-[200px] sm:h-[230px] min-w-0 flex flex-col justify-between",
+      horizontal: "flex-1 h-auto sm:h-[230px] min-w-0 overflow-visible sm:overflow-hidden",
     },
   },
 });
+
 
 /* ==========================================
    📦 COMPONENTE TEMPLATE CARD (OTIMIZADO)
