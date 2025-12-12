@@ -451,7 +451,10 @@ const TemplateCard = React.memo(({
                         : resolveMediaUrl(mediaInfo.thumbnailUrl)
                     }
                     alt={item?.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
                   />
+
 
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
