@@ -444,11 +444,14 @@ const TemplateCard = React.memo(({
               >
                 {mediaInfo.thumbnailUrl ? (
                   <img
-                    src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
+                    src={
+                      mediaInfo.thumbnailUrl?.startsWith("http")
+                        ? mediaInfo.thumbnailUrl
+                        : resolveMediaUrl(mediaInfo.thumbnailUrl)
+                    }
                     alt={item?.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                    loading="lazy"
                   />
+
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
                     <Play className="h-16 w-16 text-purple-400" />
@@ -525,12 +528,17 @@ const TemplateCard = React.memo(({
               >
                 {!imageError ? (
                   <img
-                    src={resolveMediaUrl(mediaInfo.thumbnailUrl)}
-                    alt={item?.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                    loading="lazy"
-                    onError={() => setImageError(true)}
-                  />
+                      src={
+                        mediaInfo.thumbnailUrl?.startsWith("http")
+                          ? mediaInfo.thumbnailUrl
+                          : resolveMediaUrl(mediaInfo.thumbnailUrl)
+                      }
+                      alt={item?.title}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                      loading="lazy"
+                      onError={() => setImageError(true)}
+                    />
+
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-100 to-blue-200">
                     <ImageIcon className="h-12 w-12 text-blue-400" />
