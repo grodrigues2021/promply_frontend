@@ -543,9 +543,13 @@ const handleExtraFilesChange = (event) => {
 // 🔍 ENCONTRE a função handleSaveTemplate (aproximadamente linha 312)
 // ✏️ SUBSTITUA o trecho do jsonPayload por:
 
-const handleSaveTemplate = useCallback(async (payload, templateId) => {
+// ============================================================
+// 🔧 CORREÇÃO - TemplatesPage.jsx
+// 📍 Localizar a função handleSaveTemplate (aproximadamente linha 312)
+// ✅ SUBSTITUIR a função completa por esta versão corrigida
+// ============================================================
 
-  // 🔍 DEBUG 1 - Verificar se a função está sendo chamada
+const handleSaveTemplate = useCallback(async (payload, templateId) => {
   console.log("🔍 DEBUG 1 - handleSaveTemplate INICIADO");
   console.log("🔍 DEBUG 2 - payload recebido:", payload);
   console.log("🔍 DEBUG 3 - templateId:", templateId);
@@ -576,25 +580,13 @@ const handleSaveTemplate = useCallback(async (payload, templateId) => {
   }
 
   try {
-    // 🔍 DEBUG 4 - Verificar token
-    const token = localStorage.getItem('access_token');
-    console.log("🔍 DEBUG 4 - Token encontrado:", token ? `${token.substring(0, 20)}...` : "NULO/UNDEFINED");
-    console.log("🔍 DEBUG 5 - Todas as chaves no localStorage:", Object.keys(localStorage));
+    // ✅ CORREÇÃO: NÃO verificar token manualmente!
+    // O api.js já cuida disso no interceptor:
+    // - Production: usa session cookies (withCredentials: true)
+    // - Dev/Staging: adiciona JWT automaticamente
     
-    // 🔍 DEBUG 6 - Listar todos os itens do localStorage
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      const value = localStorage.getItem(key);
-      console.log(`🔍 DEBUG 6 - localStorage[${key}]:`, value ? value.substring(0, 50) + "..." : "vazio");
-    }
-
-    if (!token) {
-      console.error("❌ DEBUG - Token NÃO encontrado no localStorage!");
-      toast.error("Sessão expirada. Faça login novamente.");
-      return;
-    }
-
-    console.log("✅ DEBUG 7 - Token válido, prosseguindo...");
+    console.log("✅ DEBUG 4 - Prosseguindo com requisição...");
+    console.log("✅ DEBUG 5 - Autenticação será gerenciada pelo api.js automaticamente");
 
     const toastId = toast.loading(templateId ? "Atualizando template..." : "Criando template...");
 
@@ -602,21 +594,20 @@ const handleSaveTemplate = useCallback(async (payload, templateId) => {
     const url = templateId ? `/templates/${templateId}` : "/templates";
     const method = templateId ? "PUT" : "POST";
 
-    console.log("🔍 DEBUG 8 - URL:", url);
-    console.log("🔍 DEBUG 9 - Method:", method);
-    console.log("🔍 DEBUG 10 - isFormData:", isFormData);
+    console.log("🔍 DEBUG 6 - URL:", url);
+    console.log("🔍 DEBUG 7 - Method:", method);
+    console.log("🔍 DEBUG 8 - isFormData:", isFormData);
 
     let response;
-    const headers = { 'Authorization': `Bearer ${token}` };
 
     if (isFormData) {
-      console.log("🔍 DEBUG 11 - Enviando como FormData...");
+      console.log("🔍 DEBUG 9 - Enviando como FormData...");
+      // ✅ CORREÇÃO: Remover headers manualmente - api.js cuida disso
       response = method === "PUT"
-        ? await api.put(url, payload, { headers })
-        : await api.post(url, payload, { headers });
+        ? await api.put(url, payload)
+        : await api.post(url, payload);
     } else {
-      headers["Content-Type"] = "application/json";
-
+      // ✅ CORREÇÃO: Remover headers manualmente - api.js cuida disso
       const jsonPayload = {
         title: payload.title,
         content: payload.content,
@@ -630,14 +621,14 @@ const handleSaveTemplate = useCallback(async (payload, templateId) => {
         thumb_url: payload.thumb_url || "",
       };
 
-      console.log("🔍 DEBUG 12 - jsonPayload:", jsonPayload);
+      console.log("🔍 DEBUG 10 - jsonPayload:", jsonPayload);
 
       response = method === "PUT"
-        ? await api.put(url, jsonPayload, { headers })
-        : await api.post(url, jsonPayload, { headers });
+        ? await api.put(url, jsonPayload)
+        : await api.post(url, jsonPayload);
     }
 
-    console.log("🔍 DEBUG 13 - Response:", response);
+    console.log("🔍 DEBUG 11 - Response:", response);
 
     if (response.data.success) {
       console.log("✅ Template salvo, recarregando lista...");
@@ -651,19 +642,26 @@ const handleSaveTemplate = useCallback(async (payload, templateId) => {
 
       setIsTemplateModalOpen(false);
       setSelectedTemplateForModal(null);
+      setExtraFiles([]);
     } else {
-      console.error("❌ DEBUG 14 - Erro na resposta:", response.data);
+      console.error("❌ DEBUG 12 - Erro na resposta:", response.data);
       toast.error(response.data.error || "Erro ao salvar template", {
         id: toastId,
       });
     }
   } catch (error) {
-    console.error("❌ DEBUG 15 - ERRO COMPLETO:", error);
-    console.error("❌ DEBUG 16 - error.response:", error.response);
-    console.error("❌ DEBUG 17 - error.message:", error.message);
-    toast.error(error.response?.data?.error || "Erro ao salvar template");
+    console.error("❌ DEBUG 13 - ERRO COMPLETO:", error);
+    console.error("❌ DEBUG 14 - error.response:", error.response);
+    console.error("❌ DEBUG 15 - error.message:", error.message);
+    
+    // ✅ Mensagem de erro mais específica
+    const errorMessage = error.response?.status === 401 
+      ? "Sessão expirada. Por favor, faça login novamente."
+      : error.response?.data?.error || "Erro ao salvar template";
+    
+    toast.error(errorMessage);
   }
-}, [extraFiles]);
+}, [extraFiles, setTemplates, setIsTemplateModalOpen, setSelectedTemplateForModal, setExtraFiles]);
 
   // ===== USE TEMPLATE =====
   const openUseTemplateDialog = useCallback((template) => {
