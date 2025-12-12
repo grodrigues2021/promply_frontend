@@ -58,23 +58,22 @@ const cardVariants = cva(
 );
 
 const mediaVariants = cva(
-  "relative flex-shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden aspect-video",
+  "relative flex-shrink-0 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden",
   {
     variants: {
       layout: {
-        vertical: "w-full rounded-t-xl",
-        horizontal: "w-full sm:w-56 rounded-t-xl sm:rounded-r-xl",
+        vertical: "w-full h-40",
+        horizontal: "flex-shrink-0 w-full sm:w-52 h-[200px] sm:h-[230px] rounded-t-xl sm:rounded-r-xl",
       },
     },
   }
 );
 
-
 const contentVariants = cva("flex flex-col p-4 min-w-0", {
   variants: {
     layout: {
       vertical: "flex-1",
-      horizontal: "flex-1 min-w-0 flex flex-col justify-between",
+      horizontal: "flex-1 h-[200px] sm:h-[230px] min-w-0 flex flex-col justify-between",
     },
   },
 });
