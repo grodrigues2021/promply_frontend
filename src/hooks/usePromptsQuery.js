@@ -1,6 +1,6 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ VERSÃO COM SUPORTE A OPTIMISTIC UPDATES
+// ✅ VERSÃO FINAL CORRIGIDA
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,19 +17,31 @@ export function usePromptsQuery() {
       if (!data.success) throw new Error("Falha ao carregar prompts");
       return data.data;
     },
-    staleTime: 30000, // 30 segundos - evita refetch desnecessário
-    gcTime: 5 * 60 * 1000, // 5 minutos no cache
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
   });
 }
 
 // ===================================================
-// 🟢 MUTATION: Criar Prompt (com Optimistic Update)
+// 🟢 MUTATION: Criar Prompt (CORRIGIDO)
 // ===================================================
 export function useCreatePromptMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (formData) => {
+    // ✅ CORREÇÃO: Recebe OBJETO { formData, optimisticPrompt }
+    mutationFn: async ({ formData, optimisticPrompt }) => {
+      console.log("📤 Enviando FormData para API...");
+
+      // Debug do FormData
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`   - ${key}: [File] ${value.name}`);
+        } else {
+          console.log(`   - ${key}: ${value}`);
+        }
+      }
+
       const { data } = await api.post("/prompts", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -38,29 +50,26 @@ export function useCreatePromptMutation() {
         throw new Error(data.error || "Erro ao criar prompt");
       }
 
+      console.log("✅ Resposta da API:", data);
       return data.data;
     },
 
-    // ✅ OPTIMISTIC UPDATE - Executa ANTES da requisição
     onMutate: async ({ optimisticPrompt }) => {
-      // Cancela queries pendentes para evitar sobrescrita
+      console.log("🔄 onMutate - Iniciando optimistic update");
+
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
-      // Snapshot do estado anterior (para rollback)
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
-      // Atualiza cache otimisticamente
       queryClient.setQueryData(["prompts"], (old) => {
         return [optimisticPrompt, ...(old || [])];
       });
 
       console.log("✨ Prompt otimista adicionado:", optimisticPrompt._tempId);
 
-      // Retorna contexto para rollback
       return { previousPrompts };
     },
 
-    // ✅ SUCESSO - Substitui otimista pelo real
     onSuccess: (realPrompt, { optimisticPrompt }) => {
       console.log("🔄 Substituindo otimista pelo real:", {
         tempId: optimisticPrompt._tempId,
@@ -71,12 +80,10 @@ export function useCreatePromptMutation() {
         if (!old) return [realPrompt];
 
         return old.map((p) => {
-          // Substitui prompt otimista pelo real
           if (p._tempId === optimisticPrompt._tempId) {
             return {
               ...realPrompt,
               _skipAnimation: true,
-              // Preserva preview local se API não retornou URL ainda
               image_url: realPrompt.image_url || p.image_url,
               thumb_url: realPrompt.thumb_url || p.thumb_url,
               video_url: realPrompt.video_url || p.video_url,
@@ -88,11 +95,9 @@ export function useCreatePromptMutation() {
 
       console.log("✅ Prompt real inserido com sucesso!");
 
-      // Invalida queries relacionadas
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
 
-    // ❌ ERRO - Reverte para estado anterior
     onError: (error, variables, context) => {
       console.error("❌ Erro ao criar prompt:", error);
 
@@ -102,22 +107,31 @@ export function useCreatePromptMutation() {
       }
     },
 
-    // 🏁 FINALIZAÇÃO - Sempre executa
     onSettled: () => {
-      // Garantia extra: refetch após mutação
       queryClient.invalidateQueries({ queryKey: ["prompts"] });
     },
   });
 }
 
 // ===================================================
-// 🟡 MUTATION: Atualizar Prompt
+// 🟡 MUTATION: Atualizar Prompt (CORRIGIDO)
 // ===================================================
 export function useUpdatePromptMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // ✅ CORREÇÃO: Recebe OBJETO { id, formData }
     mutationFn: async ({ id, formData }) => {
+      console.log("📝 Atualizando prompt:", id);
+
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`   - ${key}: [File] ${value.name}`);
+        } else {
+          console.log(`   - ${key}: ${value}`);
+        }
+      }
+
       const { data } = await api.put(`/prompts/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -126,6 +140,7 @@ export function useUpdatePromptMutation() {
         throw new Error(data.error || "Erro ao atualizar prompt");
       }
 
+      console.log("✅ Prompt atualizado:", data);
       return data.data;
     },
 

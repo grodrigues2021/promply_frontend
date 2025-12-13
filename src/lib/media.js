@@ -1,65 +1,64 @@
 // ==========================================
 // src/lib/media.js
-// NORMALIZAÇÃO GLOBAL DE URL DE MÍDIA
+// ✅ CORRIGIDO - NÃO PROCESSA BLOB URLs
 // ==========================================
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// Remove "/api" do backend (ex: http://localhost:5000)
 const BACKEND_BASE = API_BASE_URL.replace("/api", "");
 
-// Detectar domínio do B2 (qualquer variação)
 const isB2Url = (url) => {
   return (
     url.includes("backblazeb2.com") ||
     url.includes("f005.backblazeb2.com") ||
     url.includes("s3.us-east-005.backblazeb2.com") ||
-    url.includes("file/prompt") // múltiplos buckets possíveis
+    url.includes("file/prompt")
   );
 };
 
-// Detectar se é URL absoluta válida
 const isAbsoluteUrl = (url) => /^https?:\/\//i.test(url);
 
-// Detectar base64
 const isBase64 = (url) => url.startsWith("data:");
+
+// ✅ NOVA: Detecta blob URLs
+const isBlobUrl = (url) => url.startsWith("blob:");
 
 /**
  * NORMALIZA QUALQUER URL DE MÍDIA
- * Regras:
- * 🔹 Se a URL já for absoluta → retorna como está
- * 🔹 Se for base64 → retorna como está
- * 🔹 Se vier do B2 → retorna como está
- * 🔹 Se vier com caminhos antigos (/media/images/) → corrigir
- * 🔹 Se for relativa → prefixar BACKEND_BASE
+ *
+ * ✅ CORREÇÃO: NÃO processa blob: URLs
  */
 export const resolveMediaUrl = (url = "") => {
   try {
     if (!url) return "";
 
-    // Base64 → retorna
+    // ✅ Base64 → retorna
     if (isBase64(url)) return url;
 
-    // URLs absolutas (http/https) → retorna
+    // ✅ BLOB → retorna DIRETO (NÃO processar!)
+    if (isBlobUrl(url)) {
+      console.log(
+        "🔵 Blob URL detectada, retornando sem processar:",
+        url.substring(0, 50)
+      );
+      return url;
+    }
+
+    // ✅ URLs absolutas (http/https) → retorna
     if (isAbsoluteUrl(url)) return url;
 
-    // URLs do B2 detectadas (backup de segurança)
+    // ✅ URLs do B2 → retorna
     if (isB2Url(url)) return url;
 
     let finalUrl = url.trim();
 
-    // ===========================
-    // CORREÇÃO: Remover duplicações de /media/
-    // ===========================
-    // Remove /media//media/ ou //media/
+    // Correção de duplicações
     finalUrl = finalUrl.replace(/\/media\/\/media\//g, "/media/");
     finalUrl = finalUrl.replace(/\/media\/media\//g, "/media/");
     finalUrl = finalUrl.replace(/\/\/media\//g, "/media/");
 
-    // ===========================
-    // CORREÇÕES DE CAMINHOS ANTIGOS
-    // ===========================
+    // Correções de caminhos antigos
     if (finalUrl.startsWith("/media/images/")) {
       finalUrl = finalUrl.replace("/media/images/", "/media/image/");
     }
@@ -68,15 +67,10 @@ export const resolveMediaUrl = (url = "") => {
       finalUrl = finalUrl.replace("/media/thumbs/", "/media/thumb/");
     }
 
-    // Evitar "//" duplicado
     if (finalUrl.startsWith("//")) {
       finalUrl = finalUrl.replace("//", "/");
     }
 
-    // ===========================
-    // PREFIXO FINAL PARA DEV
-    // ===========================
-    // Se já começa com /media/, não adicionar BACKEND_BASE
     if (finalUrl.startsWith("/media/")) {
       return `${BACKEND_BASE}${finalUrl}`;
     }
@@ -88,11 +82,6 @@ export const resolveMediaUrl = (url = "") => {
   }
 };
 
-/**
- * Extrai ID do vídeo do YouTube de uma URL
- * @param {string} url - URL do YouTube
- * @returns {string|null} - ID do vídeo ou null
- */
 export const extractYouTubeId = (url) => {
   if (!url) return null;
 
@@ -109,11 +98,6 @@ export const extractYouTubeId = (url) => {
   return null;
 };
 
-/**
- * Detecta o tipo de vídeo baseado na URL
- * @param {string} url - URL do vídeo
- * @returns {'youtube'|'local'|null} - Tipo do vídeo
- */
 export const detectVideoType = (url) => {
   if (!url) return null;
 
@@ -133,17 +117,19 @@ export const detectVideoType = (url) => {
 };
 
 /**
- * Resolve URL de mídia com cache-busting baseado em timestamp
- * @param {string} url - URL da mídia
- * @param {string} timestamp - Timestamp para cache-busting (ex: updated_at)
- * @returns {string} - URL completa com parâmetro de versão
+ * ✅ CORRIGIDO: NÃO processa blob URLs
  */
 export const resolveMediaUrlWithCache = (url, timestamp) => {
   if (!url) return "";
 
+  // ✅ BLOB → retorna DIRETO
+  if (isBlobUrl(url)) {
+    console.log("🔵 Blob URL com cache, retornando sem processar");
+    return url;
+  }
+
   const resolvedUrl = resolveMediaUrl(url);
 
-  // Se já tem query string, adiciona &v=, senão adiciona ?v=
   const separator = resolvedUrl.includes("?") ? "&" : "?";
   const cacheParam = timestamp
     ? `v=${new Date(timestamp).getTime()}`
