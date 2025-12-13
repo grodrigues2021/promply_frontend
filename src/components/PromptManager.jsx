@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptManager.jsx
-// ✅ VERSÃO COM OPTIMISTIC UPDATES
+// ✅ VERSÃO CORRIGIDA - Optimistic Updates
 // ==========================================
 
 import { toast } from "sonner";
@@ -69,7 +69,7 @@ import React, {
 
 import { createPortal } from "react-dom";
 
-// ✅ NOVOS IMPORTS - MUTATIONS
+// ✅ MUTATIONS
 import { 
   usePromptsQuery,
   useCreatePromptMutation,
@@ -96,6 +96,25 @@ const SharePromptModal = React.lazy(() =>
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 
+// ===================================================
+// 🛡️ HELPER: createObjectURL SEGURO
+// ===================================================
+const safeCreateObjectURL = (file) => {
+  try {
+    if (file instanceof File || file instanceof Blob) {
+      return URL.createObjectURL(file);
+    }
+    
+    if (file) {
+      console.warn("⚠️ safeCreateObjectURL: não é File/Blob válido", typeof file, file);
+    }
+    return "";
+  } catch (error) {
+    console.error("❌ Erro ao criar objectURL:", error);
+    return "";
+  }
+};
+
 export default function PromptManager({
   setIsAuthenticated,
   setUser,
@@ -106,7 +125,7 @@ export default function PromptManager({
   const queryClient = useQueryClient();
   const [ChatComponent, setChatComponent] = useState(null);
 
-  // ✅ REACT QUERY - Dados e Mutations
+  // ✅ REACT QUERY
   const { 
     data: promptsData = [], 
     isLoading: loadingPrompts,
@@ -126,9 +145,6 @@ export default function PromptManager({
   const updatePromptMutation = useUpdatePromptMutation();
   const deletePromptMutation = useDeletePromptMutation();
   const toggleFavoriteMutation = useToggleFavoriteMutation();
-
-  // ❌ REMOVIDO: const [prompts, setPrompts] = useState([]);
-  // ✅ AGORA: Usa direto promptsData do React Query
 
   const [activeView, setActiveView] = useState(defaultView);
   const [myCategories, setMyCategories] = useState([]);
@@ -155,13 +171,11 @@ export default function PromptManager({
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // Estados para arquivos extras e anexos
   const [extraFiles, setExtraFiles] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const extraFilesInputRef = useRef(null);
   const isRestoringDraft = useRef(false);
 
-  // Estados para validação de formulário
   const [formErrors, setFormErrors] = useState({
     title: "",
     content: ""
@@ -194,7 +208,7 @@ export default function PromptManager({
   const [categorySearch, setCategorySearch] = useState("");
 
   // ===================================================
-  // 📎 FUNÇÕES DE GERENCIAMENTO DE ARQUIVOS EXTRAS
+  // 📎 ARQUIVOS EXTRAS
   // ===================================================
 
   const handleExtraFiles = (e) => {
@@ -213,7 +227,6 @@ export default function PromptManager({
   const removeExtraFile = (indexToRemove) => {
     setExtraFiles((prev) => {
       const newFiles = prev.filter((_, index) => index !== indexToRemove);
-      console.log(`📌 Removendo arquivo index ${indexToRemove}. Restam: ${newFiles.length} arquivos`);
       return newFiles;
     });
     toast.success("Arquivo removido");
@@ -250,7 +263,7 @@ export default function PromptManager({
   };
 
   // ===================================================
-  // ✅ VALIDAÇÃO DE FORMULÁRIO
+  // ✅ VALIDAÇÃO
   // ===================================================
 
   const validateForm = () => {
@@ -349,7 +362,13 @@ export default function PromptManager({
     setUploadingImage(true);
     toast.info("🎬 Processando vídeo...");
 
-    const videoURL = URL.createObjectURL(file);
+    const videoURL = safeCreateObjectURL(file);
+    if (!videoURL) {
+      toast.error("Erro ao processar vídeo");
+      setUploadingImage(false);
+      return;
+    }
+
     const video = document.createElement("video");
     video.preload = "metadata";
     video.muted = true;
@@ -496,8 +515,6 @@ export default function PromptManager({
   // ===================================================
 
   const editPrompt = useCallback(async (prompt) => {
-    console.log("🟦 EDIT PROMPT RAW DATA:", prompt);
-
     setIsEditMode(true);
     setEditingPrompt(prompt);
 
@@ -507,8 +524,6 @@ export default function PromptManager({
       prompt.thumb_url ||
       "";
 
-    console.log("📸 NORMALIZED IMAGE:", normalizedImage);
-
     const mediaType = prompt.youtube_url
       ? "youtube"
       : prompt.video_url
@@ -516,8 +531,6 @@ export default function PromptManager({
       : normalizedImage
       ? "image"
       : "none";
-
-    console.log("📺 MEDIA TYPE DETECTADO:", mediaType);
 
     const formData = {
       id: prompt.id || null,
@@ -537,20 +550,15 @@ export default function PromptManager({
       selectedMedia: mediaType,
     };
 
-    console.log("🟩 FORM DATA BEFORE SET:", formData);
     setPromptForm(formData);
 
     try {
-      console.log(`🔎 Carregando anexos do prompt ${prompt.id}...`);
-      
       const response = await api.get(`/prompts/${prompt.id}/files`);
       
       if (response.data?.data) {
         const files = response.data.data;
-        console.log(`✅ ${files.length} anexo(s) carregado(s):`, files);
         setAttachments(files);
       } else {
-        console.log("⚠️ Nenhum anexo encontrado");
         setAttachments([]);
       }
     } catch (error) {
@@ -573,7 +581,7 @@ export default function PromptManager({
   }, []);
 
   // ===================================================
-  // 🔌 TEST CONNECTION
+  // 🔌 CONNECTION & AUTH
   // ===================================================
 
   const testConnection = useCallback(async () => {
@@ -617,7 +625,7 @@ export default function PromptManager({
   }, [queryClient]);
 
   // ===================================================
-  // 💬 CHAT HELPERS
+  // 💬 CHAT
   // ===================================================
 
   const openChatFromTopButton = () => {
@@ -640,7 +648,7 @@ export default function PromptManager({
   }, [isChatDetached]);
 
   // ===================================================
-  // ✅ CATEGORIAS - Sincronização
+  // useEffects
   // ===================================================
 
   useEffect(() => {
@@ -649,13 +657,6 @@ export default function PromptManager({
       setTemplateCategories(categoriesData.templates);
     }
   }, [categoriesData]);
-
-  // ❌ REMOVIDO: useEffect que sincronizava promptsData com prompts
-  // Motivo: Agora usa direto promptsData do React Query
-
-  // ===================================================
-  // 💬 CHAT DETACHED
-  // ===================================================
 
   useEffect(() => {
     const channel = new BroadcastChannel("promply-chat-status");
@@ -684,19 +685,11 @@ export default function PromptManager({
     }
   }, [showChatModal]);
 
-  // ===================================================
-  // 📱 MOBILE SIDEBAR
-  // ===================================================
-
   useEffect(() => {
     if (window.innerWidth >= 768 && isMobileSidebarOpen) {
       setIsMobileSidebarOpen(false);
     }
   }, [isMobileSidebarOpen]);
-
-  // ===================================================
-  // 🧹 MODAL CLEANUP
-  // ===================================================
 
   useEffect(() => {
     if (!isPromptDialogOpen) {
@@ -710,10 +703,6 @@ export default function PromptManager({
       });
     }
   }, [isPromptDialogOpen]);
-
-  // ===================================================
-  // 💾 AUTO-SAVE DRAFT
-  // ===================================================
 
   useEffect(() => {
     if (!isPromptDialogOpen) return;
@@ -729,10 +718,6 @@ export default function PromptManager({
       localStorage.setItem("prompt-draft", JSON.stringify(promptForm));
     }
   }, [promptForm, isSaving, isPromptDialogOpen]);
-
-  // ===================================================
-  // 🔄 RESTORE DRAFT
-  // ===================================================
 
   useEffect(() => {
     if (!isPromptDialogOpen) return;
@@ -790,7 +775,6 @@ export default function PromptManager({
   // 🔍 FILTERED PROMPTS
   // ===================================================
 
-  // ✅ USA promptsData DIRETO do React Query (não mais estado local)
   const filteredPrompts = Array.isArray(promptsData)
     ? promptsData.filter((prompt) => {
         const matchesSearch =
@@ -853,7 +837,7 @@ export default function PromptManager({
       }
 
       // ==========================================
-      // ✏️ EDIÇÃO (usa mutation de update)
+      // ✏️ EDIÇÃO
       // ==========================================
       if (isEditMode === true && editingPrompt?.id) {
         console.log("📝 Atualizando prompt existente:", editingPrompt.id);
@@ -876,7 +860,7 @@ export default function PromptManager({
       }
 
       // ==========================================
-      // ➕ CRIAÇÃO (usa mutation otimista)
+      // ➕ CRIAÇÃO COM OPTIMISTIC UPDATE
       // ==========================================
       console.log("✨ Criando novo prompt com optimistic update");
 
@@ -896,12 +880,9 @@ export default function PromptManager({
         platform: promptForm.platform || "chatgpt",
         is_favorite: promptForm.is_favorite || false,
         
-        image_url: promptForm.imageFile 
-          ? URL.createObjectURL(promptForm.imageFile) 
-          : promptForm.image_url || "",
-        video_url: promptForm.videoFile 
-          ? URL.createObjectURL(promptForm.videoFile) 
-          : promptForm.video_url || "",
+        // ✅ CORREÇÃO: Usa helper seguro
+        image_url: safeCreateObjectURL(promptForm.imageFile) || promptForm.image_url || "",
+        video_url: safeCreateObjectURL(promptForm.videoFile) || promptForm.video_url || "",
         youtube_url: promptForm.youtube_url || "",
         
         category: promptForm.category_id !== "none" 
@@ -962,10 +943,6 @@ export default function PromptManager({
     }
   };
 
-  // ===================================================
-  // 🗑️ DELETE CATEGORY
-  // ===================================================
-
   const deleteCategory = async (id) => {
     if (!id) {
       toast.error("Categoria inválida!");
@@ -994,7 +971,7 @@ export default function PromptManager({
   };
 
   // ===================================================
-  // 🗑️ DELETE PROMPT COM MUTATION
+  // 🗑️ DELETE PROMPT
   // ===================================================
 
   const deletePrompt = async (id) => {
@@ -1018,7 +995,7 @@ export default function PromptManager({
   };
 
   // ===================================================
-  // ⭐ TOGGLE FAVORITE COM MUTATION
+  // ⭐ TOGGLE FAVORITE
   // ===================================================
 
   const handleToggleFavorite = async (prompt) => {
@@ -1038,10 +1015,6 @@ export default function PromptManager({
       toast.error("Erro ao atualizar favorito");
     }
   };
-
-  // ===================================================
-  // 📋 COPY TO CLIPBOARD
-  // ===================================================
 
   const copyToClipboard = async (prompt) => {
     try {
