@@ -691,6 +691,11 @@ useEffect(() => {
       })
     : [];
 
+// ========================================
+// FUNÇÃO savePrompt COM OPTIMISTIC UI
+// Localização: PromptManager.jsx (substituir a função existente)
+// ========================================
+
 const savePrompt = async () => {
   // Prevenção de duplo clique
   if (isSaving) {
@@ -702,8 +707,66 @@ const savePrompt = async () => {
     return;
   }
 
-  try {
+  // ==========================================
+  // 🎯 OPTIMISTIC UI - CRIAÇÃO APENAS
+  // ==========================================
+  let tempId = null;
+  let optimisticPrompt = null;
 
+  // SÓ cria otimista se for NOVO prompt (não edição)
+  if (!isEditMode && !editingPrompt?.id) {
+    // Gera ID temporário único
+    tempId = `temp-${Date.now()}`;
+
+    // Cria prompt otimista
+    optimisticPrompt = {
+      id: tempId,
+      _tempId: tempId,
+      _isOptimistic: true,
+      _skipAnimation: false,
+      
+      // Dados do formulário
+      title: promptForm.title,
+      content: promptForm.content,
+      description: promptForm.description || "",
+      tags: promptForm.tags || "",
+      category_id: promptForm.category_id !== "none" ? parseInt(promptForm.category_id) : null,
+      platform: promptForm.platform || "chatgpt",
+      is_favorite: promptForm.is_favorite || false,
+      
+      // Mídia (se houver preview local)
+      image_url: promptForm.imageFile 
+        ? URL.createObjectURL(promptForm.imageFile) 
+        : promptForm.image_url || "",
+      video_url: promptForm.videoFile 
+        ? URL.createObjectURL(promptForm.videoFile) 
+        : promptForm.video_url || "",
+      youtube_url: promptForm.youtube_url || "",
+      
+      // Categoria (se selecionada)
+      category: promptForm.category_id !== "none" 
+        ? myCategories.find(c => c.id === parseInt(promptForm.category_id)) 
+        : null,
+      
+      // Metadados
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      usage_count: 0,
+    };
+
+    // ✅ ADICIONA À LISTA IMEDIATAMENTE (no topo)
+    setPrompts((prev) => [optimisticPrompt, ...prev]);
+    
+    console.log("✨ Prompt otimista criado:", tempId);
+    
+    // Fecha modal (UX super rápida!)
+    setIsPromptDialogOpen(false);
+    
+    // Toast de feedback
+    toast.info("⏳ Salvando prompt...");
+  }
+
+  try {
     setIsSaving(true);
 
     // Montagem do FormData
@@ -744,20 +807,42 @@ const savePrompt = async () => {
       });
     }
 
-
     if (response.data?.success) {
-      toast.success(
-        isEditMode ? "✅ Prompt atualizado!" : "✅ Prompt criado!"
-      );
-
-      // Atualiza lista local
-      setPrompts((prev) =>
-        prev.map((p) =>
-          editingPrompt && p.id === editingPrompt.id
-            ? { ...p, ...promptForm }
-            : p
-        )
-      );
+      const realPrompt = response.data.data;
+      
+      // ==========================================
+      // 🔄 SUBSTITUI OTIMISTA PELO REAL
+      // ==========================================
+      if (tempId && optimisticPrompt) {
+        setPrompts((prev) =>
+          prev.map((p) =>
+            p._tempId === tempId
+              ? {
+                  ...realPrompt,
+                  _skipAnimation: true, // Evita animação na substituição
+                }
+              : p
+          )
+        );
+        
+        console.log("✅ Prompt otimista substituído:", tempId, "→", realPrompt.id);
+        toast.success("✅ Prompt criado com sucesso!");
+      } 
+      // ==========================================
+      // 📝 EDIÇÃO (não otimista)
+      // ==========================================
+      else if (isEditMode && editingPrompt) {
+        setPrompts((prev) =>
+          prev.map((p) =>
+            p.id === editingPrompt.id
+              ? { ...p, ...realPrompt }
+              : p
+          )
+        );
+        
+        toast.success("✅ Prompt atualizado!");
+        setIsPromptDialogOpen(false);
+      }
 
       // Remove rascunho
       localStorage.removeItem("prompt-draft");
@@ -765,29 +850,47 @@ const savePrompt = async () => {
       // Invalida queries
       await queryClient.invalidateQueries(["prompts"]);
       await queryClient.invalidateQueries(["stats"]);
+
     } else {
+      // ==========================================
+      // ❌ ERRO - REMOVE OTIMISTA
+      // ==========================================
+      if (tempId) {
+        setPrompts((prev) => prev.filter((p) => p._tempId !== tempId));
+        console.log("❌ Erro na API - prompt otimista removido:", tempId);
+      }
+      
       toast.error(response.data?.error || "Erro ao salvar prompt");
     }
 
   } catch (error) {
+    console.error("❌ Erro ao salvar:", error);
+    
+    // ==========================================
+    // ❌ ERRO - REMOVE OTIMISTA
+    // ==========================================
+    if (tempId) {
+      setPrompts((prev) => prev.filter((p) => p._tempId !== tempId));
+      console.log("❌ Exceção - prompt otimista removido:", tempId);
+    }
+    
     toast.error("Erro ao salvar prompt");
+    
   } finally {
-    // ✅ SEMPRE reseta isSaving
-
     setIsSaving(false);
     
-    // ✅ FECHA O MODAL SEMPRE (movido para cá)
-    setIsPromptDialogOpen(false);
-
-setTimeout(() => {
-  resetPromptForm();
-}, 150);
-    resetPromptForm();
+    // Só reseta form se for edição (otimista já fechou antes)
+    if (isEditMode || editingPrompt) {
+      setTimeout(() => {
+        resetPromptForm();
+      }, 150);
+    } else {
+      resetPromptForm();
+    }
     
     // Garantia extra
     setTimeout(() => {
       setIsSaving(false);
-      
     }, 300);
   }
 };
