@@ -254,22 +254,34 @@ export default function PromptModal({
                               📄 {file.file_name}
                             </span>
                             <div className="flex items-center gap-2">
-                              <a
-                                href={file.file_url}
-                                download={file.file_name}
-                                className="text-blue-600 hover:text-blue-700 text-xs font-semibold cursor-pointer"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  const link = document.createElement("a");
-                                  link.href = file.file_url;
-                                  link.download = file.file_name;
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
+                              <button
+                                type="button"
+                                className="text-blue-600 hover:text-blue-700 text-xs font-semibold"
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(file.file_url, { mode: "cors" });
+                                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                                    const blob = await response.blob();
+                                    const blobUrl = window.URL.createObjectURL(blob);
+
+                                    const link = document.createElement("a");
+                                    link.href = blobUrl;
+                                    link.download = file.file_name;
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
+
+                                    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
+                                  } catch (err) {
+                                    console.error("Erro ao baixar arquivo:", err);
+                                    window.open(file.file_url, "_blank");
+                                  }
                                 }}
                               >
                                 Baixar
-                              </a>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => removeAttachment(file.id, editingPrompt?.id)}
