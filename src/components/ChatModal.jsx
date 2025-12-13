@@ -1,4 +1,4 @@
-// src/components/ChatModal.jsx - CORRIGIDO COM GESTÃO BROADCASTCHANNEL
+// src/components/ChatModal.jsx - COM DELETE NA SIDEBAR
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Columns2,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import ChatFeed from "./ChatFeed";
 import ChatInput from "./ChatInput";
@@ -15,6 +16,8 @@ import PromptCard from "./PromptCard";
 import SaveToCategory from "./SaveToCategory";
 import api from "../lib/api";
 import socket from "../socket";
+import { useAuth } from "../hooks/useAuth";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +44,7 @@ const extractYouTubeId = (url) => {
 };
 
 const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
+  const { user } = useAuth();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -49,6 +53,7 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
 
   const [sharedPosts, setSharedPosts] = useState([]);
   const [loadingShared, setLoadingShared] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState(null);
 
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [selectedPostToSave, setSelectedPostToSave] = useState(null);
@@ -78,10 +83,10 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
   const handleCopyPrompt = useCallback(async (prompt) => {
     try {
       await navigator.clipboard.writeText(prompt.content);
-      window.toast?.success("📋 Prompt copiado!") || alert("Prompt copiado!");
+      toast.success("📋 Prompt copiado!");
     } catch (err) {
       console.error("Erro ao copiar:", err);
-      alert("Erro ao copiar prompt");
+      toast.error("❌ Erro ao copiar prompt");
     }
   }, []);
 
@@ -97,27 +102,58 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
       try {
         const res = await api.post(`/chat/posts/${selectedPostToSave.id}/save`, data);
         if (res.data?.success) {
-          window.toast?.success("✅ Prompt salvo nas suas categorias!") || alert("Prompt salvo!");
+          toast.success("✅ Prompt salvo nas suas categorias!");
           setShowSaveModal(false);
           setSelectedPostToSave(null);
           onPromptSaved?.();
         } else {
-          window.toast?.error(res.data?.message || "Erro ao salvar prompt.");
+          toast.error(res.data?.message || "Erro ao salvar prompt.");
         }
       } catch (err) {
         console.error("Erro ao salvar prompt:", err);
-        window.toast?.error(err.response?.data?.message || "Erro ao salvar prompt.");
+        toast.error(err.response?.data?.message || "Erro ao salvar prompt.");
       }
     },
     [selectedPostToSave, onPromptSaved]
   );
+
+  /** 🗑️ DELETAR POST DA SIDEBAR */
+  const handleDeletePost = useCallback(async (postId) => {
+    const confirmed = window.confirm(
+      '⚠️ Tem certeza que deseja excluir este compartilhamento?\n\nEsta ação não pode ser desfeita.'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setDeletingPostId(postId);
+      
+      const response = await api.delete(`/chat/posts/${postId}`);
+      
+      if (response.data.success) {
+        toast.success('✅ Compartilhamento excluído!');
+        
+        // Remover da lista local
+        setSharedPosts(prev => prev.filter(p => p.id !== postId));
+      }
+    } catch (error) {
+      console.error('Erro ao deletar post:', error);
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message ||
+                          'Erro ao excluir compartilhamento';
+      
+      toast.error(`❌ ${errorMessage}`);
+    } finally {
+      setDeletingPostId(null);
+    }
+  }, []);
 
   /** 🪟 Popout - Abrir em janela separada */
   const handlePopout = useCallback(() => {
     const width = window.screen.availWidth;
     const height = window.screen.availHeight;
 
-    // Tentar abrir nova janela
     const chatWindow = window.open(
       `${window.location.origin}/chat-workspace`,
       "PromplyChatWindow",
@@ -129,13 +165,11 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
       return;
     }
 
-    // ✅ Enviar sinal de que o chat foi destacado
     console.log('🚪 Abrindo janela destacada - enviando sinal...');
     const channel = new BroadcastChannel("promply-chat-status");
     channel.postMessage({ type: "chat-detached" });
     channel.close();
 
-    // Fechar modal principal após abrir janela
     onClose?.();
     
     if (isDev) console.log('✅ Janela destacada aberta com sucesso');
@@ -143,7 +177,6 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
 
   /** 📨 Mensagem enviada */
   const handleMessageSent = useCallback(() => {
-    // apenas atualiza o chat – não recarrega a sidebar
     setRefreshTrigger((prev) => prev + 1);
   }, []);
 
@@ -174,13 +207,12 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
   useEffect(() => {
     if (!isOpen) return;
 
-    loadSharedPrompts(); // apenas uma vez ao abrir
+    loadSharedPrompts();
     if (isDev) console.log("📌 ChatModal: WebSocket listeners ativos");
 
     const handlePromptShared = (data) => {
       if (isDev) console.log('📨 prompt_shared recebido:', data);
       
-      // ✅ Agora recebemos o post completo
       if (!data?.post) return;
       
       setSharedPosts((prev) => {
@@ -208,12 +240,20 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
       }
     };
 
+    const handleMessageDeleted = (data) => {
+      if (isDev) console.log('🗑️ message_deleted recebido:', data);
+      
+      setSharedPosts((prev) => prev.filter(p => p.id !== data.messageId));
+    };
+
     socket.on("prompt_shared", handlePromptShared);
     socket.on("new_message", handleNewMessage);
+    socket.on("message_deleted", handleMessageDeleted);
 
     return () => {
       socket.off("prompt_shared", handlePromptShared);
       socket.off("new_message", handleNewMessage);
+      socket.off("message_deleted", handleMessageDeleted);
       if (isDev) console.log("🧹 ChatModal: listeners removidos");
     };
   }, [isOpen, loadSharedPrompts]);
@@ -222,7 +262,6 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
   useEffect(() => {
     if (!isOpen) return;
 
-    // Quando o modal fecha, limpar estado
     return () => {
       if (isDev) console.log('🔄 ChatModal fechado - limpando estado');
     };
@@ -230,29 +269,25 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
 
   if (!isOpen) return null;
 
-  /** 📐 Layout inalterado */
-
   return (
-
     <>
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
-    <div
-  ref={modalRef}
-  style={modalStyle}
-  className={`
-    bg-white
-    z-50
-    flex
-    flex-col
-    overflow-hidden
-    shadow-2xl
-    ${isMaximized
-      ? "fixed inset-0 w-screen h-screen border-none rounded-none mx-0"
-      : "max-w-[900px] w-full mx-auto border border-gray-200 rounded-xl"
-    }
-  `}
->
-
+      <div
+        ref={modalRef}
+        style={modalStyle}
+        className={`
+          bg-white
+          z-50
+          flex
+          flex-col
+          overflow-hidden
+          shadow-2xl
+          ${isMaximized
+            ? "fixed inset-0 w-screen h-screen border-none rounded-none mx-0"
+            : "max-w-[900px] w-full mx-auto border border-gray-200 rounded-xl"
+          }
+        `}
+      >
         {/* HEADER */}
         <div
           onMouseDown={handleMouseDownDrag}
@@ -342,27 +377,48 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
                   </p>
                 </div>
               ) : (
-                sharedPosts.map((post) => (
-                  <div key={post.id} className="relative group">
-                    <div className="bg-white rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all shadow-sm hover:shadow-md overflow-hidden">
-                      <PromptCard
-                        prompt={post.shared_prompt}
-                        authorName={post.author?.name}
-                        onCopy={handleCopyPrompt}
-                        onSave={() => handleOpenSaveModal(post)}
-                        isInChat
-                        onOpenImage={(url, title) => {
-                          setSelectedImage({ url, title });
-                          setIsImageModalOpen(true);
-                        }}
-                        onOpenVideo={(url) => {
-                          setCurrentVideoUrl(url);
-                          setShowVideoModal(true);
-                        }}
-                      />
+                sharedPosts.map((post) => {
+                  const isMyPost = user?.id === post.author?.id;
+                  const isDeleting = deletingPostId === post.id;
+
+                  return (
+                    <div key={post.id} className="relative group">
+                      {/* ✅ BOTÃO DELETE - APENAS SE FOR MEU POST */}
+                      {isMyPost && (
+                        <button
+                          onClick={() => handleDeletePost(post.id)}
+                          disabled={isDeleting}
+                          className="absolute top-2 right-2 z-20 p-2 bg-white/90 hover:bg-red-50 rounded-full shadow-md transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                          title="Excluir compartilhamento"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 text-gray-600 hover:text-red-600 transition-colors" />
+                          )}
+                        </button>
+                      )}
+
+                      <div className="bg-white rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all shadow-sm hover:shadow-md overflow-hidden">
+                        <PromptCard
+                          prompt={post.shared_prompt}
+                          authorName={post.author?.name}
+                          onCopy={handleCopyPrompt}
+                          onSave={() => handleOpenSaveModal(post)}
+                          isInChat
+                          onOpenImage={(url, title) => {
+                            setSelectedImage({ url, title });
+                            setIsImageModalOpen(true);
+                          }}
+                          onOpenVideo={(url) => {
+                            setCurrentVideoUrl(url);
+                            setShowVideoModal(true);
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -377,7 +433,7 @@ const ChatModal = ({ isOpen, onClose, onPromptSaved }) => {
         )}
       </div>
 
-      {/* Modais inalterados */}
+      {/* Modais */}
       {showSaveModal && selectedPostToSave && (
         <SaveToCategory
           isOpen={showSaveModal}

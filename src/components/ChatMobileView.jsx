@@ -1,12 +1,14 @@
-// src/components/ChatMobileView.jsx - TELA CHEIA MOBILE ESTILO WHATSAPP
+// src/components/ChatMobileView.jsx - COM DELETE NA SIDEBAR
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { X, Menu, MessageSquare, Columns2, Loader2 } from "lucide-react";
+import { X, Menu, MessageSquare, Columns2, Loader2, Trash2 } from "lucide-react";
 import ChatFeed from "./ChatFeed";
 import ChatInput from "./ChatInput";
 import PromptCard from "./PromptCard";
 import SaveToCategory from "./SaveToCategory";
 import api from "../lib/api";
 import socket from "../socket";
+import { useAuth } from "../hooks/useAuth";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -15,8 +17,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-
-
 
 const isDev = import.meta.env.MODE === "development";
 
@@ -38,10 +38,13 @@ const extractYouTubeId = (url) => {
  * Substitui completamente a view principal
  */
 export default function ChatMobileView({ onClose, onPromptSaved }) {
+  const { user } = useAuth();
+  
   // Estados do chat
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [sharedPosts, setSharedPosts] = useState([]);
   const [loadingShared, setLoadingShared] = useState(false);
+  const [deletingPostId, setDeletingPostId] = useState(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [selectedPostToSave, setSelectedPostToSave] = useState(null);
   const [chatHasNewMessages, setChatHasNewMessages] = useState(false);
@@ -69,11 +72,11 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
   const handleCopyPrompt = useCallback(async (prompt) => {
     try {
       await navigator.clipboard.writeText(prompt.content);
-      window.toast?.success("📋 Prompt copiado!") || alert("Prompt copiado!");
-      setIsSidebarOpen(false); // Fecha sidebar após copiar
+      toast.success("📋 Prompt copiado!");
+      setIsSidebarOpen(false);
     } catch (err) {
       console.error("Erro ao copiar:", err);
-      alert("Erro ao copiar prompt");
+      toast.error("❌ Erro ao copiar prompt");
     }
   }, []);
 
@@ -81,7 +84,7 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
   const handleOpenSaveModal = useCallback((post) => {
     setSelectedPostToSave(post);
     setShowSaveModal(true);
-    setIsSidebarOpen(false); // Fecha sidebar ao abrir modal
+    setIsSidebarOpen(false);
   }, []);
 
   /** 💾 Salvar prompt em categoria */
@@ -90,20 +93,52 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
       try {
         const res = await api.post(`/chat/posts/${selectedPostToSave.id}/save`, data);
         if (res.data?.success) {
-          window.toast?.success("✅ Prompt salvo nas suas categorias!") || alert("Prompt salvo!");
+          toast.success("✅ Prompt salvo nas suas categorias!");
           setShowSaveModal(false);
           setSelectedPostToSave(null);
           onPromptSaved?.();
         } else {
-          window.toast?.error(res.data?.message || "Erro ao salvar prompt.");
+          toast.error(res.data?.message || "Erro ao salvar prompt.");
         }
       } catch (err) {
         console.error("Erro ao salvar prompt:", err);
-        window.toast?.error(err.response?.data?.message || "Erro ao salvar prompt.");
+        toast.error(err.response?.data?.message || "Erro ao salvar prompt.");
       }
     },
     [selectedPostToSave, onPromptSaved]
   );
+
+  /** 🗑️ DELETAR POST DA SIDEBAR */
+  const handleDeletePost = useCallback(async (postId) => {
+    const confirmed = window.confirm(
+      '⚠️ Tem certeza que deseja excluir este compartilhamento?\n\nEsta ação não pode ser desfeita.'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      setDeletingPostId(postId);
+      
+      const response = await api.delete(`/chat/posts/${postId}`);
+      
+      if (response.data.success) {
+        toast.success('✅ Compartilhamento excluído!');
+        
+        // Remover da lista local
+        setSharedPosts(prev => prev.filter(p => p.id !== postId));
+      }
+    } catch (error) {
+      console.error('Erro ao deletar post:', error);
+      
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message ||
+                          'Erro ao excluir compartilhamento';
+      
+      toast.error(`❌ ${errorMessage}`);
+    } finally {
+      setDeletingPostId(null);
+    }
+  }, []);
 
   /** 📨 Mensagem enviada */
   const handleMessageSent = useCallback(() => {
@@ -133,10 +168,10 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
     }
   }, []);
 
-  /** 🔌 WebSocket listeners */
+  /** 📌 WebSocket listeners */
   useEffect(() => {
     loadSharedPrompts();
-    if (isDev) console.log("🔌 ChatMobileView: WebSocket listeners ativos");
+    if (isDev) console.log("📌 ChatMobileView: WebSocket listeners ativos");
 
     const handlePromptShared = (data) => {
       if (isDev) console.log('📨 prompt_shared recebido:', data);
@@ -167,12 +202,20 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
       }
     };
 
+    const handleMessageDeleted = (data) => {
+      if (isDev) console.log('🗑️ message_deleted recebido:', data);
+      
+      setSharedPosts((prev) => prev.filter(p => p.id !== data.messageId));
+    };
+
     socket.on("prompt_shared", handlePromptShared);
     socket.on("new_message", handleNewMessage);
+    socket.on("message_deleted", handleMessageDeleted);
 
     return () => {
       socket.off("prompt_shared", handlePromptShared);
       socket.off("new_message", handleNewMessage);
+      socket.off("message_deleted", handleMessageDeleted);
       if (isDev) console.log("🧹 ChatMobileView: listeners removidos");
     };
   }, [loadSharedPrompts]);
@@ -245,12 +288,12 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
             onClick={() => setIsSidebarOpen(false)}
           />
 
-          {/* Sidebar deslizante da direita */}
+          {/* Sidebar deslizante da esquerda */}
           <div
-  className={`fixed top-0 left-0 h-full w-[90vw] max-w-[400px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out flex flex-col ${
-    isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-  }`}
->
+            className={`fixed top-0 left-0 h-full w-[90vw] max-w-[400px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out flex flex-col ${
+              isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
             {/* Header da Sidebar */}
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-purple-100 to-indigo-100 border-b border-purple-200">
               <h3 className="font-semibold text-gray-900">Prompts Compartilhados</h3>
@@ -283,25 +326,48 @@ export default function ChatMobileView({ onClose, onPromptSaved }) {
                   <p className="text-xs text-gray-400 mt-1">Seja o primeiro!</p>
                 </div>
               ) : (
-                sharedPosts.map((post) => (
-                  <div key={post.id} className="bg-white rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all active:scale-[0.98]">
-                    <PromptCard
-                      prompt={post.shared_prompt}
-                      authorName={post.author?.name}
-                      onCopy={handleCopyPrompt}
-                      onSave={() => handleOpenSaveModal(post)}
-                      isInChat
-                      onOpenImage={(url, title) => {
-                        setSelectedImage({ url, title });
-                        setIsImageModalOpen(true);
-                      }}
-                      onOpenVideo={(url) => {
-                        setCurrentVideoUrl(url);
-                        setShowVideoModal(true);
-                      }}
-                    />
-                  </div>
-                ))
+                sharedPosts.map((post) => {
+                  const isMyPost = user?.id === post.author?.id;
+                  const isDeleting = deletingPostId === post.id;
+
+                  return (
+                    <div key={post.id} className="relative group">
+                      {/* ✅ BOTÃO DELETE - APENAS SE FOR MEU POST */}
+                      {isMyPost && (
+                        <button
+                          onClick={() => handleDeletePost(post.id)}
+                          disabled={isDeleting}
+                          className="absolute top-2 right-2 z-20 p-2 bg-white/90 hover:bg-red-50 rounded-full shadow-md transition-all active:scale-95 disabled:opacity-50"
+                          title="Excluir compartilhamento"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="w-4 h-4 text-gray-500 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 text-gray-600 hover:text-red-600 transition-colors" />
+                          )}
+                        </button>
+                      )}
+
+                      <div className="bg-white rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all active:scale-[0.98]">
+                        <PromptCard
+                          prompt={post.shared_prompt}
+                          authorName={post.author?.name}
+                          onCopy={handleCopyPrompt}
+                          onSave={() => handleOpenSaveModal(post)}
+                          isInChat
+                          onOpenImage={(url, title) => {
+                            setSelectedImage({ url, title });
+                            setIsImageModalOpen(true);
+                          }}
+                          onOpenVideo={(url) => {
+                            setCurrentVideoUrl(url);
+                            setShowVideoModal(true);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
