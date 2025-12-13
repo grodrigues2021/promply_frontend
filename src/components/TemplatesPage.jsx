@@ -30,8 +30,15 @@ import { BookText } from "lucide-react";
 import TemplateModal from "@/components/templates/TemplateModal";
 import { useNavigate } from 'react-router-dom';
 
-
-
+// ✅ REACT QUERY HOOKS
+import {
+  useTemplatesQuery,
+  useCreateTemplateMutation,
+  useUpdateTemplateMutation,
+  useDeleteTemplateMutation,
+  useToggleFavoriteTemplateMutation,
+  useTemplateUsageMutation,
+} from "@/hooks/useTemplatesQuery";
 
 // ===== CONSTANTES =====
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -141,38 +148,45 @@ async function captureVideoThumbnail(file) {
   });
 }
 
-
 // ===== COMPONENTE PRINCIPAL =====
 export default function TemplatesPage({ onBack }) { 
   const { user } = useAuth();
   const queryClient = useQueryClient(); 
   const navigate = useNavigate();
 
+  // ✅ REACT QUERY - Templates
+  const {
+    data: templates = [],
+    isLoading: loading,
+    isFetching: fetchingTemplates,
+  } = useTemplatesQuery();
+
+  // ✅ REACT QUERY - Mutations
+  const createTemplateMutation = useCreateTemplateMutation();
+  const updateTemplateMutation = useUpdateTemplateMutation();
+  const deleteTemplateMutation = useDeleteTemplateMutation();
+  const toggleFavoriteMutation = useToggleFavoriteTemplateMutation();
+  const useTemplateMutation = useTemplateUsageMutation();
+
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [selectedTemplateForModal, setSelectedTemplateForModal] = useState(null);
 
   const openCreateTemplate = () => {
     setSelectedTemplateForModal(null);
-    setExtraFiles([]);   // limpa anexos ao criar novo template
+    setExtraFiles([]);
     setIsTemplateModalOpen(true);
   };
 
- const openEditTemplate = (template) => {
-  setSelectedTemplateForModal(template);
-  setExtraFiles([]);   // limpa anexos antes de editar
+  const openEditTemplate = (template) => {
+    setSelectedTemplateForModal(template);
+    setExtraFiles([]);
+    setTimeout(() => {
+      setIsTemplateModalOpen(true);
+    }, 0);
+  };
 
-
-  // 🔥 Garante que o modal abre somente após o React aplicar o estado
-  setTimeout(() => {
-    setIsTemplateModalOpen(true);
-  }, 0);
-};
-
-
-  // ===== ESTADOS - CARREGAMENTO DIRETO =====
-  const [templates, setTemplates] = useState([]);
+  // ✅ MANTER: Estados de categorias (fetch direto)
   const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [myCategories, setMyCategories] = useState([]);
 
@@ -197,24 +211,7 @@ export default function TemplatesPage({ onBack }) {
   const [videoPreview, setVideoPreview] = useState({ open: false, url: "" });
   const [extraFiles, setExtraFiles] = useState([]);
 
-
-  // ===== CARREGAMENTO DE DADOS =====
-  useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get("/templates");
-        setTemplates(res.data?.data || []);
-        console.log("✅ Templates carregados:", res.data?.data?.length);
-      } catch (error) {
-        console.error("Erro ao carregar templates:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadTemplates();
-  }, []);
-
+  // ✅ MANTER: useEffect de categorias
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -222,13 +219,9 @@ export default function TemplatesPage({ onBack }) {
         const res = await api.get("/categories");
         const all = res.data?.data || [];
         
-        console.log("🔍 TODAS as categorias:", all);
-        
         const templateCategories = all.filter(
           (c) => c.is_template == true || c.is_template === 1
         );
-        
-        console.log("✅ Categorias filtradas:", templateCategories);
         
         setCategories(templateCategories);
       } catch (error) {
@@ -280,7 +273,6 @@ export default function TemplatesPage({ onBack }) {
         setEditingCategory(null);
         setCategoryForm(INITIAL_CATEGORY_FORM);
         
-        // Recarregar categorias
         const res2 = await api.get("/categories");
         const all = res2.data?.data || [];
         setCategories(all.filter(c => c.is_template == true || c.is_template === 1));
@@ -301,7 +293,6 @@ export default function TemplatesPage({ onBack }) {
       if (res.data.success) {
         toast.success("Categoria excluída!");
         
-        // Recarregar categorias
         const res2 = await api.get("/categories");
         const all = res2.data?.data || [];
         setCategories(all.filter(c => c.is_template == true || c.is_template === 1));
@@ -396,22 +387,18 @@ export default function TemplatesPage({ onBack }) {
     toast.success('Vídeo removido');
   }, []);
 
-// ===== EXTRA FILES HANDLER =====
-const handleExtraFilesChange = (event) => {
-  const files = Array.from(event.target.files || []);
-  const valid = files.filter(
-    (f) => f.type === "image/png" || f.type === "image/jpeg"
-  );
+  const handleExtraFilesChange = (event) => {
+    const files = Array.from(event.target.files || []);
+    const valid = files.filter(
+      (f) => f.type === "image/png" || f.type === "image/jpeg"
+    );
 
-  if (valid.length !== files.length) {
-    toast.error("Apenas PNG e JPG são permitidos no momento.");
-  }
+    if (valid.length !== files.length) {
+      toast.error("Apenas PNG e JPG são permitidos no momento.");
+    }
 
-  setExtraFiles((prev) => [...prev, ...valid]);
-};
-
-
-
+    setExtraFiles((prev) => [...prev, ...valid]);
+  };
 
   // ===== TEMPLATE MANAGEMENT =====
   const openTemplateDialog = useCallback(() => {
@@ -438,239 +425,132 @@ const handleExtraFilesChange = (event) => {
     setIsTemplateDialogOpen(true);
   }, []);
 
-  // ============================================================
-// 🔧 CORREÇÃO - TemplatesPage.jsx
-// 📍 Localizar a função saveTemplate (aproximadamente linha 394)
-// ✅ SUBSTITUIR a função completa por esta versão corrigida
-// ============================================================
+  // ✅ ATUALIZADO: saveTemplate com MUTATION
+  const saveTemplate = useCallback(async () => {
+    if (!templateForm.title.trim()) {
+      toast.error("Informe o título do template");
+      return;
+    }
 
-const saveTemplate = useCallback(async () => {
-  if (!templateForm.title.trim()) {
-    toast.error("Informe o título do template");
-    return;
-  }
-
-  try {
-    // ✅ CORREÇÃO: Remover toda verificação manual de token
-    // O api.js já cuida disso automaticamente
-    console.log("✅ Salvando template via saveTemplate (dialog antigo)...");
-
-    const url = editingTemplate ? `/templates/${editingTemplate.id}` : "/templates";
-    const method = editingTemplate ? "PUT" : "POST";
-
-    let body;
-
-    if (templateForm.videoFile || templateForm.imageFile) {
-      // FormData para arquivos
-      body = new FormData();
-      body.append("title", templateForm.title);
-      body.append("content", templateForm.content);
-      body.append("description", templateForm.description);
-      body.append(
+    try {
+      const formData = new FormData();
+      formData.append("title", templateForm.title);
+      formData.append("content", templateForm.content);
+      formData.append("description", templateForm.description);
+      formData.append(
         "tags",
         Array.isArray(templateForm.tags) ? templateForm.tags.join(",") : templateForm.tags
       );
-      body.append(
+      formData.append(
         "category_id",
         templateForm.category_id === "none" ? "" : templateForm.category_id
       );
 
-      if (templateForm.video_url && !templateForm.videoFile) {
-        body.append("video_url", templateForm.video_url);
+      if (templateForm.imageFile) formData.append("file", templateForm.imageFile);
+      if (templateForm.videoFile) formData.append("video", templateForm.videoFile);
+      if (extraFiles.length > 0) {
+        extraFiles.forEach((file) => {
+          formData.append("extra_files", file);
+        });
       }
 
-      if (templateForm.imageFile) body.append("file", templateForm.imageFile);
-      if (templateForm.videoFile) body.append("video", templateForm.videoFile);
-    } else {
-      // JSON para dados sem arquivos
-      body = {
-        title: templateForm.title,
-        content: templateForm.content,
-        description: templateForm.description,
-        tags: typeof templateForm.tags === "string"
-          ? templateForm.tags.split(",").map((t) => t.trim()).filter(Boolean)
-          : templateForm.tags,
-        category_id: templateForm.category_id === "none" ? null : templateForm.category_id,
-        image_url: templateForm.image_url || "",
-        video_url: templateForm.video_url || "",
-      };
-    }
+      // ✅ USAR MUTATION
+      if (editingTemplate?.id) {
+        await updateTemplateMutation.mutateAsync({
+          id: editingTemplate.id,
+          formData,
+        });
+        toast.success("Template atualizado!");
+      } else {
+        await createTemplateMutation.mutateAsync({ formData });
+        toast.success("Template criado!");
+      }
 
-    // ✅ CORREÇÃO: Usar api diretamente - sem headers manuais
-    const response = method === "PUT" 
-      ? await api.put(url, body)
-      : await api.post(url, body);
-
-    if (response.data.success) {
-      toast.success(editingTemplate ? "Template atualizado!" : "Template criado!");
       setIsTemplateDialogOpen(false);
       setEditingTemplate(null);
       setTemplateForm(INITIAL_TEMPLATE_FORM);
-      
-      // Recarregar templates
-      const res2 = await api.get("/templates");
-      setTemplates(res2.data?.data || []);
       setExtraFiles([]);
-    } else {
-      toast.error(response.data.error || "Erro ao salvar template");
-    }
-  } catch (error) {
-    console.error("Erro ao salvar template:", error);
-    
-    // ✅ Mensagem de erro mais específica
-    const errorMessage = error.response?.status === 401 
-      ? "Sua sessão expirou. Por favor, faça login novamente."
-      : error.response?.data?.error || "Erro ao salvar template";
-    
-    toast.error(errorMessage);
-  }
-}, [templateForm, editingTemplate, setTemplates, setIsTemplateDialogOpen, setEditingTemplate, setExtraFiles]);
-
-  const deleteTemplate = useCallback(async (id) => {
-    if (!window.confirm("Tem certeza que deseja excluir este template?")) return;
-
-    try {
-      const res = await api.delete(`/templates/${id}`);
-      if (res.data.success) {
-        toast.success("Template excluído!");
-        
-        // Recarregar templates
-        const res2 = await api.get("/templates");
-        setTemplates(res2.data?.data || []);
-      } else {
-        toast.error(res.data.error || "Erro ao excluir template");
-      }
     } catch (error) {
-      console.error("Erro ao excluir template:", error);
-      toast.error("Erro ao excluir template");
+      console.error("Erro ao salvar template:", error);
+      toast.error(error.message || "Erro ao salvar template");
     }
-  }, []);
+  }, [
+    templateForm,
+    editingTemplate,
+    extraFiles,
+    updateTemplateMutation,
+    createTemplateMutation,
+  ]);
 
-// PATCH: Adicionar suporte ao campo platform no handleSaveTemplate
+  // ✅ ATUALIZADO: handleSaveTemplate com MUTATION
+  const handleSaveTemplate = useCallback(
+    async (payload, templateId) => {
+      try {
+        let formData;
 
-// 📍 LOCALIZAÇÃO: TemplatesPage.jsx
-// 🔍 ENCONTRE a função handleSaveTemplate (aproximadamente linha 312)
-// ✏️ SUBSTITUA o trecho do jsonPayload por:
+        if (payload instanceof FormData) {
+          formData = payload;
+        } else {
+          formData = new FormData();
+          formData.append("title", payload.title);
+          formData.append("content", payload.content);
+          formData.append("description", payload.description);
+          formData.append(
+            "tags",
+            Array.isArray(payload.tags) ? payload.tags.join(",") : payload.tags || ""
+          );
+          formData.append("category_id", payload.categories?.[0] || "");
+          formData.append("platform", payload.platform || "");
 
-// ============================================================
-// 🔧 CORREÇÃO - TemplatesPage.jsx
-// 📍 Localizar a função handleSaveTemplate (aproximadamente linha 312)
-// ✅ SUBSTITUIR a função completa por esta versão corrigida
-// ============================================================
-
-const handleSaveTemplate = useCallback(async (payload, templateId) => {
-  console.log("🔍 DEBUG 1 - handleSaveTemplate INICIADO");
-  console.log("🔍 DEBUG 2 - payload recebido:", payload);
-  console.log("🔍 DEBUG 3 - templateId:", templateId);
-
-  // PATCH 2.2 – transformar payload em FormData se houver arquivos extras
-  if (payload && !(payload instanceof FormData)) {
-    if (Array.isArray(extraFiles) && extraFiles.length > 0) {
-      console.log("📦 PATCH 2.2 → Convertendo JSON para FormData por causa de extraFiles");
-
-      const fd = new FormData();
-
-      Object.keys(payload).forEach((key) => {
-        if (key === "tags" && Array.isArray(payload.tags)) {
-          fd.append("tags", payload.tags.join(","));
-        } else if (key === "category_id") {
-          fd.append("category_id", payload.category_id || "");
-        } else if (payload[key] !== undefined && payload[key] !== null) {
-          fd.append(key, payload[key]);
+          if (payload.image_url) formData.append("image_url", payload.image_url);
+          if (payload.video_url) formData.append("video_url", payload.video_url);
+          if (payload.youtube_url) formData.append("youtube_url", payload.youtube_url);
         }
-      });
 
-      extraFiles.forEach((file) => {
-        fd.append("extra_files", file);
-      });
+        if (extraFiles.length > 0) {
+          extraFiles.forEach((file) => {
+            formData.append("extra_files", file);
+          });
+        }
 
-      payload = fd;
-    }
-  }
+        // ✅ USAR MUTATION
+        if (templateId) {
+          await updateTemplateMutation.mutateAsync({
+            id: templateId,
+            formData,
+          });
+          toast.success("Template atualizado!");
+        } else {
+          await createTemplateMutation.mutateAsync({ formData });
+          toast.success("Template criado!");
+        }
 
-  try {
-    // ✅ CORREÇÃO: NÃO verificar token manualmente!
-    // O api.js já cuida disso no interceptor:
-    // - Production: usa session cookies (withCredentials: true)
-    // - Dev/Staging: adiciona JWT automaticamente
-    
-    console.log("✅ DEBUG 4 - Prosseguindo com requisição...");
-    console.log("✅ DEBUG 5 - Autenticação será gerenciada pelo api.js automaticamente");
+        setIsTemplateModalOpen(false);
+        setSelectedTemplateForModal(null);
+        setExtraFiles([]);
+      } catch (error) {
+        console.error("❌ Erro ao salvar template:", error);
+        toast.error(error.message || "Erro ao salvar template");
+      }
+    },
+    [extraFiles, updateTemplateMutation, createTemplateMutation]
+  );
 
-    const toastId = toast.loading(templateId ? "Atualizando template..." : "Criando template...");
+  // ✅ ATUALIZADO: deleteTemplate com MUTATION
+  const deleteTemplate = useCallback(
+    async (id) => {
+      if (!window.confirm("Tem certeza que deseja excluir este template?")) return;
 
-    const isFormData = payload instanceof FormData;
-    const url = templateId ? `/templates/${templateId}` : "/templates";
-    const method = templateId ? "PUT" : "POST";
-
-    console.log("🔍 DEBUG 6 - URL:", url);
-    console.log("🔍 DEBUG 7 - Method:", method);
-    console.log("🔍 DEBUG 8 - isFormData:", isFormData);
-
-    let response;
-
-    if (isFormData) {
-      console.log("🔍 DEBUG 9 - Enviando como FormData...");
-      // ✅ CORREÇÃO: Remover headers manualmente - api.js cuida disso
-      response = method === "PUT"
-        ? await api.put(url, payload)
-        : await api.post(url, payload);
-    } else {
-      // ✅ CORREÇÃO: Remover headers manualmente - api.js cuida disso
-      const jsonPayload = {
-        title: payload.title,
-        content: payload.content,
-        description: payload.description,
-        tags: Array.isArray(payload.tags) ? payload.tags : [],
-        category_id: payload.categories?.[0] || null,
-        platform: payload.platform || null,
-        image_url: payload.image_url || "",
-        video_url: payload.video_url || "",
-        youtube_url: payload.youtube_url || "",
-        thumb_url: payload.thumb_url || "",
-      };
-
-      console.log("🔍 DEBUG 10 - jsonPayload:", jsonPayload);
-
-      response = method === "PUT"
-        ? await api.put(url, jsonPayload)
-        : await api.post(url, jsonPayload);
-    }
-
-    console.log("🔍 DEBUG 11 - Response:", response);
-
-    if (response.data.success) {
-      console.log("✅ Template salvo, recarregando lista...");
-      const res2 = await api.get("/templates");
-      console.log("✅ Templates recarregados:", res2.data?.data?.length);
-      setTemplates(res2.data?.data || []);
-
-      toast.success(templateId ? "Template atualizado!" : "Template criado!", {
-        id: toastId,
-      });
-
-      setIsTemplateModalOpen(false);
-      setSelectedTemplateForModal(null);
-      setExtraFiles([]);
-    } else {
-      console.error("❌ DEBUG 12 - Erro na resposta:", response.data);
-      toast.error(response.data.error || "Erro ao salvar template", {
-        id: toastId,
-      });
-    }
-  } catch (error) {
-    console.error("❌ DEBUG 13 - ERRO COMPLETO:", error);
-    console.error("❌ DEBUG 14 - error.response:", error.response);
-    console.error("❌ DEBUG 15 - error.message:", error.message);
-    
-    // ✅ Mensagem de erro mais específica
-    const errorMessage = error.response?.status === 401 
-      ? "Sessão expirada. Por favor, faça login novamente."
-      : error.response?.data?.error || "Erro ao salvar template";
-    
-    toast.error(errorMessage);
-  }
-}, [extraFiles, setTemplates, setIsTemplateModalOpen, setSelectedTemplateForModal, setExtraFiles]);
+      try {
+        await deleteTemplateMutation.mutateAsync(id);
+        toast.success("Template excluído!");
+      } catch (error) {
+        console.error("Erro ao excluir template:", error);
+        toast.error("Erro ao excluir template");
+      }
+    },
+    [deleteTemplateMutation]
+  );
 
   // ===== USE TEMPLATE =====
   const openUseTemplateDialog = useCallback((template) => {
@@ -683,51 +563,37 @@ const handleSaveTemplate = useCallback(async (payload, templateId) => {
     setIsUseTemplateDialogOpen(true);
   }, []);
 
-  // ============================================================
-// 🔧 CORREÇÃO - TemplatesPage.jsx
-// 📍 Localizar a função useTemplate (aproximadamente linha 470)
-// ============================================================
+  // ✅ ATUALIZADO: useTemplate com MUTATION
+  const useTemplate = useCallback(
+    async () => {
+      if (!selectedTemplate) return;
 
-// ✅ SUBSTITUIR a função useTemplate completa por esta versão:
+      try {
+        const payload = {
+          title: useTemplateForm.title || selectedTemplate.title,
+          category_id:
+            useTemplateForm.category_id === "none" ? null : useTemplateForm.category_id,
+          is_favorite: useTemplateForm.is_favorite,
+        };
 
-const useTemplate = useCallback(async () => {
-  if (!selectedTemplate) return;
+        // ✅ USAR MUTATION
+        await useTemplateMutation.mutateAsync({
+          templateId: selectedTemplate.id,
+          payload,
+        });
 
-  try {
-    const res = await api.post(`/templates/${selectedTemplate.id}/use`, {
-      title: useTemplateForm.title || selectedTemplate.title,
-      category_id: useTemplateForm.category_id === "none" ? null : useTemplateForm.category_id,
-      is_favorite: useTemplateForm.is_favorite,
-    });
+        toast.success("✅ Prompt criado com sucesso!");
 
-    if (res.data.success) {
-      toast.success("✅ Prompt criado com sucesso!");
-      
-      // ✅ ADICIONAR: Atualiza o usage_count localmente na hora
-      setTemplates((prev) =>
-        prev.map((t) =>
-          t.id === selectedTemplate.id
-            ? { ...t, usage_count: (t.usage_count || 0) + 1 }
-            : t
-        )
-      );
-      
-      // Invalida queries do React Query
-      queryClient.invalidateQueries(["prompts"]);
-      queryClient.invalidateQueries(["stats"]);
-      
-      // Fecha o modal
-      setIsUseTemplateDialogOpen(false);
-      setSelectedTemplate(null);
-      setUseTemplateForm(INITIAL_USE_TEMPLATE_FORM);
-    } else {
-      toast.error(res.data.error || "Erro ao usar template");
-    }
-  } catch (error) {
-    console.error("Erro ao usar template:", error);
-    toast.error("Erro ao usar template");
-  }
-}, [selectedTemplate, useTemplateForm, queryClient]);
+        setIsUseTemplateDialogOpen(false);
+        setSelectedTemplate(null);
+        setUseTemplateForm(INITIAL_USE_TEMPLATE_FORM);
+      } catch (error) {
+        console.error("Erro ao usar template:", error);
+        toast.error("Erro ao usar template");
+      }
+    },
+    [selectedTemplate, useTemplateForm, useTemplateMutation]
+  );
 
   // ===== PREVIEW HANDLERS =====
   const handleOpenImage = useCallback((url, title = "") => {
@@ -749,43 +615,23 @@ const useTemplate = useCallback(async () => {
     }
   }, []);
 
-// ============================================================
-// ❤️ FAVORITAR / DESFAVORITAR TEMPLATE
-// ============================================================
-const handleToggleFavorite = useCallback(async (template) => {
-  if (!template?.id) return;
+  // ✅ ATUALIZADO: handleToggleFavorite com MUTATION
+  const handleToggleFavorite = useCallback(
+    async (template) => {
+      if (!template?.id) return;
 
-  try {
-    const res = await api.post(`/templates/${template.id}/favorite`);
+      try {
+        await toggleFavoriteMutation.mutateAsync(template.id);
 
-    const updated = res.data;
-
-    if (!updated || !updated.success) {
-      toast.error("Erro ao atualizar favorito");
-      return;
-    }
-
-    const { is_favorite, favorites_count } = updated;
-
-    // Atualiza o estado local dos templates
-    setTemplates((prev) =>
-      prev.map((t) =>
-        t.id === template.id
-          ? {
-              ...t,
-              is_favorite,
-              favorites_count,
-            }
-          : t
-      )
-    );
-  } catch (err) {
-    console.error("❌ Erro no toggle de favorito:", err);
-    toast.error("Erro ao alternar favorito");
-  }
-}, []);
-
-
+        const status = !template.is_favorite ? "favoritado" : "removido dos favoritos";
+        toast.success(`⭐ Template ${status}!`);
+      } catch (err) {
+        console.error("❌ Erro no toggle de favorito:", err);
+        toast.error("Erro ao alternar favorito");
+      }
+    },
+    [toggleFavoriteMutation]
+  );
 
   // ===== FILTERED TEMPLATES =====
   const filteredTemplates = useMemo(() => {
@@ -803,14 +649,14 @@ const handleToggleFavorite = useCallback(async (template) => {
       <header className="bg-white shadow-[0_2px_10px_rgba(0,0,0,0.05)] sticky top-0 z-50">
         <div className="max-w-[1800px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-<button
-  onClick={onBack}  // ✅ Chama a função que volta pro PromptManager
-  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
-  aria-label="Voltar"
->
-  <ArrowLeft className="w-4 h-4 text-gray-700" />
-  <span className="text-sm font-medium text-gray-700">Voltar</span>
-</button>
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 bg-white hover:bg-gray-100 transition active:scale-95"
+              aria-label="Voltar"
+            >
+              <ArrowLeft className="w-4 h-4 text-gray-700" />
+              <span className="text-sm font-medium text-gray-700">Voltar</span>
+            </button>
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 lg:hidden">
@@ -848,6 +694,14 @@ const handleToggleFavorite = useCallback(async (template) => {
           </div>
         </div>
       </header>
+
+      {/* ✅ INDICADOR DE SINCRONIZAÇÃO */}
+      {fetchingTemplates && !loading && (
+        <div className="fixed top-20 right-6 z-50 bg-blue-500/90 backdrop-blur text-white px-3 py-1.5 rounded-full shadow-lg text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          Sincronizando templates
+        </div>
+      )}
 
       {isMobileSidebarOpen && (
         <div
@@ -989,32 +843,25 @@ const handleToggleFavorite = useCallback(async (template) => {
             </div>
 
             <PromptGrid
-  prompts={filteredTemplates}
-  isLoading={loading}
-  CardComponent={({ prompt }) => {
-    const template = prompt;
-    return (
-      <TemplateCard
-        template={template}
-        user={user}
-        // 🔵 Botão "Usar Template"
-        onShare={() => openUseTemplateDialog(template)}
-        // 🔵 Botão Copiar
-        onCopy={() => handleCopyTemplate(template)}
-        // 🔵 Botão Editar (admin)
-        onEdit={() => openEditTemplate(template)}
-        // 🔵 Botão Excluir (admin)
-        onDelete={() => deleteTemplate(template.id)}
-        // 🔵 Preview de Imagem
-        onOpenImage={handleOpenImage}
-        // 🔵 Preview de Vídeo
-        onOpenVideo={handleOpenVideo}
-        // ❤️ Favoritar
-        onToggleFavorite={() => handleToggleFavorite(template)}
-      />
-    );
-  }}
-/>
+              prompts={filteredTemplates}
+              isLoading={loading}
+              CardComponent={({ prompt }) => {
+                const template = prompt;
+                return (
+                  <TemplateCard
+                    template={template}
+                    user={user}
+                    onShare={() => openUseTemplateDialog(template)}
+                    onCopy={() => handleCopyTemplate(template)}
+                    onEdit={() => openEditTemplate(template)}
+                    onDelete={() => deleteTemplate(template.id)}
+                    onOpenImage={handleOpenImage}
+                    onOpenVideo={handleOpenVideo}
+                    onToggleFavorite={() => handleToggleFavorite(template)}
+                  />
+                );
+              }}
+            />
           </main>
         </div>
       </div>
@@ -1084,24 +931,20 @@ const handleToggleFavorite = useCallback(async (template) => {
         </DialogContent>
       </Dialog>
 
-<TemplateModal
-  isOpen={isTemplateModalOpen}
-  onClose={() => {
-    setIsTemplateModalOpen(false);
-    setSelectedTemplateForModal(null);
-    setExtraFiles([]);   // limpa anexos ao fechar modal
-
-  }}
-  onSave={handleSaveTemplate}
-  template={selectedTemplateForModal}
-  categories={categories}
-  
-  /* 🟦 NOVAS PROPRIEDADES — ETAPA 1.3 */
-  extraFiles={extraFiles}
-  setExtraFiles={setExtraFiles}
-  handleExtraFilesChange={handleExtraFilesChange}
-/>
-
+      <TemplateModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => {
+          setIsTemplateModalOpen(false);
+          setSelectedTemplateForModal(null);
+          setExtraFiles([]);
+        }}
+        onSave={handleSaveTemplate}
+        template={selectedTemplateForModal}
+        categories={categories}
+        extraFiles={extraFiles}
+        setExtraFiles={setExtraFiles}
+        handleExtraFilesChange={handleExtraFilesChange}
+      />
 
       {/* Modal Usar Template */}
       <Dialog open={isUseTemplateDialogOpen} onOpenChange={setIsUseTemplateDialogOpen}>
@@ -1171,11 +1014,10 @@ const handleToggleFavorite = useCallback(async (template) => {
         </DialogContent>
       </Dialog>
 
-  {/* Modal Preview Imagem */}
+      {/* Modal Preview Imagem */}
       {imagePreview.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
           <div className="relative w-full max-w-4xl bg-black rounded-xl overflow-hidden">
-            {/* HEADER */}
             <div className="flex justify-between items-center px-4 py-3 bg-black/70">
               <h3 className="text-white font-semibold truncate flex-1 mr-4">
                 {imagePreview.title || "Imagem do Template"}
@@ -1226,7 +1068,6 @@ const handleToggleFavorite = useCallback(async (template) => {
               </div>
             </div>
 
-            {/* CONTEÚDO */}
             <div className="bg-black flex items-center justify-center">
               <img
                 src={imagePreview.url}
