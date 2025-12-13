@@ -3,6 +3,7 @@ import React, { memo } from 'react';
 import { Share2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getInitials, formatTimestamp, sanitizeAndFormat } from '../utils/chatUtils';
+import PromptCard from './PromptCard';
 
 /**
  * 🎨 Componente de mensagem individual - OTIMIZADO
@@ -75,12 +76,12 @@ const ChatMessage = ({ post, userColor, onUpdate }) => {
           </div>
 
           {/* Card do Prompt */}
-          <div 
-            className="text-xs font-medium"
-            style={{ color: messageColor }}
-          >
-            📌 {shared_prompt.title}
-          </div>
+        <div className="mt-2">
+          <PromptCard
+            prompt={shared_prompt}
+            isInChat
+          />
+        </div>
         </div>
       </div>
     );
