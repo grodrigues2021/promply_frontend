@@ -241,26 +241,52 @@ export default function PromptManager({
   };
 
   const removeAttachment = async (attachmentId, promptId) => {
-    if (!confirm("Tem certeza que deseja remover este anexo?")) return;
+  // ✅ VALIDAÇÃO: Garante que promptId existe
+  if (!promptId || promptId === undefined || promptId === null) {
+    console.error("❌ removeAttachment: promptId inválido:", promptId);
+    toast.error("Erro: ID do prompt não encontrado. Feche e reabra o modal de edição.");
+    return;
+  }
 
-    try {
-      setAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
-      toast.success("📎 Anexo removido!");
+  // ✅ VALIDAÇÃO: Garante que attachmentId existe
+  if (!attachmentId || attachmentId === undefined || attachmentId === null) {
+    console.error("❌ removeAttachment: attachmentId inválido:", attachmentId);
+    toast.error("Erro: ID do anexo não encontrado.");
+    return;
+  }
 
-      const response = await api.delete(`/prompts/${promptId}/files/${attachmentId}`);
-      
-      if (response.data?.success) {
-        queryClient.invalidateQueries(["prompts"]);
-      } else {
-        toast.error("Erro ao remover anexo no servidor");
-        queryClient.invalidateQueries(["prompts"]);
-      }
-    } catch (error) {
-      console.error("❌ Erro ao remover anexo:", error);
-      toast.error("Falha ao remover anexo");
+  if (!confirm("Tem certeza que deseja remover este anexo?")) return;
+
+  try {
+    console.log(`🗑️ Removendo anexo ${attachmentId} do prompt ${promptId}`);
+
+    // ✅ OPTIMISTIC UPDATE: Remove da UI imediatamente
+    setAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
+    toast.success("📎 Anexo removido!");
+
+    // ✅ REQUISIÇÃO: Deleta no backend
+    const response = await api.delete(`/prompts/${promptId}/files/${attachmentId}`);
+    
+    if (response.data?.success) {
+      console.log("✅ Anexo removido do servidor com sucesso");
+      queryClient.invalidateQueries(["prompts"]);
+    } else {
+      console.warn("⚠️ Servidor não confirmou remoção:", response.data);
+      toast.error("Erro ao remover anexo no servidor");
       queryClient.invalidateQueries(["prompts"]);
     }
-  };
+  } catch (error) {
+    console.error("❌ Erro ao remover anexo:", error);
+    console.error("   - Attachment ID:", attachmentId);
+    console.error("   - Prompt ID:", promptId);
+    console.error("   - Error details:", error.response?.data || error.message);
+    
+    toast.error("Falha ao remover anexo");
+    
+    // ✅ ROLLBACK: Recarrega para restaurar estado correto
+    queryClient.invalidateQueries(["prompts"]);
+  }
+};
 
   // ===================================================
   // ✅ VALIDAÇÃO

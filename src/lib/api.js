@@ -118,6 +118,7 @@ api.interceptors.request.use(
     );
 
     // 🔑 JWT Token (apenas dev/staging)
+    // 🔑 JWT Token (apenas dev/staging)
     if (ENV !== "production") {
       const token =
         localStorage.getItem("access_token") ||
@@ -128,10 +129,24 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
         console.log("🔐 Token JWT adicionado:", token.slice(0, 20) + "...");
       } else {
-        console.warn("⚠️ Nenhum token encontrado no localStorage");
+        // ✅ CORREÇÃO: Só mostra warning se não for rota pública
+        const isPublicRoute =
+          config.url?.includes("/auth/") ||
+          config.url?.includes("/login") ||
+          config.url?.includes("/register") ||
+          config.url?.includes("/health");
+
+        if (!isPublicRoute) {
+          console.warn("⚠️ Nenhum token encontrado no localStorage");
+          console.warn("   - URL:", config.url);
+          console.warn(
+            "   - Isso pode indicar que você precisa fazer login novamente"
+          );
+        }
       }
     } else {
       console.log("🍪 Production mode - usando Session Cookies");
+      console.log("   - withCredentials:", config.withCredentials);
     }
 
     return config;

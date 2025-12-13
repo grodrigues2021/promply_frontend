@@ -283,12 +283,30 @@ export default function PromptModal({
                               </button>
 
                               <button
-                                type="button"
-                                onClick={() => removeAttachment(file.id, editingPrompt?.id)}
-                                className="text-red-600 hover:text-red-700 text-xs font-semibold"
-                              >
-                                Remover
-                              </button>
+                                  type="button"
+                                  onClick={() => {
+                                    // ✅ VALIDAÇÃO: Garante que temos um prompt válido
+                                    const currentPromptId = editingPrompt?.id || promptForm?.id;
+                                    
+                                    if (!currentPromptId) {
+                                      console.error("❌ Não foi possível determinar o ID do prompt");
+                                      console.error("   - editingPrompt:", editingPrompt);
+                                      console.error("   - promptForm:", promptForm);
+                                      alert("Erro: Não foi possível identificar o prompt. Por favor, feche e reabra o modal de edição.");
+                                      return;
+                                    }
+                                    
+                                    console.log("🗑️ Iniciando remoção de anexo:");
+                                    console.log("   - Arquivo ID:", file.id);
+                                    console.log("   - Arquivo Nome:", file.file_name);
+                                    console.log("   - Prompt ID:", currentPromptId);
+                                    
+                                    removeAttachment(file.id, currentPromptId);
+                                  }}
+                                  className="text-red-600 hover:text-red-700 text-xs font-semibold"
+                                >
+                                  Remover
+                                </button>
                             </div>
                           </div>
                         ))}
