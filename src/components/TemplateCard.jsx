@@ -373,7 +373,7 @@ const TemplateCard = React.memo(({
             }}
           >
             <Sparkles className="w-4 h-4 mr-2" />
-            Usar Template
+            Salvar Template
           </Button>
 
           {/* Copiar */}
