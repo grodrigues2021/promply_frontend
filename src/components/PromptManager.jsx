@@ -696,6 +696,11 @@ useEffect(() => {
 // Localização: PromptManager.jsx (substituir a função existente)
 // ========================================
 
+// ========================================
+// FUNÇÃO savePrompt COM OPTIMISTIC UI
+// Localização: PromptManager.jsx (substituir a função existente)
+// ========================================
+
 const savePrompt = async () => {
   // Prevenção de duplo clique
   if (isSaving) {
@@ -815,14 +820,23 @@ const savePrompt = async () => {
       // ==========================================
       if (tempId && optimisticPrompt) {
         setPrompts((prev) =>
-          prev.map((p) =>
-            p._tempId === tempId
-              ? {
-                  ...realPrompt,
-                  _skipAnimation: true, // Evita animação na substituição
-                }
-              : p
-          )
+          prev.map((p) => {
+            if (p._tempId !== tempId) return p;
+            
+            // 🔧 PRESERVA THUMBNAILS LOCAIS SE API NÃO RETORNOU AINDA
+            return {
+              ...realPrompt,
+              _skipAnimation: true,
+              
+              // Mantém preview local se API não retornou URL ainda
+              image_url: realPrompt.image_url || p.image_url,
+              thumb_url: realPrompt.thumb_url || p.thumb_url,
+              video_url: realPrompt.video_url || p.video_url,
+              
+              // Flag temporária para indicar que está usando preview local
+              _hasLocalPreview: !realPrompt.image_url && !!p.image_url,
+            };
+          })
         );
         
         console.log("✅ Prompt otimista substituído:", tempId, "→", realPrompt.id);
