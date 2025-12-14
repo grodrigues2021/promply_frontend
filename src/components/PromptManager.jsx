@@ -861,12 +861,8 @@ export default function PromptManager({
       })
     : [];
 
-  // ===================================================
-  // 💾 SAVE PROMPT COM MUTATION
-  // ===================================================
-
  // ===================================================
-// 💾 SAVE PROMPT COM NOVA ARQUITETURA CORRIGIDA
+// 💾 SAVE PROMPT COM INVALIDAÇÃO DE CACHE CORRIGIDA
 // ===================================================
 
 const savePrompt = async () => {
@@ -1004,10 +1000,24 @@ const savePrompt = async () => {
     resetPromptForm();
     setIsPromptDialogOpen(false);
 
-    // 🔄 INVALIDAR CACHE DO REACT QUERY
-    queryClient.invalidateQueries(["prompts"]);
-    queryClient.invalidateQueries(["stats"]);
-    queryClient.invalidateQueries(["categories"]);
+    // ==========================================
+    // 🔄 INVALIDAR CACHE (CRÍTICO!)
+    // ==========================================
+    
+    // ✅ ESPERAR um pouco para o backend processar
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // ✅ INVALIDAR com refetch forçado
+    await Promise.all([
+      queryClient.invalidateQueries(["prompts"], { 
+        refetchActive: true,
+        refetchInactive: false 
+      }),
+      queryClient.invalidateQueries(["stats"]),
+      queryClient.invalidateQueries(["categories"])
+    ]);
+    
+    console.log("✅ Cache invalidado - dados atualizados!");
     
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
