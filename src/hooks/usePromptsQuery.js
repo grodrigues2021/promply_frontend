@@ -120,10 +120,6 @@ export function useCreatePromptMutation() {
         console.log("📙 Rollback realizado - prompt otimista removido");
       }
     },
-
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["prompts"] });
-    },
   });
 }
 
