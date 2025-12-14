@@ -21,7 +21,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
-
+import { getYoutubeThumbnail } from "../lib/youtube";
 
 
 
@@ -318,7 +318,7 @@ const mediaInfo = useMemo(() => {
   // -------------------------------------------------
   if (youtubeUrl) {
     hasYouTubeVideo = true;
-    videoId = extractYoutubeVideoId(youtubeUrl);
+    videoId = extractYouTubeId(youtubeUrl);
     thumbnailUrl = getYoutubeThumbnail(youtubeUrl);
   }
 
@@ -716,144 +716,106 @@ const mediaInfo = useMemo(() => {
         </div>
 
         {/* MÍDIA */}
-        {mediaInfo.hasMedia && (
-          <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
-            
-            {/* ✅ BADGE "YOUTUBE" no canto superior direito */}
-            {mediaInfo.hasYouTubeVideo && (
-              <div className="absolute top-3 right-3 z-10">
-                <Badge className="bg-red-600 text-white border-0 shadow-lg">
-                  <Youtube className="w-3 h-3 mr-1" />
-                  YouTube
-                </Badge>
-              </div>
-            )}
 
-            {/* 🎬 BADGE "VÍDEO" para vídeos locais (MP4) */}
-            {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
-              <div className="absolute top-3 right-3 z-10">
-                <Badge className="bg-pink-600 text-white border-0 shadow-lg">
-                  <Play className="w-3 h-3 mr-1" />
-                  Vídeo
-                </Badge>
-              </div>
-            )}
+    {/* =====================================================
+    🖼️ MÍDIA — BLOCO ÚNICO, IMG SEMPRE MONTADO (ANTI-FLICKER)
+===================================================== */}
+<div className="relative w-full aspect-video overflow-hidden rounded-md bg-muted">
 
-            {/* 🖼️ BADGE "IMAGEM" quando só tem imagem (sem vídeo) */}
-            {!mediaInfo.hasVideo && mediaInfo.hasImage && (
-              <div className="absolute top-3 right-3 z-10">
-                <Badge className="bg-blue-600 text-white border-0 shadow-lg">
-                  <ImageIcon className="w-3 h-3 mr-1" />
-                  Imagem
-                </Badge>
-              </div>
-            )}
+  {/* =====================================================
+      🖼️ THUMBNAIL ÚNICO — NUNCA SAI DO DOM
+  ===================================================== */}
+  <img
+    src={mediaInfo.thumbnailUrl || ""}
+    alt={prompt.title}
+    className={cn(
+      "absolute inset-0 w-full h-full object-cover transition-opacity duration-200",
+      mediaInfo.thumbnailUrl ? "opacity-100" : "opacity-0"
+    )}
+    draggable={false}
+    loading="eager"
+  />
 
-            {/* YOUTUBE - Apenas thumbnail clicável */}
-            {mediaInfo.hasYouTubeVideo && mediaInfo.videoId && (
-              <button
-                type="button"
-                onClick={() => openModal('youtube', null, mediaInfo.videoId)}
-                className="relative w-full h-full group/media overflow-hidden"
-              >
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                  onError={(e) => {
-                    e.target.src = `https://img.youtube.com/vi/${mediaInfo.videoId}/mqdefault.jpg`;
-                  }}
-                />
+  {/* PLACEHOLDER (NÃO REMOVE IMG) */}
+  {!mediaInfo.thumbnailUrl && (
+    <div className="absolute inset-0 flex items-center justify-center bg-muted">
+      <ImageIcon className="h-10 w-10 text-muted-foreground" />
+    </div>
+  )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                    <Play className="h-8 w-8 text-red-600 fill-current" />
-                  </div>
-                </div>
+  {/* =====================================================
+      🎬 BADGES / ETIQUETAS (MANTIDAS)
+  ===================================================== */}
 
-                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                    Clique para assistir
-                  </span>
-                </div>
-              </button>
-            )}
+  {/* BADGE YOUTUBE */}
+  {mediaInfo.hasYouTubeVideo && (
+    <div className="absolute top-3 right-3 z-10">
+      <Badge className="bg-red-600 text-white shadow-lg">
+        <Youtube className="w-3 h-3 mr-1" />
+        YouTube
+      </Badge>
+    </div>
+  )}
 
-            {/* VÍDEO LOCAL - Apenas thumbnail clicável */}
-            {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
-              <button
-                type="button"
-                onClick={() => {
-                  const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
-                  console.log("🎬 Abrindo vídeo local:", finalVideoUrl);
-                  console.log("🖼️ Thumbnail do vídeo:", mediaInfo.thumbnailUrl);
-                  openModal("video", finalVideoUrl);
-                }}
-                className="relative w-full h-full group/media overflow-hidden"
-              >
-                {/* ✅ EXIBIR THUMBNAIL SE EXISTIR */}
-                {mediaInfo.thumbnailUrl ? (
-                  <img
-                    src={mediaInfo.thumbnailUrl}
-                    alt={prompt.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                    loading="lazy"
-                    onError={(e) => {
-                      console.error("❌ Erro ao carregar thumbnail:", mediaInfo.thumbnailUrl);
-                      // Fallback para ícone de play
-                      e.target.style.display = 'none';
-                      e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
-                
-                {/* Fallback icon (sempre renderizado, mas oculto se houver thumbnail) */}
-                <div className={cn(
-                  "fallback-icon flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200",
-                  mediaInfo.thumbnailUrl && "hidden"
-                )}>
-                  <Play className="h-16 w-16 text-purple-400" />
-                </div>
+  {/* BADGE VÍDEO LOCAL */}
+  {mediaInfo.hasLocalVideo && (
+    <div className="absolute top-3 left-3 z-10">
+      <Badge className="bg-purple-600 text-white shadow-lg">
+        Vídeo
+      </Badge>
+    </div>
+  )}
 
-                {/* Overlay de hover */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                    <Play className="h-8 w-8 text-purple-600 fill-current" />
-                  </div>
-                </div>
+  {/* BADGE IMAGEM */}
+  {!mediaInfo.hasLocalVideo &&
+    !mediaInfo.hasYouTubeVideo &&
+    mediaInfo.hasImage && (
+      <div className="absolute bottom-3 left-3 z-10">
+        <Badge className="bg-blue-600 text-white shadow-lg">
+          Imagem
+        </Badge>
+      </div>
+    )}
 
-                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                    Clique para assistir
-                  </span>
-                </div>
-              </button>
-            )}
+  {/* =====================================================
+      ▶️ OVERLAY DE PLAY (SEM TROCAR IMG)
+  ===================================================== */}
+  {(mediaInfo.hasLocalVideo || mediaInfo.hasYouTubeVideo) && (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-10 pointer-events-none">
+      <Play className="h-10 w-10 text-white opacity-90" />
+    </div>
+  )}
 
-            {/* IMAGEM - Apenas thumbnail clicável */}
-            {!mediaInfo.hasVideo && mediaInfo.hasImage && (
-              <button
-                type="button"
-                onClick={() => openModal('image', mediaInfo.thumbnailUrl)}
-                className="relative w-full h-full group/media overflow-hidden"
-              >
-                <img
-                  src={mediaInfo.thumbnailUrl}
-                  alt={prompt.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                  loading="lazy"
-                />
+  {/* =====================================================
+      ⏳ OVERLAY DE UPLOAD (SEM TROCAR IMG)
+  ===================================================== */}
+  {prompt._uploadingMedia && (
+    <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-20">
+      <span className="text-xs text-white">
+        Processando mídia…
+      </span>
+    </div>
+  )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="bg-white/95 p-3 rounded-full shadow-xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                    <ImageIcon className="h-6 w-6 text-slate-800" />
-                  </div>
-                </div>
-              </button>
-            )}
-          </div>
-        )}
+  {/* =====================================================
+      🖱️ CLICK HANDLER ÚNICO (MANTÉM UX)
+  ===================================================== */}
+  <button
+    type="button"
+    onClick={() => {
+      if (mediaInfo.hasYouTubeVideo && mediaInfo.videoId) {
+        openModal("youtube", null, mediaInfo.videoId);
+      } else if (mediaInfo.hasLocalVideo && mediaInfo.videoUrl) {
+        openModal("video", mediaInfo.videoUrl);
+      } else if (mediaInfo.hasImage && mediaInfo.thumbnailUrl) {
+        openModal("image", mediaInfo.thumbnailUrl);
+      }
+    }}
+    className="absolute inset-0 z-30"
+    aria-label="Abrir mídia"
+  />
+</div>
+
 
         {/* Placeholder se não tem mídia */}
         {!mediaInfo.hasMedia && (
