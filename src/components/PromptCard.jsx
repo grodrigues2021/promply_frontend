@@ -315,7 +315,8 @@ const PromptCard = React.memo(({
     
     const videoType = detectVideoType(videoUrl);
     const hasYouTubeVideo = !!youtubeUrl || videoType === "youtube";
-    const hasLocalVideo = prompt._hasLocalVideo || videoType === 'local';
+    const hasLocalVideo = !!prompt.thumb_url;
+
     const hasVideo = hasYouTubeVideo || hasLocalVideo;
     const hasMedia = hasVideo || hasImage;
     
