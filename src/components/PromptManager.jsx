@@ -381,10 +381,10 @@ export default function PromptManager({
     return;
   }
 
-  // ✅ LIMITE DEFINITIVO: 10MB
+  // ✅ LIMITE DEFINITIVO: 20MB
   const MAX_VIDEO_SIZE = 20 * 1024 * 1024; // 10MB
   if (file.size > MAX_VIDEO_SIZE) {
-    toast.error("Vídeo muito grande. Máximo permitido: 10MB.");
+    toast.error("Vídeo muito grande. Máximo permitido: 20MB.");
     e.target.value = "";
     return;
   }
@@ -879,112 +879,114 @@ export default function PromptManager({
     try {
       setIsSaving(true);
 
-      const formData = new FormData();
-      formData.append("title", promptForm.title);
-      formData.append("content", promptForm.content);
-      formData.append("description", promptForm.description || "");
-      formData.append("category_id", promptForm.category_id || "");
-      formData.append("platform", promptForm.platform || "chatgpt");
-      formData.append("youtube_url", promptForm.youtube_url || "");
-      formData.append("video_url", promptForm.video_url || "");
-      formData.append("is_favorite", promptForm.is_favorite);
-      formData.append("tags", promptForm.tags || "");
-
-      if (promptForm.videoFile instanceof File) {
-        formData.append("video", promptForm.videoFile);
-      }
-
-      if (promptForm.imageFile instanceof File) {
-        formData.append("image", promptForm.imageFile);
-      }
-
-      if (extraFiles.length > 0) {
-        extraFiles.forEach((file) => {
-          formData.append("extra_files", file);
-        });
-      }
-
       // ==========================================
-      // ✏️ EDIÇÃO
-      // ==========================================
-      if (isEditMode === true && editingPrompt?.id) {
-        console.log("📝 Atualizando prompt existente:", editingPrompt.id);
+// 📝 ETAPA 1 — CRIAÇÃO DO PROMPT (TEXTO)
+// ==========================================
 
-        await updatePromptMutation.mutateAsync({
-          id: editingPrompt.id,
-          formData
-        });
+const payload = {
+  title: promptForm.title,
+  content: promptForm.content,
+  description: promptForm.description || "",
+  category_id:
+    promptForm.category_id !== "none"
+      ? parseInt(promptForm.category_id)
+      : null,
+  platform: promptForm.platform || "chatgpt",
+  tags: promptForm.tags || "",
+  youtube_url: promptForm.youtube_url || "",
+  is_favorite: promptForm.is_favorite || false,
+};
 
-        toast.success("✅ Prompt atualizado!");
-        setIsPromptDialogOpen(false);
-        
-        localStorage.removeItem("prompt-draft");
+let promptId = null;
 
-        setTimeout(() => {
-          resetPromptForm();
-        }, 150);
+// ==========================================
+// ✏️ EDIÇÃO (NÃO CRIA PROMPT NOVO)
+// ==========================================
+if (isEditMode === true && editingPrompt?.id) {
+  console.log("📝 Atualizando prompt existente:", editingPrompt.id);
 
-        return;
-      }
+  await updatePromptMutation.mutateAsync({
+    id: editingPrompt.id,
+    data: payload,
+  });
 
-      // ==========================================
-      // ➕ CRIAÇÃO COM OPTIMISTIC UPDATE
-      // ==========================================
-      console.log("✨ Criando novo prompt com optimistic update");
+  promptId = editingPrompt.id;
 
-      const tempId = `temp-${Date.now()}`;
+// ==========================================
+// ➕ CRIAÇÃO (PROMPT NOVO)
+// ==========================================
+} else {
+  const response = await api.post("/prompts/text", payload);
 
-      const optimisticPrompt = {
-        id: tempId,
-        _tempId: tempId,
-        _isOptimistic: true,
-        _skipAnimation: false,
-        
-        title: promptForm.title,
-        content: promptForm.content,
-        description: promptForm.description || "",
-        tags: promptForm.tags || "",
-        category_id: promptForm.category_id !== "none" ? parseInt(promptForm.category_id) : null,
-        platform: promptForm.platform || "chatgpt",
-        is_favorite: promptForm.is_favorite || false,
-        
-        // ✅ CORREÇÃO: Usa helper seguro
-        image_url: safeCreateObjectURL(promptForm.imageFile) || promptForm.image_url || "",
-        video_url: safeCreateObjectURL(promptForm.videoFile) || promptForm.video_url || "",
-        youtube_url: promptForm.youtube_url || "",
-        
-        category: promptForm.category_id !== "none" 
-          ? myCategories.find(c => c.id === parseInt(promptForm.category_id)) 
-          : null,
-        
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        usage_count: 0,
-      };
+  promptId = response.data?.prompt_id;
 
-      setIsPromptDialogOpen(false);
-      toast.info("⏳ Salvando prompt...");
+  if (!promptId) {
+    throw new Error("ID do prompt não retornado pelo servidor");
+  }
 
-      await createPromptMutation.mutateAsync({
-        formData,
-        optimisticPrompt
-      });
+  
 
-      toast.success("✅ Prompt criado com sucesso!");
-      localStorage.removeItem("prompt-draft");
-      resetPromptForm();
 
+
+// ==========================================
+// 📎 ETAPA 2 — UPLOAD DE MÍDIA (RESILIENTE)
+// ==========================================
+
+const mediaForm = new FormData();
+
+if (promptForm.imageFile instanceof File) {
+  mediaForm.append("image", promptForm.imageFile);
+}
+
+if (promptForm.videoFile instanceof File) {
+  mediaForm.append("video", promptForm.videoFile);
+}
+
+// thumbnail gerada no frontend
+if (
+  promptForm.imageFile instanceof File &&
+  promptForm.videoFile instanceof File
+) {
+  mediaForm.append("thumbnail", promptForm.imageFile);
+}
+
+// arquivos extras (opcional — pode falhar)
+extraFiles.forEach((file) => {
+  mediaForm.append("extra_files", file);
+});
+
+// Só envia se houver mídia
+if ([...mediaForm.keys()].length > 0) {
+  try {
+    await api.post(`/prompts/${promptId}/media`, mediaForm);
+  } catch (mediaError) {
+    console.warn("⚠️ Falha ao subir mídia:", mediaError);
+    toast.warning("Prompt salvo, mas houve falha no upload de mídia.");}
+  }
+
+}
+
+toast.success(
+  isEditMode ? "✅ Prompt atualizado com sucesso!" : "✅ Prompt criado com sucesso!"
+);
+
+localStorage.removeItem("prompt-draft");
+resetPromptForm();
+setIsPromptDialogOpen(false);
+
+queryClient.invalidateQueries(["prompts"]);
+queryClient.invalidateQueries(["stats"]);
+queryClient.invalidateQueries(["categories"]);
+
+    
     } catch (error) {
       console.error("❌ Erro ao salvar prompt:", error);
       toast.error(error.message || "Erro ao salvar prompt");
       
     } finally {
-      setIsSaving(false);
-      
-      setTimeout(() => {
-        setIsSaving(false);
-      }, 300);
-    }
+  setIsSaving(false);
+}
+
   };
 
   // ===================================================
@@ -1444,3 +1446,5 @@ export default function PromptManager({
     </>
   );
 }
+
+
