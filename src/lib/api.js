@@ -81,7 +81,7 @@ console.log("====================================\n");
 // ======================================
 const axiosConfig = {
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 120000,
   withCredentials: true,
   headers: {
     Accept: "application/json",
