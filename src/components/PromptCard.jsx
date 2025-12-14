@@ -265,26 +265,24 @@ const PromptCard = React.memo(({
 
   // 🎯 Detecta se é um prompt otimista (temporário)
   // 🎯 Detecta se é um prompt otimista (temporário) ou fazendo upload
-  const isOptimistic = useMemo(() => {
-    const isTempId = String(prompt.id).startsWith('temp-');
-    const hasOptimisticFlag = !!prompt._isOptimistic;
-    const isUploading = !!prompt._uploadingMedia;
-    
-    const result = isTempId || hasOptimisticFlag || isUploading;
-    
-    // ✅ LOG DE DEBUG
-    if (result) {
-      console.log("🔒 Prompt bloqueado:", {
-        id: prompt.id,
-        isTempId,
-        hasOptimisticFlag,
-        isUploading,
-        title: prompt.title
-      });
-    }
-    
-    return result;
-  }, [prompt.id, prompt._isOptimistic, prompt._uploadingMedia, prompt.title]);
+  // 🎯 Detecta se é um prompt otimista (temporário)
+// 🔒 Um prompt só deve ser bloqueado enquanto NÃO existir no backend
+const isOptimistic = useMemo(() => {
+  // Segurança defensiva
+  if (!prompt || !prompt.id) return true;
+
+  const isTempId = String(prompt.id).startsWith("temp-");
+
+  if (isTempId) {
+    console.log("🔒 Prompt ainda otimista (ID temporário):", {
+      id: prompt.id,
+      title: prompt.title,
+    });
+  }
+
+  return isTempId;
+}, [prompt?.id, prompt?.title]);
+
 
   // ========================================
   // ✅ LÓGICA DE MÍDIA CORRIGIDA
