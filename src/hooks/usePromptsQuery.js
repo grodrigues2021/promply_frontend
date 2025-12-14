@@ -74,22 +74,31 @@ export function useCreatePromptMutation() {
           if (p._tempId === optimisticPrompt._tempId) {
             console.log("   - 🔄 Substituindo prompt otimista");
 
-            const hasImageFile =
-              optimisticPrompt.image_url?.startsWith("blob:") &&
-              !optimisticPrompt.video_url?.startsWith("blob:");
-            const hasVideoFile =
-              optimisticPrompt.video_url?.startsWith("blob:");
-            const hasMedia = hasImageFile || hasVideoFile;
+            // ✅ Detecta se tem mídia para enviar (blob URLs)
+            const hasBlobImage = p.image_url?.startsWith("blob:");
+            const hasBlobVideo = p.video_url?.startsWith("blob:");
+            const hasBlobThumb = p.thumb_url?.startsWith("blob:");
+            const hasMedia = hasBlobImage || hasBlobVideo || hasBlobThumb;
 
             console.log("   - Mídia pendente:", hasMedia);
+            console.log("   - Blob image:", hasBlobImage);
+            console.log("   - Blob video:", hasBlobVideo);
+            console.log("   - Blob thumb:", hasBlobThumb);
 
             return {
               ...realPrompt,
               _skipAnimation: true,
-              _uploadingMedia: hasMedia,
-              image_url: realPrompt.image_url || p.image_url,
-              thumb_url: realPrompt.thumb_url || p.thumb_url,
-              video_url: realPrompt.video_url || p.video_url,
+              _uploadingMedia: hasMedia, // ✅ Flag para bloquear botões
+              // ✅ CORREÇÃO: Preserva blobs até upload completar
+              image_url: hasBlobImage
+                ? p.image_url
+                : realPrompt.image_url || "",
+              thumb_url: hasBlobThumb
+                ? p.thumb_url
+                : realPrompt.thumb_url || "",
+              video_url: hasBlobVideo
+                ? p.video_url
+                : realPrompt.video_url || "",
             };
           }
           return p;

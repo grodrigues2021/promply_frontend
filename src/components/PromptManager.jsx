@@ -875,7 +875,10 @@ const savePrompt = async () => {
   try {
     setIsSaving(true);
 
-    // MODO EDIÇÃO
+    // ==========================================
+    // ✏️ MODO EDIÇÃO (SEM OTIMISTA)
+    // ==========================================
+    
     if (isEditMode === true && editingPrompt?.id) {
       console.log("📝 Editando prompt:", editingPrompt.id);
       const promptId = editingPrompt.id;
@@ -948,10 +951,18 @@ const savePrompt = async () => {
       return;
     }
 
-    // MODO CRIAÇÃO (COM PROMPTS OTIMISTAS)
+    // ==========================================
+    // ➕ MODO CRIAÇÃO (COM PROMPTS OTIMISTAS)
+    // ==========================================
+
     console.log("✨ Criando novo prompt com optimistic update...");
 
     const tempId = `temp-${Date.now()}`;
+
+    // ✅ Gerar blob URLs para preview
+    const imageBlobUrl = safeCreateObjectURL(promptForm.imageFile);
+    const videoBlobUrl = safeCreateObjectURL(promptForm.videoFile);
+    const thumbBlobUrl = promptForm.videoFile ? safeCreateObjectURL(promptForm.imageFile) : "";
 
     const optimisticPrompt = {
       id: tempId,
@@ -965,10 +976,10 @@ const savePrompt = async () => {
       category_id: promptForm.category_id !== "none" ? parseInt(promptForm.category_id) : null,
       platform: promptForm.platform || "chatgpt",
       is_favorite: promptForm.is_favorite || false,
-      image_url: safeCreateObjectURL(promptForm.imageFile) || promptForm.image_url || "",
-      video_url: safeCreateObjectURL(promptForm.videoFile) || promptForm.video_url || "",
+      image_url: imageBlobUrl || promptForm.image_url || "",
+      video_url: videoBlobUrl || promptForm.video_url || "",
       youtube_url: promptForm.youtube_url || "",
-      thumb_url: promptForm.videoFile ? safeCreateObjectURL(promptForm.imageFile) : "",
+      thumb_url: thumbBlobUrl || "",
       category: promptForm.category_id !== "none" ? myCategories.find(c => c.id === parseInt(promptForm.category_id)) : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -982,6 +993,8 @@ const savePrompt = async () => {
       hasImage: !!optimisticPrompt.image_url,
       hasVideo: !!optimisticPrompt.video_url,
       hasThumb: !!optimisticPrompt.thumb_url,
+      imageBlobUrl: imageBlobUrl?.substring(0, 30),
+      thumbBlobUrl: thumbBlobUrl?.substring(0, 30),
     });
 
     const textPayload = {
@@ -1019,6 +1032,10 @@ const savePrompt = async () => {
 
     console.log("✅ Modal fechado!");
 
+    // ==========================================
+    // 📸 UPLOAD DE MÍDIA EM BACKGROUND
+    // ==========================================
+
     const promptId = realPrompt.id;
     const hasImage = promptForm.imageFile instanceof File && !promptForm.videoFile;
     const hasVideo = promptForm.videoFile instanceof File;
@@ -1027,30 +1044,35 @@ const savePrompt = async () => {
     
     if (promptId && hasMedia) {
       console.log("📤 [Background] Enviando mídia...");
+      console.log("   - Prompt ID:", promptId);
+      console.log("   - Has Image:", hasImage);
+      console.log("   - Has Video:", hasVideo);
+      console.log("   - Has Extra Files:", hasExtraFiles);
       
       const mediaForm = new FormData();
       
       if (hasImage) {
         mediaForm.append("image", promptForm.imageFile);
-        console.log("   - Adicionando imagem");
+        console.log("   - ✅ Adicionando imagem");
       }
 
       if (hasVideo) {
         mediaForm.append("video", promptForm.videoFile);
-        console.log("   - Adicionando vídeo");
+        console.log("   - ✅ Adicionando vídeo");
         if (promptForm.imageFile instanceof File) {
           mediaForm.append("thumbnail", promptForm.imageFile);
-          console.log("   - Adicionando thumbnail do vídeo");
+          console.log("   - ✅ Adicionando thumbnail do vídeo");
         }
       }
 
       if (hasExtraFiles) {
         extraFiles.forEach((file, idx) => {
           mediaForm.append("extra_files", file);
-          console.log(`   - Adicionando arquivo extra ${idx + 1}`);
+          console.log(`   - ✅ Adicionando arquivo extra ${idx + 1}`);
         });
       }
 
+      // ⚡ UPLOAD EM BACKGROUND
       api.post(`/prompts/${promptId}/media`, mediaForm, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000
@@ -1061,37 +1083,66 @@ const savePrompt = async () => {
         if (mediaResponse.data?.data) {
           queryClient.setQueryData(["prompts"], (oldData) => {
             if (!Array.isArray(oldData)) return oldData;
+            
             return oldData.map(p => {
               if (p.id === promptId) {
-                const updated = { ...p, ...mediaResponse.data.data };
+                console.log("🔓 Desbloqueando prompt:", promptId);
+                console.log("   - Dados do servidor:", mediaResponse.data.data);
+                
+                // ✅ MERGE dados do servidor + remove flag
+                const updated = { 
+                  ...p, 
+                  ...mediaResponse.data.data,
+                };
+                
+                // ✅ Remove flag explicitamente
                 delete updated._uploadingMedia;
+                delete updated._isOptimistic;
+                delete updated._tempId;
+                delete updated._skipAnimation;
+                
+                console.log("✅ Flags removidas");
+                console.log("   - image_url:", updated.image_url?.substring(0, 50));
+                console.log("   - thumb_url:", updated.thumb_url?.substring(0, 50));
+                console.log("   - video_url:", updated.video_url?.substring(0, 50));
+                
                 return updated;
               }
               return p;
             });
           });
+          
           console.log("✅ Cache atualizado com URLs reais do B2");
-          console.log("✅ Flag _uploadingMedia removida - botões habilitados");
+          console.log("✅ Botões edit/delete HABILITADOS");
         }
       })
       .catch((mediaError) => {
         console.warn("⚠️ [Background] Falha ao subir mídia:", mediaError);
+        console.error("   Detalhes:", mediaError.response?.data || mediaError.message);
         toast.warning("Prompt criado, mas houve falha no upload de mídia.");
         
+        // ✅ Remove flag mesmo em erro
         queryClient.setQueryData(["prompts"], (oldData) => {
           if (!Array.isArray(oldData)) return oldData;
+          
           return oldData.map(p => {
             if (p.id === promptId) {
+              console.log("🔓 Desbloqueando prompt (erro):", promptId);
               const updated = { ...p };
               delete updated._uploadingMedia;
+              delete updated._isOptimistic;
+              delete updated._tempId;
               return updated;
             }
             return p;
           });
         });
       });
+    } else {
+      console.log("ℹ️ Nenhuma mídia para enviar");
     }
 
+    // 🔄 Invalidar em background
     Promise.all([
       queryClient.invalidateQueries(["stats"]),
       queryClient.invalidateQueries(["categories"])
@@ -1101,6 +1152,7 @@ const savePrompt = async () => {
     
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
+    console.error("   Stack:", error.stack);
     toast.error(error.message || "Erro ao salvar prompt");
     setIsPromptDialogOpen(false);
     await queryClient.invalidateQueries(["prompts"]);
