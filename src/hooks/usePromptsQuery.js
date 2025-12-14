@@ -1,10 +1,29 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ VERSÃO FINAL — CORREÇÃO ANTI-FLICKER DEFINITIVA
+// ✅ VERSÃO FINAL — ANTI-FLICKER DEFINITIVO
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
+
+// =========================================================
+// 🔒 FLAG GLOBAL: Bloq ueia refetch durante uploads
+// =========================================================
+let uploadingMediaCount = 0;
+
+function startMediaUpload() {
+  uploadingMediaCount++;
+  console.log(`📤 Upload iniciado (${uploadingMediaCount} em andamento)`);
+}
+
+function endMediaUpload() {
+  uploadingMediaCount = Math.max(0, uploadingMediaCount - 1);
+  console.log(`✅ Upload finalizado (${uploadingMediaCount} restantes)`);
+}
+
+function hasActiveUploads() {
+  return uploadingMediaCount > 0;
+}
 
 // ===================================================
 // 🔵 HOOK: Buscar Prompts
@@ -14,6 +33,12 @@ export function usePromptsQuery() {
     queryKey: ["prompts"],
 
     queryFn: async () => {
+      // ✅ BLOQUEIO: Não refetch se há uploads ativos
+      if (hasActiveUploads()) {
+        console.warn("⏸️ Refetch bloqueado: upload em andamento");
+        throw new Error("SKIP_REFETCH_DURING_UPLOAD");
+      }
+
       const { data } = await api.get("/prompts");
       if (!data.success) {
         throw new Error("Falha ao carregar prompts");
@@ -21,7 +46,7 @@ export function usePromptsQuery() {
       return data.data;
     },
 
-    // 🔒 CONTROLE TOTAL DO CACHE (ANTI-FLICKER)
+    // 🔒 CONTROLE TOTAL DO CACHE
     staleTime: 30000,
     gcTime: 5 * 60 * 1000,
 
@@ -29,6 +54,14 @@ export function usePromptsQuery() {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+
+    // ✅ Ignora erro de skip
+    retry: (failureCount, error) => {
+      if (error.message === "SKIP_REFETCH_DURING_UPLOAD") {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 }
 
@@ -69,36 +102,25 @@ export function useCreatePromptMutation() {
 
         return old.map((p) => {
           if (p._tempId === optimisticPrompt._tempId) {
-            // =========================================================
-            // 🛡️ MERGE DEFENSIVO — NUNCA APAGA BLOB COM NULL/""
-            // =========================================================
-
             const hasBlobImage = p.image_url?.startsWith("blob:");
             const hasBlobVideo = p.video_url?.startsWith("blob:");
             const hasBlobThumb = p.thumb_url?.startsWith("blob:");
             const hasMedia = hasBlobImage || hasBlobVideo || hasBlobThumb;
 
-            // 🔑 REGRA DE OURO:
-            // Se existe blob → PRESERVA até upload completar
-            // Se backend retorna null/undefined/"" → IGNORA e mantém blob
-
             return {
               ...realPrompt,
               _skipAnimation: true,
               _uploadingMedia: hasMedia,
-              _clientId: p._clientId, // ✅ MANTÉM KEY ESTÁVEL
+              _clientId: p._clientId,
 
-              // ✅ IMAGE: Preserva blob se existir
               image_url: hasBlobImage
                 ? p.image_url
                 : realPrompt.image_url || p.image_url || "",
 
-              // ✅ THUMB: Preserva blob se existir (CORREÇÃO PRINCIPAL)
               thumb_url: hasBlobThumb
                 ? p.thumb_url
                 : realPrompt.thumb_url || p.thumb_url || "",
 
-              // ✅ VIDEO: Preserva blob se existir
               video_url: hasBlobVideo
                 ? p.video_url
                 : realPrompt.video_url || p.video_url || "",
@@ -240,3 +262,8 @@ export function useToggleFavoriteMutation() {
     },
   });
 }
+
+// ===================================================
+// 📤 EXPORT: Controle de uploads
+// ===================================================
+export { startMediaUpload, endMediaUpload, hasActiveUploads };

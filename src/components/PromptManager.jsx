@@ -75,7 +75,9 @@ import {
   useCreatePromptMutation,
   useUpdatePromptMutation,
   useDeletePromptMutation,
-  useToggleFavoriteMutation
+  useToggleFavoriteMutation,
+  startMediaUpload,  // ✅ NOVO
+  endMediaUpload   
 } from "../hooks/usePromptsQuery";
 
 import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
@@ -861,6 +863,11 @@ export default function PromptManager({
       })
     : [];
 
+
+
+// =========================================================
+// Função savePrompt (SUBSTITUIR a função completa)
+// =========================================================
 const savePrompt = async () => {
   if (isSaving) return;
 
@@ -923,6 +930,8 @@ const savePrompt = async () => {
 
       if (hasMedia) {
         try {
+          startMediaUpload(); // ✅ BLOQUEIA REFETCH
+
           const mediaResponse = await api.post(
             `/prompts/${promptId}/media`,
             mediaForm,
@@ -947,6 +956,8 @@ const savePrompt = async () => {
           toast.warning(
             "Prompt atualizado, mas houve erro no upload da mídia."
           );
+        } finally {
+          endMediaUpload(); // ✅ LIBERA REFETCH
         }
       }
 
@@ -1034,7 +1045,7 @@ const savePrompt = async () => {
     setIsPromptDialogOpen(false);
 
     // =========================================================
-    // 📤 UPLOAD DE MÍDIA EM BACKGROUND (CORRIGIDO)
+    // 📤 UPLOAD DE MÍDIA EM BACKGROUND (PROTEGIDO)
     // =========================================================
     const promptId = realPrompt.id;
 
@@ -1060,7 +1071,8 @@ const savePrompt = async () => {
         mediaForm.append("extra_files", file)
       );
 
-      // ✅ LOG PARA DEBUG
+      // ✅ BLOQUEIA REFETCH ANTES DO UPLOAD
+      startMediaUpload();
       console.log("📤 Iniciando upload de mídia para prompt:", promptId);
 
       api
@@ -1072,17 +1084,15 @@ const savePrompt = async () => {
           console.log("✅ Upload completou! Resposta:", res.data);
           
           if (res.data?.data) {
-            // ✅ FORÇAR SUBSTITUIÇÃO COMPLETA
             queryClient.setQueryData(["prompts"], (old) => {
               if (!Array.isArray(old)) return old;
               
-              const updated = old.map((p) => {
+              return old.map((p) => {
                 if (p.id === promptId) {
-                  // 🔥 SOBRESCREVER TUDO com dados do backend
                   const newPrompt = {
                     ...res.data.data,
                     _uploadingMedia: false,
-                    _clientId: p._clientId, // Preserva apenas clientId
+                    _clientId: p._clientId,
                   };
                   
                   console.log("🔄 Atualizando prompt:", {
@@ -1094,8 +1104,6 @@ const savePrompt = async () => {
                 }
                 return p;
               });
-              
-              return updated;
             });
             
             toast.success("🎬 Mídia enviada com sucesso!");
@@ -1107,7 +1115,6 @@ const savePrompt = async () => {
           console.error("❌ Erro no upload da mídia:", err);
           console.error("   Detalhes:", err.response?.data);
           
-          // Limpar flag de uploading
           queryClient.setQueryData(["prompts"], (old) => {
             if (!Array.isArray(old)) return old;
             return old.map((p) =>
@@ -1120,6 +1127,11 @@ const savePrompt = async () => {
           toast.warning(
             "Prompt criado, mas houve erro no upload da mídia."
           );
+        })
+        .finally(() => {
+          // ✅ LIBERA REFETCH APÓS UPLOAD
+          endMediaUpload();
+          console.log("🔓 Upload finalizado, refetch liberado");
         });
     }
 
