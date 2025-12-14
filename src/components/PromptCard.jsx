@@ -770,7 +770,15 @@ const mediaInfo = useMemo(() => {
                 onClick={() => openModal('youtube', null, mediaInfo.videoId)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-                
+                <img
+                  src={mediaInfo.thumbnailUrl}
+                  alt={prompt.title}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.target.src = `https://img.youtube.com/vi/${mediaInfo.videoId}/mqdefault.jpg`;
+                  }}
+                />
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
