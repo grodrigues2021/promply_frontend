@@ -862,15 +862,20 @@ export default function PromptManager({
     : [];
 
 // ===================================================
-// 💾 SAVE PROMPT - VERSÃO CORRIGIDA COM UPDATE DIRETO
+// 💾 SAVE PROMPT - VERSÃO COM PROMPTS OTIMISTAS
+// ===================================================
+// 📍 LOCALIZAÇÃO: PromptManager.jsx
+// 🔄 SUBSTITUIR: Toda a função savePrompt existente
 // ===================================================
 
 const savePrompt = async () => {
+  // ⏸️ Prevenir duplo clique
   if (isSaving) {
     console.warn("⏸️ Salvamento já em andamento");
     return;
   }
 
+  // ✅ Validar formulário
   if (!validateForm()) {
     console.warn("❌ Validação falhou");
     return;
@@ -880,174 +885,297 @@ const savePrompt = async () => {
     setIsSaving(true);
 
     // ==========================================
-    // 📝 ETAPA 1 – CRIAÇÃO/ATUALIZAÇÃO DO PROMPT (TEXTO)
+    // ✏️ MODO EDIÇÃO (SEM OTIMISTA)
     // ==========================================
-
-    const payload = {
-      title: promptForm.title,
-      content: promptForm.content,
-      description: promptForm.description || "",
-      category_id:
-        promptForm.category_id !== "none"
-          ? parseInt(promptForm.category_id)
-          : null,
-      platform: promptForm.platform || "chatgpt",
-      tags: promptForm.tags || "",
-      youtube_url: promptForm.youtube_url || "",
-      is_favorite: promptForm.is_favorite || false,
-    };
-
-    let promptId = null;
-
-    // ✏️ EDIÇÃO
+    
     if (isEditMode === true && editingPrompt?.id) {
-      console.log("📝 Atualizando prompt existente:", editingPrompt.id);
+      console.log("📝 Editando prompt:", editingPrompt.id);
 
+      // 📦 Preparar payload
+      const payload = {
+        title: promptForm.title,
+        content: promptForm.content,
+        description: promptForm.description || "",
+        category_id:
+          promptForm.category_id !== "none"
+            ? parseInt(promptForm.category_id)
+            : null,
+        platform: promptForm.platform || "chatgpt",
+        tags: promptForm.tags || "",
+        youtube_url: promptForm.youtube_url || "",
+        is_favorite: promptForm.is_favorite || false,
+      };
+
+      // 🔄 Atualizar prompt (mutation já faz optimistic update)
       await updatePromptMutation.mutateAsync({
         id: editingPrompt.id,
         data: payload,
       });
 
-      promptId = editingPrompt.id;
+      const promptId = editingPrompt.id;
 
-    // ➕ CRIAÇÃO
-    } else {
-      console.log("➕ Criando novo prompt");
-      
-      const response = await api.post("/prompts/text", payload);
-      promptId = response.data?.prompt_id;
+      // 📸 Upload de mídia (se houver)
+      const mediaForm = new FormData();
+      let hasMedia = false;
 
-      if (!promptId) {
-        throw new Error("ID do prompt não retornado pelo servidor");
+      // 🖼️ Imagem (quando NÃO for thumbnail de vídeo)
+      if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
+        mediaForm.append("image", promptForm.imageFile);
+        hasMedia = true;
       }
 
-      console.log("✅ Prompt criado com ID:", promptId);
+      // 🎬 Vídeo
+      if (promptForm.videoFile instanceof File) {
+        mediaForm.append("video", promptForm.videoFile);
+        hasMedia = true;
+        
+        // 🖼️ Thumbnail do vídeo
+        if (promptForm.imageFile instanceof File) {
+          mediaForm.append("thumbnail", promptForm.imageFile);
+        }
+      }
+
+      // 📎 Arquivos extras
+      if (extraFiles.length > 0) {
+        extraFiles.forEach((file) => {
+          mediaForm.append("extra_files", file);
+        });
+        hasMedia = true;
+      }
+
+      // 🚀 Enviar mídia
+      if (hasMedia) {
+        try {
+          console.log("📤 Enviando mídia para o servidor...");
+          
+          const mediaResponse = await api.post(
+            `/prompts/${promptId}/media`,
+            mediaForm,
+            {
+              headers: { 'Content-Type': 'multipart/form-data' },
+              timeout: 60000
+            }
+          );
+
+          console.log("✅ Mídia enviada:", mediaResponse.data);
+
+          // 🔄 Atualizar cache com dados do servidor
+          if (mediaResponse.data?.data) {
+            queryClient.setQueryData(["prompts"], (oldData) => {
+              if (!Array.isArray(oldData)) return oldData;
+              
+              return oldData.map(p => 
+                p.id === promptId 
+                  ? { ...p, ...mediaResponse.data.data }
+                  : p
+              );
+            });
+          }
+
+        } catch (mediaError) {
+          console.warn("⚠️ Falha ao subir mídia:", mediaError);
+          toast.warning("Prompt atualizado, mas houve falha no upload de mídia.");
+        }
+      }
+
+      toast.success("✅ Prompt atualizado com sucesso!");
+      localStorage.removeItem("prompt-draft");
+      resetPromptForm();
+      setIsPromptDialogOpen(false);
+
+      await Promise.all([
+        queryClient.invalidateQueries(["stats"]),
+        queryClient.invalidateQueries(["categories"])
+      ]);
+
+      return;
     }
 
     // ==========================================
-    // 📸 ETAPA 2 – UPLOAD DE MÍDIA (RESILIENTE)
+    // ➕ MODO CRIAÇÃO (COM PROMPTS OTIMISTAS)
     // ==========================================
 
-    const mediaForm = new FormData();
-    let hasMedia = false;
+    console.log("✨ Criando novo prompt com optimistic update...");
 
-    // 🖼️ IMAGEM (quando NÃO for thumbnail de vídeo)
+    // 🆔 Gerar ID temporário
+    const tempId = `temp-${Date.now()}`;
+
+    // 📦 Criar prompt otimista
+    const optimisticPrompt = {
+      id: tempId,
+      _tempId: tempId,
+      _isOptimistic: true,
+      _skipAnimation: false,
+      
+      title: promptForm.title,
+      content: promptForm.content,
+      description: promptForm.description || "",
+      tags: promptForm.tags || "",
+      category_id: promptForm.category_id !== "none" 
+        ? parseInt(promptForm.category_id) 
+        : null,
+      platform: promptForm.platform || "chatgpt",
+      is_favorite: promptForm.is_favorite || false,
+      
+      // 🖼️ Usar blob URLs para preview local
+      image_url: safeCreateObjectURL(promptForm.imageFile) || promptForm.image_url || "",
+      video_url: safeCreateObjectURL(promptForm.videoFile) || promptForm.video_url || "",
+      youtube_url: promptForm.youtube_url || "",
+      thumb_url: "",
+      
+      // 📁 Categoria (se existir)
+      category: promptForm.category_id !== "none"
+        ? myCategories.find(c => c.id === parseInt(promptForm.category_id))
+        : null,
+      
+      // 📅 Timestamps
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      
+      // 📊 Contadores
+      usage_count: 0,
+      copy_count: 0,
+    };
+
+    console.log("📦 Prompt otimista criado:", {
+      tempId,
+      title: optimisticPrompt.title,
+      hasImage: !!optimisticPrompt.image_url,
+      hasVideo: !!optimisticPrompt.video_url,
+    });
+
+    // 📝 Preparar FormData para API
+    const formData = new FormData();
+    formData.append("title", promptForm.title);
+    formData.append("content", promptForm.content);
+    formData.append("description", promptForm.description || "");
+    formData.append("tags", promptForm.tags || "");
+    formData.append("platform", promptForm.platform || "chatgpt");
+    formData.append("is_favorite", promptForm.is_favorite || false);
+    formData.append("youtube_url", promptForm.youtube_url || "");
+    
+    if (promptForm.category_id !== "none") {
+      formData.append("category_id", parseInt(promptForm.category_id));
+    }
+
+    // 📎 Adicionar arquivos ao FormData (para mutation)
     if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
-      mediaForm.append("image", promptForm.imageFile);
-      hasMedia = true;
-      console.log("📎 Adicionando imagem ao upload");
+      formData.append("image", promptForm.imageFile);
     }
 
-    // 🎬 VÍDEO
     if (promptForm.videoFile instanceof File) {
-      mediaForm.append("video", promptForm.videoFile);
-      hasMedia = true;
-      console.log("📎 Adicionando vídeo ao upload");
+      formData.append("video", promptForm.videoFile);
       
-      // 🖼️ THUMBNAIL DO VÍDEO (gerado no frontend)
       if (promptForm.imageFile instanceof File) {
-        mediaForm.append("thumbnail", promptForm.imageFile);
-        console.log("📎 Adicionando thumbnail do vídeo");
+        formData.append("thumbnail", promptForm.imageFile);
       }
     }
 
-    // 📎 ARQUIVOS EXTRAS
     if (extraFiles.length > 0) {
       extraFiles.forEach((file) => {
-        mediaForm.append("extra_files", file);
+        formData.append("extra_files", file);
       });
-      hasMedia = true;
-      console.log(`📎 Adicionando ${extraFiles.length} arquivo(s) extra`);
     }
 
-    // 🚀 ENVIAR MÍDIA (SÓ SE HOUVER)
-    if (hasMedia) {
+    // 🚀 USAR MUTATION (ELA FAZ TUDO!)
+    // A mutation vai:
+    // 1. Adicionar prompt otimista à lista (onMutate)
+    // 2. Fazer POST /prompts (mutationFn)
+    // 3. Substituir otimista pelo real (onSuccess)
+    // 4. Fazer rollback se der erro (onError)
+    
+    console.log("🚀 Chamando createPromptMutation...");
+    
+    const realPrompt = await createPromptMutation.mutateAsync({
+      formData,
+      optimisticPrompt,
+    });
+
+    console.log("✅ Prompt criado com sucesso:", realPrompt);
+
+    // 📸 UPLOAD DE MÍDIA ADICIONAL (se houver)
+    // A mutation já enviou os arquivos, mas podemos reenviar
+    // ou fazer upload adicional aqui se necessário
+    
+    const promptId = realPrompt.id;
+
+    // Se tiver mídia para enviar DEPOIS da criação
+    if (promptForm.videoFile || promptForm.imageFile || extraFiles.length > 0) {
       try {
-        console.log("📤 Enviando mídia para o servidor...");
+        console.log("📤 Enviando mídia adicional...");
         
+        const mediaForm = new FormData();
+        
+        if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
+          mediaForm.append("image", promptForm.imageFile);
+        }
+
+        if (promptForm.videoFile instanceof File) {
+          mediaForm.append("video", promptForm.videoFile);
+          
+          if (promptForm.imageFile instanceof File) {
+            mediaForm.append("thumbnail", promptForm.imageFile);
+          }
+        }
+
+        if (extraFiles.length > 0) {
+          extraFiles.forEach((file) => {
+            mediaForm.append("extra_files", file);
+          });
+        }
+
         const mediaResponse = await api.post(
           `/prompts/${promptId}/media`,
           mediaForm,
           {
-            headers: {
-              'Content-Type': 'multipart/form-data'
-            },
-            timeout: 60000 // 60 segundos para upload de mídia
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000
           }
         );
 
-        console.log("✅ Mídia enviada com sucesso:", mediaResponse.data);
+        console.log("✅ Mídia adicional enviada:", mediaResponse.data);
 
-        // ==========================================
-        // 🎯 ATUALIZAÇÃO DIRETA DO CACHE (SEM REFETCH!)
-        // ==========================================
-        
+        // 🔄 Buscar dados atualizados do servidor
         if (mediaResponse.data?.data) {
           const updatedPrompt = mediaResponse.data.data;
           
-          console.log("🔄 Atualizando cache diretamente com dados do servidor");
-          
-          // ✅ ATUALIZAR O CACHE COM OS DADOS REAIS DO SERVIDOR
+          // Atualizar cache com dados completos
           queryClient.setQueryData(["prompts"], (oldData) => {
             if (!Array.isArray(oldData)) return oldData;
             
-            // Se é criação, adiciona no início
-            if (!isEditMode) {
-              return [updatedPrompt, ...oldData];
-            }
-            
-            // Se é edição, substitui o prompt existente
             return oldData.map(p => 
               p.id === promptId 
-                ? { ...p, ...updatedPrompt }  // Merge com dados do servidor
+                ? { ...p, ...updatedPrompt }
                 : p
             );
           });
-          
-          console.log("✅ Cache atualizado com sucesso!");
         }
 
       } catch (mediaError) {
-        console.warn("⚠️ Falha ao subir mídia:", mediaError);
-        toast.warning("Prompt salvo, mas houve falha no upload de mídia.");
+        console.warn("⚠️ Falha ao subir mídia adicional:", mediaError);
+        toast.warning("Prompt criado, mas houve falha no upload de mídia.");
       }
-    } else {
-      console.log("ℹ️ Nenhuma mídia para enviar");
     }
 
-    // ==========================================
-    // 🎉 SUCESSO
-    // ==========================================
-
-    toast.success(
-      isEditMode 
-        ? "✅ Prompt atualizado com sucesso!" 
-        : "✅ Prompt criado com sucesso!"
-    );
-
+    // 🎉 Sucesso!
+    toast.success("✅ Prompt criado com sucesso!");
     localStorage.removeItem("prompt-draft");
     resetPromptForm();
     setIsPromptDialogOpen(false);
 
-    // ==========================================
-    // 🔄 INVALIDAR STATS E CATEGORIES (SEM REFETCH DE PROMPTS!)
-    // ==========================================
-    
-    // ✅ NÃO precisa mais refazer fetch de prompts!
-    // O cache já foi atualizado diretamente acima
-    
+    // 🔄 Invalidar stats e categories
     await Promise.all([
       queryClient.invalidateQueries(["stats"]),
       queryClient.invalidateQueries(["categories"])
     ]);
-    
-    console.log("✅ Stats e categories invalidadas!");
+
+    console.log("✅ Processo de criação concluído!");
     
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
     toast.error(error.message || "Erro ao salvar prompt");
     
-    // ❌ SE HOUVE ERRO, INVALIDA TUDO PARA SINCRONIZAR
+    // ❌ Em caso de erro, invalidar tudo
     await queryClient.invalidateQueries(["prompts"]);
     
   } finally {
