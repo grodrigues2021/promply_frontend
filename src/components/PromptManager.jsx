@@ -865,129 +865,158 @@ export default function PromptManager({
   // 💾 SAVE PROMPT COM MUTATION
   // ===================================================
 
-  const savePrompt = async () => {
-    if (isSaving) {
-      console.warn("⏸️ Salvamento já em andamento");
-      return;
-    }
+ // ===================================================
+// 💾 SAVE PROMPT COM NOVA ARQUITETURA CORRIGIDA
+// ===================================================
 
-    if (!validateForm()) {
-      console.warn("❌ Validação falhou");
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-
-      // ==========================================
-// 📝 ETAPA 1 — CRIAÇÃO DO PROMPT (TEXTO)
-// ==========================================
-
-const payload = {
-  title: promptForm.title,
-  content: promptForm.content,
-  description: promptForm.description || "",
-  category_id:
-    promptForm.category_id !== "none"
-      ? parseInt(promptForm.category_id)
-      : null,
-  platform: promptForm.platform || "chatgpt",
-  tags: promptForm.tags || "",
-  youtube_url: promptForm.youtube_url || "",
-  is_favorite: promptForm.is_favorite || false,
-};
-
-let promptId = null;
-
-// ==========================================
-// ✏️ EDIÇÃO (NÃO CRIA PROMPT NOVO)
-// ==========================================
-if (isEditMode === true && editingPrompt?.id) {
-  console.log("📝 Atualizando prompt existente:", editingPrompt.id);
-
-  await updatePromptMutation.mutateAsync({
-    id: editingPrompt.id,
-    data: payload,
-  });
-
-  promptId = editingPrompt.id;
-
-// ==========================================
-// ➕ CRIAÇÃO (PROMPT NOVO)
-// ==========================================
-} else {
-  const response = await api.post("/prompts/text", payload);
-
-  promptId = response.data?.prompt_id;
-
-  if (!promptId) {
-    throw new Error("ID do prompt não retornado pelo servidor");
+const savePrompt = async () => {
+  if (isSaving) {
+    console.warn("⏸️ Salvamento já em andamento");
+    return;
   }
 
-  
+  if (!validateForm()) {
+    console.warn("❌ Validação falhou");
+    return;
+  }
 
-
-
-// ==========================================
-// 📎 ETAPA 2 — UPLOAD DE MÍDIA (RESILIENTE)
-// ==========================================
-
-const mediaForm = new FormData();
-
-if (promptForm.imageFile instanceof File) {
-  mediaForm.append("image", promptForm.imageFile);
-}
-
-if (promptForm.videoFile instanceof File) {
-  mediaForm.append("video", promptForm.videoFile);
-}
-
-// thumbnail gerada no frontend
-if (
-  promptForm.imageFile instanceof File &&
-  promptForm.videoFile instanceof File
-) {
-  mediaForm.append("thumbnail", promptForm.imageFile);
-}
-
-// arquivos extras (opcional — pode falhar)
-extraFiles.forEach((file) => {
-  mediaForm.append("extra_files", file);
-});
-
-// Só envia se houver mídia
-if ([...mediaForm.keys()].length > 0) {
   try {
-    await api.post(`/prompts/${promptId}/media`, mediaForm);
-  } catch (mediaError) {
-    console.warn("⚠️ Falha ao subir mídia:", mediaError);
-    toast.warning("Prompt salvo, mas houve falha no upload de mídia.");}
-  }
+    setIsSaving(true);
 
-}
+    // ==========================================
+    // 📝 ETAPA 1 – CRIAÇÃO/ATUALIZAÇÃO DO PROMPT (TEXTO)
+    // ==========================================
 
-toast.success(
-  isEditMode ? "✅ Prompt atualizado com sucesso!" : "✅ Prompt criado com sucesso!"
-);
+    const payload = {
+      title: promptForm.title,
+      content: promptForm.content,
+      description: promptForm.description || "",
+      category_id:
+        promptForm.category_id !== "none"
+          ? parseInt(promptForm.category_id)
+          : null,
+      platform: promptForm.platform || "chatgpt",
+      tags: promptForm.tags || "",
+      youtube_url: promptForm.youtube_url || "",
+      is_favorite: promptForm.is_favorite || false,
+    };
 
-localStorage.removeItem("prompt-draft");
-resetPromptForm();
-setIsPromptDialogOpen(false);
+    let promptId = null;
 
-queryClient.invalidateQueries(["prompts"]);
-queryClient.invalidateQueries(["stats"]);
-queryClient.invalidateQueries(["categories"]);
+    // ✏️ EDIÇÃO
+    if (isEditMode === true && editingPrompt?.id) {
+      console.log("📝 Atualizando prompt existente:", editingPrompt.id);
 
-    
-    } catch (error) {
-      console.error("❌ Erro ao salvar prompt:", error);
-      toast.error(error.message || "Erro ao salvar prompt");
+      await updatePromptMutation.mutateAsync({
+        id: editingPrompt.id,
+        data: payload,
+      });
+
+      promptId = editingPrompt.id;
+
+    // ➕ CRIAÇÃO
+    } else {
+      console.log("➕ Criando novo prompt");
       
-    } finally {
-  setIsSaving(false);
-}
+      const response = await api.post("/prompts/text", payload);
+      promptId = response.data?.prompt_id;
 
-  };
+      if (!promptId) {
+        throw new Error("ID do prompt não retornado pelo servidor");
+      }
+
+      console.log("✅ Prompt criado com ID:", promptId);
+    }
+
+    // ==========================================
+    // 📸 ETAPA 2 – UPLOAD DE MÍDIA (RESILIENTE)
+    // ==========================================
+
+    const mediaForm = new FormData();
+    let hasMedia = false;
+
+    // 🖼️ IMAGEM (quando NÃO for thumbnail de vídeo)
+    if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
+      mediaForm.append("image", promptForm.imageFile);
+      hasMedia = true;
+      console.log("📎 Adicionando imagem ao upload");
+    }
+
+    // 🎬 VÍDEO
+    if (promptForm.videoFile instanceof File) {
+      mediaForm.append("video", promptForm.videoFile);
+      hasMedia = true;
+      console.log("📎 Adicionando vídeo ao upload");
+      
+      // 🖼️ THUMBNAIL DO VÍDEO (gerado no frontend)
+      if (promptForm.imageFile instanceof File) {
+        mediaForm.append("thumbnail", promptForm.imageFile);
+        console.log("📎 Adicionando thumbnail do vídeo");
+      }
+    }
+
+    // 📎 ARQUIVOS EXTRAS
+    if (extraFiles.length > 0) {
+      extraFiles.forEach((file) => {
+        mediaForm.append("extra_files", file);
+      });
+      hasMedia = true;
+      console.log(`📎 Adicionando ${extraFiles.length} arquivo(s) extra`);
+    }
+
+    // 🚀 ENVIAR MÍDIA (SÓ SE HOUVER)
+    if (hasMedia) {
+      try {
+        console.log("📤 Enviando mídia para o servidor...");
+        
+        const mediaResponse = await api.post(
+          `/prompts/${promptId}/media`,
+          mediaForm,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            },
+            timeout: 60000 // 60 segundos para upload de mídia
+          }
+        );
+
+        console.log("✅ Mídia enviada com sucesso:", mediaResponse.data);
+
+      } catch (mediaError) {
+        console.warn("⚠️ Falha ao subir mídia:", mediaError);
+        toast.warning("Prompt salvo, mas houve falha no upload de mídia.");
+      }
+    } else {
+      console.log("ℹ️ Nenhuma mídia para enviar");
+    }
+
+    // ==========================================
+    // 🎉 SUCESSO
+    // ==========================================
+
+    toast.success(
+      isEditMode 
+        ? "✅ Prompt atualizado com sucesso!" 
+        : "✅ Prompt criado com sucesso!"
+    );
+
+    localStorage.removeItem("prompt-draft");
+    resetPromptForm();
+    setIsPromptDialogOpen(false);
+
+    // 🔄 INVALIDAR CACHE DO REACT QUERY
+    queryClient.invalidateQueries(["prompts"]);
+    queryClient.invalidateQueries(["stats"]);
+    queryClient.invalidateQueries(["categories"]);
+    
+  } catch (error) {
+    console.error("❌ Erro ao salvar prompt:", error);
+    toast.error(error.message || "Erro ao salvar prompt");
+    
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   // ===================================================
   // 💾 SAVE CATEGORY

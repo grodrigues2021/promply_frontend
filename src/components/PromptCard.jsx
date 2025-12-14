@@ -64,35 +64,6 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   },
 });
 
-const detectVideoType = (url) => {
-  if (!url) return null;
-  
-  const normalized = url.toLowerCase().trim();
-  console.log("🔍 detectVideoType analisando:", normalized);
-
-  if (
-    normalized.includes("youtube.com/watch") ||
-    normalized.includes("youtube.com/embed/") ||
-    normalized.includes("youtu.be/")
-  ) {
-    console.log("✅ Detectado como YouTube");
-    return "youtube";
-  }
-
-  const isLocalVideo = 
-    normalized.startsWith("data:video/") ||
-    normalized.startsWith("blob:") ||
-    /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(normalized);
-    
-  if (isLocalVideo) {
-    console.log("✅ Detectado como vídeo local (MP4)");
-    return "local";
-  }
-
-  console.log("❌ Não detectado como vídeo");
-  return null;
-};
-
 const extractYouTubeId = (url) => {
   if (!url) return null;
   try {
@@ -297,54 +268,73 @@ const PromptCard = React.memo(({
     return String(prompt.id).startsWith('temp-') || prompt._isOptimistic;
   }, [prompt.id, prompt._isOptimistic]);
 
-  // ✅ VERSÃO SIMPLIFICADA - Usando funções helper do media.js
+  // ========================================
+  // ✅ LÓGICA DE MÍDIA CORRIGIDA
+  // ========================================
   const mediaInfo = useMemo(() => {
     const safeAttachments = Array.isArray(attachments) ? attachments : [];
     
     const videoUrl = prompt.video_url || null;
     const youtubeUrl = prompt.youtube_url || null;
-    const hasImage = !!prompt.image_url;
+    const thumbUrl = prompt.thumb_url || null;
+    const imageUrl = prompt.image_url || null;
     
     console.log("🎬 DEBUG PromptCard mediaInfo:", {
       promptId: prompt.id,
       video_url: videoUrl,
       youtube_url: youtubeUrl,
-      image_url: prompt.image_url,
-      thumb_url: prompt.thumb_url,
+      thumb_url: thumbUrl,
+      image_url: imageUrl,
     });
     
-    const videoType = detectVideoType(videoUrl);
-    const hasYouTubeVideo = !!youtubeUrl || videoType === "youtube";
-    const hasLocalVideo = !!prompt.thumb_url;
-
+    // ========================================
+    // 🎥 DETECTAR TIPO DE VÍDEO
+    // ========================================
+    
+    // ✅ CORREÇÃO: hasLocalVideo deve ser baseado em video_url, não thumb_url!
+    const hasYouTubeVideo = !!youtubeUrl;
+    const hasLocalVideo = !!videoUrl;  // ✅ Se tem video_url, é vídeo local
     const hasVideo = hasYouTubeVideo || hasLocalVideo;
+    const hasImage = !!imageUrl;
     const hasMedia = hasVideo || hasImage;
     
-    const videoId = hasYouTubeVideo ? extractYouTubeId(youtubeUrl) : null;
-    const youtubeThumbnail = videoId 
-      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-      : null;
+    // ========================================
+    // 🆔 YOUTUBE ID
+    // ========================================
     
-    // 🎯 SIMPLIFICADO: Construir thumbnailUrl usando resolveMediaUrl
+    let videoId = null;
+    if (hasYouTubeVideo) {
+      videoId = extractYouTubeId(youtubeUrl);
+    }
+    
+    // ========================================
+    // 🖼️ CONSTRUIR THUMBNAIL URL (PRIORIDADE CORRETA)
+    // ========================================
+    
     let thumbnailUrl = null;
     
-    // Prioridade: YouTube thumb > Image > Video thumb > Attachment
-    if (youtubeThumbnail) {
-  thumbnailUrl = youtubeThumbnail;
-
-} else if (prompt.thumb_url) {
-  // ✅ PRIORIDADE PARA THUMBNAIL DE VÍDEO
-  thumbnailUrl = resolveMediaUrlWithCache(prompt.thumb_url, prompt.updated_at);
-
-} else if (prompt.image_url) {
-  thumbnailUrl = resolveMediaUrlWithCache(prompt.image_url, prompt.updated_at);
-
-} else if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
-  thumbnailUrl = resolveMediaUrl(safeAttachments[0].file_url);
-}
-
+    // PRIORIDADE 1: YouTube thumbnail
+    if (hasYouTubeVideo && videoId) {
+      thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+      console.log("✅ Usando thumbnail do YouTube:", thumbnailUrl);
+    }
+    // PRIORIDADE 2: Thumbnail de vídeo local (thumb_url)
+    else if (thumbUrl) {
+      thumbnailUrl = resolveMediaUrlWithCache(thumbUrl, prompt.updated_at);
+      console.log("✅ Usando thumb_url do vídeo:", thumbnailUrl);
+    }
+    // PRIORIDADE 3: Imagem normal
+    else if (imageUrl) {
+      thumbnailUrl = resolveMediaUrlWithCache(imageUrl, prompt.updated_at);
+      console.log("✅ Usando image_url:", thumbnailUrl);
+    }
+    // PRIORIDADE 4: Primeiro anexo
+    else if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
+      thumbnailUrl = resolveMediaUrl(safeAttachments[0].file_url);
+      console.log("✅ Usando anexo como thumbnail:", thumbnailUrl);
+    }
     
-    console.log("✅ thumbnailUrl final:", thumbnailUrl);
+    console.log("🎯 thumbnailUrl final:", thumbnailUrl);
 
     return { 
       hasVideo,
@@ -361,15 +351,11 @@ const PromptCard = React.memo(({
     prompt.youtube_url, 
     prompt.image_url, 
     prompt.thumb_url,
-    prompt.updated_at, 
-    prompt._hasYouTube, 
-    prompt._hasLocalVideo,
+    prompt.updated_at,
     attachments
   ]);
 
   const tagsArray = useMemo(() => {
-    console.log("🏷️ Tags recebidas:", prompt.tags, "Tipo:", typeof prompt.tags);
-    
     if (Array.isArray(prompt.tags)) return prompt.tags;
     if (typeof prompt.tags === 'string') {
       return prompt.tags.split(',').map(t => t.trim()).filter(Boolean);
@@ -766,26 +752,38 @@ const PromptCard = React.memo(({
               <button
                 type="button"
                 onClick={() => {
-                  // ✅ Usar resolveMediaUrl para construir a URL correta
                   const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
                   console.log("🎬 Abrindo vídeo local:", finalVideoUrl);
+                  console.log("🖼️ Thumbnail do vídeo:", mediaInfo.thumbnailUrl);
                   openModal("video", finalVideoUrl);
                 }}
                 className="relative w-full h-full group/media overflow-hidden"
               >
+                {/* ✅ EXIBIR THUMBNAIL SE EXISTIR */}
                 {mediaInfo.thumbnailUrl ? (
                   <img
                     src={mediaInfo.thumbnailUrl}
                     alt={prompt.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
+                    onError={(e) => {
+                      console.error("❌ Erro ao carregar thumbnail:", mediaInfo.thumbnailUrl);
+                      // Fallback para ícone de play
+                      e.target.style.display = 'none';
+                      e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
+                    }}
                   />
-                ) : (
-                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-                    <Play className="h-16 w-16 text-purple-400" />
-                  </div>
-                )}
+                ) : null}
+                
+                {/* Fallback icon (sempre renderizado, mas oculto se houver thumbnail) */}
+                <div className={cn(
+                  "fallback-icon flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200",
+                  mediaInfo.thumbnailUrl && "hidden"
+                )}>
+                  <Play className="h-16 w-16 text-purple-400" />
+                </div>
 
+                {/* Overlay de hover */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
                     <Play className="h-8 w-8 text-purple-600 fill-current" />
@@ -804,10 +802,7 @@ const PromptCard = React.memo(({
             {!mediaInfo.hasVideo && mediaInfo.hasImage && (
               <button
                 type="button"
-                onClick={() => {
-                  // ✅ thumbnailUrl já está resolvido corretamente
-                  openModal('image', mediaInfo.thumbnailUrl)
-                }}
+                onClick={() => openModal('image', mediaInfo.thumbnailUrl)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
                 <img
@@ -863,6 +858,7 @@ const PromptCard = React.memo(({
     prevProps.prompt.image_url === nextProps.prompt.image_url &&
     prevProps.prompt.video_url === nextProps.prompt.video_url &&
     prevProps.prompt.youtube_url === nextProps.prompt.youtube_url &&
+    prevProps.prompt.thumb_url === nextProps.prompt.thumb_url &&
     prevProps.prompt.tags === nextProps.prompt.tags
   );
 });
