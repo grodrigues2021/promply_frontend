@@ -861,8 +861,8 @@ export default function PromptManager({
       })
     : [];
 
- // ===================================================
-// 💾 SAVE PROMPT COM INVALIDAÇÃO DE CACHE CORRIGIDA
+// ===================================================
+// 💾 SAVE PROMPT - VERSÃO CORRIGIDA COM UPDATE DIRETO
 // ===================================================
 
 const savePrompt = async () => {
@@ -978,6 +978,35 @@ const savePrompt = async () => {
 
         console.log("✅ Mídia enviada com sucesso:", mediaResponse.data);
 
+        // ==========================================
+        // 🎯 ATUALIZAÇÃO DIRETA DO CACHE (SEM REFETCH!)
+        // ==========================================
+        
+        if (mediaResponse.data?.data) {
+          const updatedPrompt = mediaResponse.data.data;
+          
+          console.log("🔄 Atualizando cache diretamente com dados do servidor");
+          
+          // ✅ ATUALIZAR O CACHE COM OS DADOS REAIS DO SERVIDOR
+          queryClient.setQueryData(["prompts"], (oldData) => {
+            if (!Array.isArray(oldData)) return oldData;
+            
+            // Se é criação, adiciona no início
+            if (!isEditMode) {
+              return [updatedPrompt, ...oldData];
+            }
+            
+            // Se é edição, substitui o prompt existente
+            return oldData.map(p => 
+              p.id === promptId 
+                ? { ...p, ...updatedPrompt }  // Merge com dados do servidor
+                : p
+            );
+          });
+          
+          console.log("✅ Cache atualizado com sucesso!");
+        }
+
       } catch (mediaError) {
         console.warn("⚠️ Falha ao subir mídia:", mediaError);
         toast.warning("Prompt salvo, mas houve falha no upload de mídia.");
@@ -1001,33 +1030,30 @@ const savePrompt = async () => {
     setIsPromptDialogOpen(false);
 
     // ==========================================
-    // 🔄 INVALIDAR CACHE (CRÍTICO!)
+    // 🔄 INVALIDAR STATS E CATEGORIES (SEM REFETCH DE PROMPTS!)
     // ==========================================
     
-    // ✅ ESPERAR um pouco para o backend processar
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // ✅ NÃO precisa mais refazer fetch de prompts!
+    // O cache já foi atualizado diretamente acima
     
-    // ✅ INVALIDAR com refetch forçado
     await Promise.all([
-      queryClient.invalidateQueries(["prompts"], { 
-        refetchActive: true,
-        refetchInactive: false 
-      }),
       queryClient.invalidateQueries(["stats"]),
       queryClient.invalidateQueries(["categories"])
     ]);
     
-    console.log("✅ Cache invalidado - dados atualizados!");
+    console.log("✅ Stats e categories invalidadas!");
     
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
     toast.error(error.message || "Erro ao salvar prompt");
     
+    // ❌ SE HOUVE ERRO, INVALIDA TUDO PARA SINCRONIZAR
+    await queryClient.invalidateQueries(["prompts"]);
+    
   } finally {
     setIsSaving(false);
   }
 };
-
   // ===================================================
   // 💾 SAVE CATEGORY
   // ===================================================
