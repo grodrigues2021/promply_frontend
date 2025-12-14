@@ -862,7 +862,7 @@ export default function PromptManager({
     : [];
 
 // ===================================================
-// 💾 SAVE PROMPT - VERSÃO COM PROMPTS OTIMISTAS
+// 💾 SAVE PROMPT - VERSÃO CORRIGIDA (Modal Fecha!)
 // ===================================================
 // 📍 LOCALIZAÇÃO: PromptManager.jsx
 // 🔄 SUBSTITUIR: Toda a função savePrompt existente
@@ -891,6 +891,8 @@ const savePrompt = async () => {
     if (isEditMode === true && editingPrompt?.id) {
       console.log("📝 Editando prompt:", editingPrompt.id);
 
+      const promptId = editingPrompt.id;
+
       // 📦 Preparar payload
       const payload = {
         title: promptForm.title,
@@ -906,36 +908,30 @@ const savePrompt = async () => {
         is_favorite: promptForm.is_favorite || false,
       };
 
-      // 🔄 Atualizar prompt (mutation já faz optimistic update)
+      // 🔄 Atualizar prompt
       await updatePromptMutation.mutateAsync({
-        id: editingPrompt.id,
+        id: promptId,
         data: payload,
       });
-
-      const promptId = editingPrompt.id;
 
       // 📸 Upload de mídia (se houver)
       const mediaForm = new FormData();
       let hasMedia = false;
 
-      // 🖼️ Imagem (quando NÃO for thumbnail de vídeo)
       if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
         mediaForm.append("image", promptForm.imageFile);
         hasMedia = true;
       }
 
-      // 🎬 Vídeo
       if (promptForm.videoFile instanceof File) {
         mediaForm.append("video", promptForm.videoFile);
         hasMedia = true;
         
-        // 🖼️ Thumbnail do vídeo
         if (promptForm.imageFile instanceof File) {
           mediaForm.append("thumbnail", promptForm.imageFile);
         }
       }
 
-      // 📎 Arquivos extras
       if (extraFiles.length > 0) {
         extraFiles.forEach((file) => {
           mediaForm.append("extra_files", file);
@@ -959,7 +955,6 @@ const savePrompt = async () => {
 
           console.log("✅ Mídia enviada:", mediaResponse.data);
 
-          // 🔄 Atualizar cache com dados do servidor
           if (mediaResponse.data?.data) {
             queryClient.setQueryData(["prompts"], (oldData) => {
               if (!Array.isArray(oldData)) return oldData;
@@ -978,12 +973,14 @@ const savePrompt = async () => {
         }
       }
 
+      // ✅ FECHAR MODAL ANTES DE INVALIDAR
       toast.success("✅ Prompt atualizado com sucesso!");
       localStorage.removeItem("prompt-draft");
       resetPromptForm();
       setIsPromptDialogOpen(false);
 
-      await Promise.all([
+      // 🔄 Invalidar em background (não bloqueia UI)
+      Promise.all([
         queryClient.invalidateQueries(["stats"]),
         queryClient.invalidateQueries(["categories"])
       ]);
@@ -1058,7 +1055,7 @@ const savePrompt = async () => {
       formData.append("category_id", parseInt(promptForm.category_id));
     }
 
-    // 📎 Adicionar arquivos ao FormData (para mutation)
+    // 📎 Adicionar arquivos ao FormData
     if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
       formData.append("image", promptForm.imageFile);
     }
@@ -1077,94 +1074,84 @@ const savePrompt = async () => {
       });
     }
 
-    // 🚀 USAR MUTATION (ELA FAZ TUDO!)
-    // A mutation vai:
-    // 1. Adicionar prompt otimista à lista (onMutate)
-    // 2. Fazer POST /prompts (mutationFn)
-    // 3. Substituir otimista pelo real (onSuccess)
-    // 4. Fazer rollback se der erro (onError)
-    
     console.log("🚀 Chamando createPromptMutation...");
-    
+
+    // 🚀 CRIAR PROMPT (A mutation faz TUDO!)
+    // - Adiciona otimista à lista (onMutate)
+    // - POST /prompts (mutationFn)
+    // - Substitui otimista pelo real (onSuccess)
+    // - Rollback se erro (onError)
     const realPrompt = await createPromptMutation.mutateAsync({
       formData,
       optimisticPrompt,
     });
 
-    console.log("✅ Prompt criado com sucesso:", realPrompt);
+    console.log("✅ Prompt criado:", realPrompt);
 
-    // 📸 UPLOAD DE MÍDIA ADICIONAL (se houver)
-    // A mutation já enviou os arquivos, mas podemos reenviar
-    // ou fazer upload adicional aqui se necessário
-    
-    const promptId = realPrompt.id;
-
-    // Se tiver mídia para enviar DEPOIS da criação
-    if (promptForm.videoFile || promptForm.imageFile || extraFiles.length > 0) {
-      try {
-        console.log("📤 Enviando mídia adicional...");
-        
-        const mediaForm = new FormData();
-        
-        if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
-          mediaForm.append("image", promptForm.imageFile);
-        }
-
-        if (promptForm.videoFile instanceof File) {
-          mediaForm.append("video", promptForm.videoFile);
-          
-          if (promptForm.imageFile instanceof File) {
-            mediaForm.append("thumbnail", promptForm.imageFile);
-          }
-        }
-
-        if (extraFiles.length > 0) {
-          extraFiles.forEach((file) => {
-            mediaForm.append("extra_files", file);
-          });
-        }
-
-        const mediaResponse = await api.post(
-          `/prompts/${promptId}/media`,
-          mediaForm,
-          {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 60000
-          }
-        );
-
-        console.log("✅ Mídia adicional enviada:", mediaResponse.data);
-
-        // 🔄 Buscar dados atualizados do servidor
-        if (mediaResponse.data?.data) {
-          const updatedPrompt = mediaResponse.data.data;
-          
-          // Atualizar cache com dados completos
-          queryClient.setQueryData(["prompts"], (oldData) => {
-            if (!Array.isArray(oldData)) return oldData;
-            
-            return oldData.map(p => 
-              p.id === promptId 
-                ? { ...p, ...updatedPrompt }
-                : p
-            );
-          });
-        }
-
-      } catch (mediaError) {
-        console.warn("⚠️ Falha ao subir mídia adicional:", mediaError);
-        toast.warning("Prompt criado, mas houve falha no upload de mídia.");
-      }
-    }
-
-    // 🎉 Sucesso!
+    // ✅ FECHAR MODAL IMEDIATAMENTE (NÃO ESPERA MÍDIA!)
     toast.success("✅ Prompt criado com sucesso!");
     localStorage.removeItem("prompt-draft");
     resetPromptForm();
     setIsPromptDialogOpen(false);
 
-    // 🔄 Invalidar stats e categories
-    await Promise.all([
+    console.log("✅ Modal fechado!");
+
+    // 📸 UPLOAD DE MÍDIA EM BACKGROUND (NÃO BLOQUEIA UI!)
+    const promptId = realPrompt.id;
+    
+    // Se tiver mídia, fazer upload DEPOIS do modal fechar
+    if (promptId && (promptForm.videoFile || promptForm.imageFile || extraFiles.length > 0)) {
+      console.log("📤 [Background] Enviando mídia...");
+      
+      const mediaForm = new FormData();
+      
+      if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
+        mediaForm.append("image", promptForm.imageFile);
+      }
+
+      if (promptForm.videoFile instanceof File) {
+        mediaForm.append("video", promptForm.videoFile);
+        
+        if (promptForm.imageFile instanceof File) {
+          mediaForm.append("thumbnail", promptForm.imageFile);
+        }
+      }
+
+      if (extraFiles.length > 0) {
+        extraFiles.forEach((file) => {
+          mediaForm.append("extra_files", file);
+        });
+      }
+
+      // ⚡ UPLOAD EM BACKGROUND (Não bloqueia)
+      api.post(`/prompts/${promptId}/media`, mediaForm, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 60000
+      })
+      .then((mediaResponse) => {
+        console.log("✅ [Background] Mídia enviada:", mediaResponse.data);
+
+        // Atualizar cache com dados do servidor
+        if (mediaResponse.data?.data) {
+          queryClient.setQueryData(["prompts"], (oldData) => {
+            if (!Array.isArray(oldData)) return oldData;
+            
+            return oldData.map(p => 
+              p.id === promptId 
+                ? { ...p, ...mediaResponse.data.data }
+                : p
+            );
+          });
+        }
+      })
+      .catch((mediaError) => {
+        console.warn("⚠️ [Background] Falha ao subir mídia:", mediaError);
+        toast.warning("Prompt criado, mas houve falha no upload de mídia.");
+      });
+    }
+
+    // 🔄 Invalidar em background (não bloqueia UI)
+    Promise.all([
       queryClient.invalidateQueries(["stats"]),
       queryClient.invalidateQueries(["categories"])
     ]);
@@ -1175,7 +1162,10 @@ const savePrompt = async () => {
     console.error("❌ Erro ao salvar prompt:", error);
     toast.error(error.message || "Erro ao salvar prompt");
     
-    // ❌ Em caso de erro, invalidar tudo
+    // ❌ FECHAR MODAL MESMO COM ERRO
+    setIsPromptDialogOpen(false);
+    
+    // Invalidar tudo
     await queryClient.invalidateQueries(["prompts"]);
     
   } finally {
