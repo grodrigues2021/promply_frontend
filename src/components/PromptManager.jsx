@@ -1020,6 +1020,9 @@ const savePrompt = async () => {
       payload.category_id = parseInt(promptForm.category_id);
     }
 
+    // =========================================================
+    // 📡 MUTATION — onSuccess FAZ O MERGE DEFENSIVO
+    // =========================================================
     const realPrompt = await createPromptMutation.mutateAsync({
       payload,
       optimisticPrompt,
@@ -1030,40 +1033,9 @@ const savePrompt = async () => {
     }
 
     // =========================================================
-    // 🔒 SUBSTITUI OTIMISTA → REAL (PRESERVA clientId + blob)
+    // ❌ REMOVIDO: setQueryData duplicado estava AQUI!
+    // ✅ AGORA: Apenas o onSuccess do hook faz o merge
     // =========================================================
-    queryClient.setQueryData(["prompts"], (old) => {
-      if (!Array.isArray(old)) return old;
-
-      return old.map((p) => {
-        if (p._tempId === tempId) {
-          const preserveThumb =
-            p.thumb_url?.startsWith("blob:") &&
-            !realPrompt.thumb_url;
-
-          return {
-            ...realPrompt,
-            _clientId: p._clientId, // ✅ MANTÉM KEY
-            _uploadingMedia: true,
-
-            thumb_url: preserveThumb
-              ? p.thumb_url
-              : realPrompt.thumb_url,
-
-            image_url:
-              p.image_url?.startsWith("blob:")
-                ? p.image_url
-                : realPrompt.image_url,
-
-            video_url:
-              p.video_url?.startsWith("blob:")
-                ? p.video_url
-                : realPrompt.video_url,
-          };
-        }
-        return p;
-      });
-    });
 
     toast.success("✅ Prompt criado com sucesso!");
     resetPromptForm();

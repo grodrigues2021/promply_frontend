@@ -1,6 +1,6 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ VERSÃO FINAL — CORREÇÃO #4 APLICADA
+// ✅ VERSÃO FINAL — CORREÇÃO ANTI-FLICKER DEFINITIVA
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,8 +22,8 @@ export function usePromptsQuery() {
     },
 
     // 🔒 CONTROLE TOTAL DO CACHE (ANTI-FLICKER)
-    staleTime: 30000, // Cache é considerado fresco por 30s
-    gcTime: 5 * 60 * 1000, // Mantém cache por 5 minutos
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
 
     // ❌ DESABILITA REFETCH AUTOMÁTICO
     refetchOnMount: false,
@@ -69,27 +69,39 @@ export function useCreatePromptMutation() {
 
         return old.map((p) => {
           if (p._tempId === optimisticPrompt._tempId) {
+            // =========================================================
+            // 🛡️ MERGE DEFENSIVO — NUNCA APAGA BLOB COM NULL/""
+            // =========================================================
+
             const hasBlobImage = p.image_url?.startsWith("blob:");
             const hasBlobVideo = p.video_url?.startsWith("blob:");
             const hasBlobThumb = p.thumb_url?.startsWith("blob:");
             const hasMedia = hasBlobImage || hasBlobVideo || hasBlobThumb;
 
+            // 🔑 REGRA DE OURO:
+            // Se existe blob → PRESERVA até upload completar
+            // Se backend retorna null/undefined/"" → IGNORA e mantém blob
+
             return {
               ...realPrompt,
               _skipAnimation: true,
               _uploadingMedia: hasMedia,
+              _clientId: p._clientId, // ✅ MANTÉM KEY ESTÁVEL
 
+              // ✅ IMAGE: Preserva blob se existir
               image_url: hasBlobImage
                 ? p.image_url
-                : realPrompt.image_url || "",
+                : realPrompt.image_url || p.image_url || "",
 
+              // ✅ THUMB: Preserva blob se existir (CORREÇÃO PRINCIPAL)
               thumb_url: hasBlobThumb
                 ? p.thumb_url
-                : realPrompt.thumb_url || "",
+                : realPrompt.thumb_url || p.thumb_url || "",
 
+              // ✅ VIDEO: Preserva blob se existir
               video_url: hasBlobVideo
                 ? p.video_url
-                : realPrompt.video_url || "",
+                : realPrompt.video_url || p.video_url || "",
             };
           }
 
