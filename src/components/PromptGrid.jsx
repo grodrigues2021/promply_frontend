@@ -56,27 +56,39 @@ function PromptGrid({
     return (
       <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
         {prompts.map((prompt) => {
-          const stableKey = prompt._tempId || prompt.id;
-          return (
-            <div
-              key={stableKey}
-              className={
-                prompt._skipAnimation ? "" : "animate-in fade-in duration-200"
-              }
-            >
-              <CardComponent
-                prompt={prompt}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onCopy={onCopy}
-                onToggleFavorite={onToggleFavorite}
-                onShare={onShare}
-                onOpenImage={onOpenImage}
-                onOpenVideo={onOpenVideo}
-              />
-            </div>
-          );
-        })}
+  // =====================================================
+  // 🔒 KEY ESTÁVEL — NUNCA MUDA
+  // =====================================================
+  const stableKey = prompt._clientId;
+
+  if (!stableKey) {
+    console.warn(
+      "⚠️ Prompt sem _clientId detectado (fallback aplicado):",
+      prompt
+    );
+  }
+
+  return (
+    <div
+      key={stableKey || prompt.id}
+      className={
+        prompt._skipAnimation ? "" : "animate-in fade-in duration-200"
+      }
+    >
+      <CardComponent
+        prompt={prompt}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onCopy={onCopy}
+        onToggleFavorite={onToggleFavorite}
+        onShare={onShare}
+        onOpenImage={onOpenImage}
+        onOpenVideo={onOpenVideo}
+      />
+    </div>
+  );
+})}
+
       </div>
     );
   }, [
