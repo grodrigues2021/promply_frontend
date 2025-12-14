@@ -922,7 +922,7 @@ const savePrompt = async () => {
           console.log("📤 Enviando mídia para o servidor...");
           const mediaResponse = await api.post(`/prompts/${promptId}/media`, mediaForm, {
             headers: { 'Content-Type': 'multipart/form-data' },
-            timeout: 60000
+            timeout: 120000  // ✅ 2 minutos
           });
           console.log("✅ Mídia enviada:", mediaResponse.data);
 
@@ -1053,32 +1053,33 @@ const savePrompt = async () => {
       
       if (hasImage) {
         mediaForm.append("image", promptForm.imageFile);
-        console.log("   - ✅ Adicionando imagem");
+        console.log("   - ✅ Imagem:", promptForm.imageFile.name, `(${(promptForm.imageFile.size / 1024).toFixed(2)} KB)`);
       }
 
       if (hasVideo) {
         mediaForm.append("video", promptForm.videoFile);
-        console.log("   - ✅ Adicionando vídeo");
+        console.log("   - ✅ Vídeo:", promptForm.videoFile.name, `(${(promptForm.videoFile.size / 1024 / 1024).toFixed(2)} MB)`);
         if (promptForm.imageFile instanceof File) {
           mediaForm.append("thumbnail", promptForm.imageFile);
-          console.log("   - ✅ Adicionando thumbnail do vídeo");
+          console.log("   - ✅ Thumbnail:", promptForm.imageFile.name, `(${(promptForm.imageFile.size / 1024).toFixed(2)} KB)`);
         }
       }
 
       if (hasExtraFiles) {
         extraFiles.forEach((file, idx) => {
           mediaForm.append("extra_files", file);
-          console.log(`   - ✅ Adicionando arquivo extra ${idx + 1}`);
+          console.log(`   - ✅ Arquivo extra ${idx + 1}:`, file.name);
         });
       }
 
-      // ⚡ UPLOAD EM BACKGROUND
+      // ⚡ UPLOAD EM BACKGROUND COM TIMEOUT MAIOR
       api.post(`/prompts/${promptId}/media`, mediaForm, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 60000
+        timeout: 180000  // ✅ 3 MINUTOS (para vídeos grandes)
       })
       .then((mediaResponse) => {
-        console.log("✅ [Background] Mídia enviada:", mediaResponse.data);
+        console.log("✅ [Background] Mídia enviada com sucesso!");
+        console.log("   Response:", mediaResponse.data);
 
         if (mediaResponse.data?.data) {
           queryClient.setQueryData(["prompts"], (oldData) => {
@@ -1086,25 +1087,39 @@ const savePrompt = async () => {
             
             return oldData.map(p => {
               if (p.id === promptId) {
-                console.log("🔓 Desbloqueando prompt:", promptId);
-                console.log("   - Dados do servidor:", mediaResponse.data.data);
+                console.log("🔄 Atualizando prompt", promptId, "com dados do servidor");
                 
-                // ✅ MERGE dados do servidor + remove flag
+                // ✅ CRÍTICO: SÓ sobrescreve se o servidor retornou URLs
+                const serverData = mediaResponse.data.data;
+                const hasServerImage = serverData.image_url && !serverData.image_url.startsWith('blob:');
+                const hasServerThumb = serverData.thumb_url && !serverData.thumb_url.startsWith('blob:');
+                const hasServerVideo = serverData.video_url && !serverData.video_url.startsWith('blob:');
+                
+                console.log("   - Servidor retornou image_url:", hasServerImage);
+                console.log("   - Servidor retornou thumb_url:", hasServerThumb);
+                console.log("   - Servidor retornou video_url:", hasServerVideo);
+                
                 const updated = { 
-                  ...p, 
-                  ...mediaResponse.data.data,
+                  ...p,
+                  // ✅ SÓ sobrescreve se servidor retornou URL válida
+                  image_url: hasServerImage ? serverData.image_url : p.image_url,
+                  thumb_url: hasServerThumb ? serverData.thumb_url : p.thumb_url,
+                  video_url: hasServerVideo ? serverData.video_url : p.video_url,
+                  youtube_url: serverData.youtube_url || p.youtube_url,
+                  // Atualiza outros campos
+                  updated_at: serverData.updated_at || p.updated_at,
                 };
                 
-                // ✅ Remove flag explicitamente
+                // ✅ Remove flags
                 delete updated._uploadingMedia;
                 delete updated._isOptimistic;
                 delete updated._tempId;
                 delete updated._skipAnimation;
                 
-                console.log("✅ Flags removidas");
-                console.log("   - image_url:", updated.image_url?.substring(0, 50));
-                console.log("   - thumb_url:", updated.thumb_url?.substring(0, 50));
-                console.log("   - video_url:", updated.video_url?.substring(0, 50));
+                console.log("✅ Prompt atualizado:");
+                console.log("   - image_url:", updated.image_url?.substring(0, 60));
+                console.log("   - thumb_url:", updated.thumb_url?.substring(0, 60));
+                console.log("   - video_url:", updated.video_url?.substring(0, 60));
                 
                 return updated;
               }
@@ -1112,26 +1127,37 @@ const savePrompt = async () => {
             });
           });
           
-          console.log("✅ Cache atualizado com URLs reais do B2");
-          console.log("✅ Botões edit/delete HABILITADOS");
+          console.log("✅ Cache atualizado - Botões HABILITADOS");
+          toast.success("📸 Mídia carregada com sucesso!");
         }
       })
       .catch((mediaError) => {
-        console.warn("⚠️ [Background] Falha ao subir mídia:", mediaError);
-        console.error("   Detalhes:", mediaError.response?.data || mediaError.message);
-        toast.warning("Prompt criado, mas houve falha no upload de mídia.");
+        console.error("❌ [Background] Falha ao subir mídia");
+        console.error("   Erro:", mediaError.message);
+        console.error("   Response:", mediaError.response?.data);
+        console.error("   Status:", mediaError.response?.status);
         
-        // ✅ Remove flag mesmo em erro
+        // ✅ Mensagens de erro específicas
+        if (mediaError.code === 'ECONNABORTED' || mediaError.message.includes('timeout')) {
+          toast.error("⏱️ Timeout no upload da mídia. O vídeo pode estar muito grande (max 20MB).");
+        } else if (mediaError.response?.status === 413) {
+          toast.error("📦 Arquivo muito grande! Reduza o tamanho do vídeo.");
+        } else {
+          toast.warning("⚠️ Prompt criado, mas houve falha no upload de mídia.");
+        }
+        
+        // ✅ Remove flag mesmo em erro MAS MANTÉM OS BLOBS
         queryClient.setQueryData(["prompts"], (oldData) => {
           if (!Array.isArray(oldData)) return oldData;
           
           return oldData.map(p => {
             if (p.id === promptId) {
-              console.log("🔓 Desbloqueando prompt (erro):", promptId);
+              console.log("🔓 Desbloqueando prompt (mantendo blobs):", promptId);
               const updated = { ...p };
               delete updated._uploadingMedia;
               delete updated._isOptimistic;
               delete updated._tempId;
+              // ✅ MANTÉM os blobs mesmo com erro!
               return updated;
             }
             return p;
