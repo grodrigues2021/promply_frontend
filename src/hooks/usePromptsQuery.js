@@ -29,61 +29,60 @@ export function useCreatePromptMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // ✅ CORREÇÃO: Recebe OBJETO { formData, optimisticPrompt }
-    mutationFn: async ({ formData, optimisticPrompt }) => {
-      console.log("📤 Enviando FormData para API...");
+    // ✅ CORREÇÃO: Recebe { payload, optimisticPrompt }
+    mutationFn: async ({ payload, optimisticPrompt }) => {
+      console.log("📤 Criando prompt (SÓ TEXTO)...");
+      console.log("   Payload:", payload);
 
-      // Debug do FormData
-      for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`   - ${key}: [File] ${value.name}`);
-        } else {
-          console.log(`   - ${key}: ${value}`);
-        }
-      }
-
-      const { data } = await api.post("/prompts", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      // ✅ CORREÇÃO: Usar /prompts/text (SEM ARQUIVOS!)
+      const { data } = await api.post("/prompts/text", payload);
 
       if (!data.success) {
         throw new Error(data.error || "Erro ao criar prompt");
       }
 
       console.log("✅ Resposta da API:", data);
-      return data.data;
+      return data.data || data.prompt; // Pode retornar em data.data ou data.prompt
     },
 
     onMutate: async ({ optimisticPrompt }) => {
-      console.log("🔄 onMutate - Iniciando optimistic update");
+      console.log("📄 onMutate - Iniciando optimistic update");
 
+      // Cancela queries pendentes
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
+      // Salva estado anterior para rollback
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
+      // Adiciona prompt otimista à lista
       queryClient.setQueryData(["prompts"], (old) => {
-        return [optimisticPrompt, ...(old || [])];
+        const current = old || [];
+        console.log("   - Prompts atuais:", current.length);
+        console.log("   - Adicionando otimista:", optimisticPrompt._tempId);
+        return [optimisticPrompt, ...current];
       });
 
-      console.log("✨ Prompt otimista adicionado:", optimisticPrompt._tempId);
+      console.log("✨ Prompt otimista adicionado à lista!");
 
       return { previousPrompts };
     },
 
     onSuccess: (realPrompt, { optimisticPrompt }) => {
-      console.log("🔄 Substituindo otimista pelo real:", {
-        tempId: optimisticPrompt._tempId,
-        realId: realPrompt.id,
-      });
+      console.log("📄 onSuccess - Substituindo otimista pelo real");
+      console.log("   - tempId:", optimisticPrompt._tempId);
+      console.log("   - realId:", realPrompt.id);
 
       queryClient.setQueryData(["prompts"], (old) => {
         if (!old) return [realPrompt];
 
         return old.map((p) => {
+          // Encontra o prompt otimista e substitui pelo real
           if (p._tempId === optimisticPrompt._tempId) {
+            console.log("   - 🔄 Substituindo prompt otimista");
             return {
               ...realPrompt,
               _skipAnimation: true,
+              // Preserva blob URLs até mídia ser enviada
               image_url: realPrompt.image_url || p.image_url,
               thumb_url: realPrompt.thumb_url || p.thumb_url,
               video_url: realPrompt.video_url || p.video_url,
@@ -95,53 +94,47 @@ export function useCreatePromptMutation() {
 
       console.log("✅ Prompt real inserido com sucesso!");
 
+      // Invalidar stats para atualizar contadores
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
 
     onError: (error, variables, context) => {
       console.error("❌ Erro ao criar prompt:", error);
+      console.error("   Message:", error.message);
+      console.error("   Response:", error.response?.data);
 
+      // Rollback: Restaura estado anterior
       if (context?.previousPrompts) {
         queryClient.setQueryData(["prompts"], context.previousPrompts);
-        console.log("🔙 Rollback realizado - prompt otimista removido");
+        console.log("📙 Rollback realizado - prompt otimista removido");
       }
     },
 
     onSettled: () => {
+      // Garantir que os dados estão sincronizados
       queryClient.invalidateQueries({ queryKey: ["prompts"] });
     },
   });
 }
 
 // ===================================================
-// 🟡 MUTATION: Atualizar Prompt (CORRIGIDO)
+// 🟡 MUTATION: Atualizar Prompt
 // ===================================================
 export function useUpdatePromptMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // ✅ CORREÇÃO: Recebe OBJETO { id, formData }
-    mutationFn: async ({ id, formData }) => {
+    mutationFn: async ({ id, data }) => {
       console.log("📝 Atualizando prompt:", id);
 
-      for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(`   - ${key}: [File] ${value.name}`);
-        } else {
-          console.log(`   - ${key}: ${value}`);
-        }
+      const { data: response } = await api.put(`/prompts/${id}`, data);
+
+      if (!response.success) {
+        throw new Error(response.error || "Erro ao atualizar prompt");
       }
 
-      const { data } = await api.put(`/prompts/${id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      if (!data.success) {
-        throw new Error(data.error || "Erro ao atualizar prompt");
-      }
-
-      console.log("✅ Prompt atualizado:", data);
-      return data.data;
+      console.log("✅ Prompt atualizado:", response);
+      return response.data;
     },
 
     onMutate: async ({ id }) => {
@@ -205,7 +198,7 @@ export function useDeletePromptMutation() {
     onError: (error, variables, context) => {
       if (context?.previousPrompts) {
         queryClient.setQueryData(["prompts"], context.previousPrompts);
-        console.log("🔙 Rollback - prompt restaurado");
+        console.log("📙 Rollback - prompt restaurado");
       }
       console.error("❌ Erro ao deletar prompt:", error);
     },

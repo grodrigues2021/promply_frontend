@@ -862,7 +862,7 @@ export default function PromptManager({
     : [];
 
 // ===================================================
-// 💾 SAVE PROMPT - VERSÃO CORRIGIDA (Modal Fecha!)
+// 💾 SAVE PROMPT - VERSÃO CORRIGIDA FINAL
 // ===================================================
 // 📍 LOCALIZAÇÃO: PromptManager.jsx
 // 🔄 SUBSTITUIR: Toda a função savePrompt existente
@@ -893,7 +893,7 @@ const savePrompt = async () => {
 
       const promptId = editingPrompt.id;
 
-      // 📦 Preparar payload
+      // 📦 Preparar payload (SÓ TEXTO)
       const payload = {
         title: promptForm.title,
         content: promptForm.content,
@@ -973,13 +973,13 @@ const savePrompt = async () => {
         }
       }
 
-      // ✅ FECHAR MODAL ANTES DE INVALIDAR
+      // ✅ FECHAR MODAL
       toast.success("✅ Prompt atualizado com sucesso!");
       localStorage.removeItem("prompt-draft");
       resetPromptForm();
       setIsPromptDialogOpen(false);
 
-      // 🔄 Invalidar em background (não bloqueia UI)
+      // 🔄 Invalidar em background
       Promise.all([
         queryClient.invalidateQueries(["stats"]),
         queryClient.invalidateQueries(["categories"])
@@ -1041,54 +1041,32 @@ const savePrompt = async () => {
       hasVideo: !!optimisticPrompt.video_url,
     });
 
-    // 📝 Preparar FormData para API
-    const formData = new FormData();
-    formData.append("title", promptForm.title);
-    formData.append("content", promptForm.content);
-    formData.append("description", promptForm.description || "");
-    formData.append("tags", promptForm.tags || "");
-    formData.append("platform", promptForm.platform || "chatgpt");
-    formData.append("is_favorite", promptForm.is_favorite || false);
-    formData.append("youtube_url", promptForm.youtube_url || "");
+    // 📝 Preparar dados para API (SÓ TEXTO - SEM ARQUIVOS!)
+    const textPayload = {
+      title: promptForm.title,
+      content: promptForm.content,
+      description: promptForm.description || "",
+      tags: promptForm.tags || "",
+      platform: promptForm.platform || "chatgpt",
+      is_favorite: promptForm.is_favorite || false,
+      youtube_url: promptForm.youtube_url || "",
+    };
     
     if (promptForm.category_id !== "none") {
-      formData.append("category_id", parseInt(promptForm.category_id));
-    }
-
-    // 📎 Adicionar arquivos ao FormData
-    if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
-      formData.append("image", promptForm.imageFile);
-    }
-
-    if (promptForm.videoFile instanceof File) {
-      formData.append("video", promptForm.videoFile);
-      
-      if (promptForm.imageFile instanceof File) {
-        formData.append("thumbnail", promptForm.imageFile);
-      }
-    }
-
-    if (extraFiles.length > 0) {
-      extraFiles.forEach((file) => {
-        formData.append("extra_files", file);
-      });
+      textPayload.category_id = parseInt(promptForm.category_id);
     }
 
     console.log("🚀 Chamando createPromptMutation...");
 
-    // 🚀 CRIAR PROMPT (A mutation faz TUDO!)
-    // - Adiciona otimista à lista (onMutate)
-    // - POST /prompts (mutationFn)
-    // - Substitui otimista pelo real (onSuccess)
-    // - Rollback se erro (onError)
+    // 🚀 CRIAR PROMPT (A mutation faz tudo!)
     const realPrompt = await createPromptMutation.mutateAsync({
-      formData,
+      payload: textPayload,  // ✅ SÓ DADOS TEXTUAIS
       optimisticPrompt,
     });
 
     console.log("✅ Prompt criado:", realPrompt);
 
-    // ✅ FECHAR MODAL IMEDIATAMENTE (NÃO ESPERA MÍDIA!)
+    // ✅ FECHAR MODAL IMEDIATAMENTE
     toast.success("✅ Prompt criado com sucesso!");
     localStorage.removeItem("prompt-draft");
     resetPromptForm();
@@ -1099,27 +1077,35 @@ const savePrompt = async () => {
     // 📸 UPLOAD DE MÍDIA EM BACKGROUND (NÃO BLOQUEIA UI!)
     const promptId = realPrompt.id;
     
-    // Se tiver mídia, fazer upload DEPOIS do modal fechar
-    if (promptId && (promptForm.videoFile || promptForm.imageFile || extraFiles.length > 0)) {
+    const hasImage = promptForm.imageFile instanceof File && !promptForm.videoFile;
+    const hasVideo = promptForm.videoFile instanceof File;
+    const hasExtraFiles = extraFiles.length > 0;
+    const hasMedia = hasImage || hasVideo || hasExtraFiles;
+    
+    if (promptId && hasMedia) {
       console.log("📤 [Background] Enviando mídia...");
       
       const mediaForm = new FormData();
       
-      if (promptForm.imageFile instanceof File && !promptForm.videoFile) {
+      if (hasImage) {
         mediaForm.append("image", promptForm.imageFile);
+        console.log("   - Adicionando imagem");
       }
 
-      if (promptForm.videoFile instanceof File) {
+      if (hasVideo) {
         mediaForm.append("video", promptForm.videoFile);
+        console.log("   - Adicionando vídeo");
         
         if (promptForm.imageFile instanceof File) {
           mediaForm.append("thumbnail", promptForm.imageFile);
+          console.log("   - Adicionando thumbnail do vídeo");
         }
       }
 
-      if (extraFiles.length > 0) {
-        extraFiles.forEach((file) => {
+      if (hasExtraFiles) {
+        extraFiles.forEach((file, idx) => {
           mediaForm.append("extra_files", file);
+          console.log(`   - Adicionando arquivo extra ${idx + 1}`);
         });
       }
 
@@ -1131,7 +1117,7 @@ const savePrompt = async () => {
       .then((mediaResponse) => {
         console.log("✅ [Background] Mídia enviada:", mediaResponse.data);
 
-        // Atualizar cache com dados do servidor
+        // Atualizar cache com dados completos do servidor
         if (mediaResponse.data?.data) {
           queryClient.setQueryData(["prompts"], (oldData) => {
             if (!Array.isArray(oldData)) return oldData;
@@ -1142,6 +1128,8 @@ const savePrompt = async () => {
                 : p
             );
           });
+          
+          console.log("✅ Cache atualizado com URLs reais do B2");
         }
       })
       .catch((mediaError) => {
@@ -1160,6 +1148,7 @@ const savePrompt = async () => {
     
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
+    console.error("   Stack:", error.stack);
     toast.error(error.message || "Erro ao salvar prompt");
     
     // ❌ FECHAR MODAL MESMO COM ERRO
@@ -1172,6 +1161,8 @@ const savePrompt = async () => {
     setIsSaving(false);
   }
 };
+
+
   // ===================================================
   // 💾 SAVE CATEGORY
   // ===================================================
