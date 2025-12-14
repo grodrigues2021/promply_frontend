@@ -371,50 +371,91 @@ export default function PromptManager({
   // 🎬 UPLOAD DE VÍDEO
   // ===================================================
 
-  const handleVideoUpload = useCallback((e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+ const handleVideoUpload = useCallback((e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    if (!file.type.startsWith("video/")) {
-      toast.error("Selecione um vídeo válido");
-      return;
-    }
+  // ✅ Validação de tipo
+  if (!file.type.startsWith("video/")) {
+    toast.error("Selecione um vídeo válido");
+    return;
+  }
 
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error("Vídeo muito grande! Máx. 50MB");
-      return;
-    }
+  // ✅ LIMITE DEFINITIVO: 10MB
+  const MAX_VIDEO_SIZE = 10 * 1024 * 1024; // 10MB
+  if (file.size > MAX_VIDEO_SIZE) {
+    toast.error("Vídeo muito grande. Máximo permitido: 10MB.");
+    e.target.value = "";
+    return;
+  }
 
-    setUploadingImage(true);
-    toast.info("🎬 Processando vídeo...");
+  setUploadingImage(true);
+  toast.info("🎬 Gerando thumbnail do vídeo...");
 
-    const videoURL = safeCreateObjectURL(file);
-    if (!videoURL) {
-      toast.error("Erro ao processar vídeo");
-      setUploadingImage(false);
-      return;
-    }
+  const videoURL = safeCreateObjectURL(file);
+  if (!videoURL) {
+    toast.error("Erro ao processar vídeo");
+    setUploadingImage(false);
+    return;
+  }
 
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.muted = true;
-    video.playsInline = true;
+  const video = document.createElement("video");
+  video.preload = "metadata";
+  video.muted = true;
+  video.playsInline = true;
 
-    video.onloadeddata = () => {
+  // ⏱️ Timeout de segurança (evita travamento)
+  const thumbnailTimeout = setTimeout(() => {
+    console.warn("⚠️ Timeout ao gerar thumbnail, continuando sem thumbnail");
+    setPromptForm((prev) => ({
+      ...prev,
+      videoFile: file,
+      imageFile: null,
+      image_url: "",
+      youtube_url: "",
+    }));
+    cleanup();
+  }, 4000);
+
+  const cleanup = () => {
+    clearTimeout(thumbnailTimeout);
+    URL.revokeObjectURL(videoURL);
+    video.remove();
+    setUploadingImage(false);
+  };
+
+  video.onloadeddata = () => {
+    try {
       video.currentTime = Math.min(1, video.duration / 2);
-    };
+    } catch (err) {
+      console.warn("⚠️ Falha ao buscar frame do vídeo", err);
+    }
+  };
 
-    video.onseeked = () => {
+  video.onseeked = () => {
+    try {
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 180;
+
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const thumbnailBase64 = canvas.toDataURL("image/jpeg", 0.8);
-
       canvas.toBlob(
         (blob) => {
+          if (!blob) {
+            console.warn("⚠️ Não foi possível gerar thumbnail");
+            setPromptForm((prev) => ({
+              ...prev,
+              videoFile: file,
+              imageFile: null,
+              image_url: "",
+              youtube_url: "",
+            }));
+            cleanup();
+            return;
+          }
+
           const thumbnailFile = new File([blob], "video-thumbnail.jpg", {
             type: "image/jpeg",
           });
@@ -422,45 +463,46 @@ export default function PromptManager({
           setPromptForm((prev) => ({
             ...prev,
             videoFile: file,
-            video_url: "",
-            image_url: prev.image_url || thumbnailBase64,
-            imageFile: prev.imageFile || thumbnailFile,
+            imageFile: thumbnailFile,
+            image_url: safeCreateObjectURL(thumbnailFile),
             youtube_url: "",
           }));
-          
-          setUploadingImage(false);
 
-          URL.revokeObjectURL(videoURL);
-          video.remove();
           canvas.remove();
+          cleanup();
         },
         "image/jpeg",
         0.8
       );
-    };
+    } catch (err) {
+      console.error("❌ Erro ao gerar thumbnail:", err);
+      setPromptForm((prev) => ({
+        ...prev,
+        videoFile: file,
+        imageFile: null,
+        image_url: "",
+        youtube_url: "",
+      }));
+      cleanup();
+    }
+  };
 
-    video.onerror = () => {
-      toast.error("Erro ao processar vídeo");
-      setUploadingImage(false);
-      URL.revokeObjectURL(videoURL);
-      video.remove();
-    };
+  video.onerror = () => {
+    console.error("❌ Erro ao carregar vídeo");
+    toast.error("Erro ao processar vídeo. O prompt ainda pode ser salvo.");
+    setPromptForm((prev) => ({
+      ...prev,
+      videoFile: file,
+      imageFile: null,
+      image_url: "",
+      youtube_url: "",
+    }));
+    cleanup();
+  };
 
-    video.src = videoURL;
-  }, []);
+  video.src = videoURL;
+}, []);
 
-  const openVideoModal = useCallback((url) => {
-    const backendBase = API_BASE_URL.replace("/api", ""); 
-    const fullUrl = url.startsWith("http") ? url : backendBase + url;
-
-    setCurrentVideoUrl(fullUrl);
-    setShowVideoModal(true);
-  }, []);
-
-  const openImageModal = useCallback((imageBase64, title) => {
-    setSelectedImage({ url: imageBase64, title });
-    setIsImageModalOpen(true);
-  }, []);
 
   // ===================================================
   // 🎥 YOUTUBE HELPERS
