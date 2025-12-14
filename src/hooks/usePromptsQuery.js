@@ -1,6 +1,6 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ VERSÃO FINAL COMPLETA
+// ✅ VERSÃO FINAL — CORREÇÃO #4 APLICADA
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -12,112 +12,99 @@ import api from "../lib/api";
 export function usePromptsQuery() {
   return useQuery({
     queryKey: ["prompts"],
+
     queryFn: async () => {
       const { data } = await api.get("/prompts");
-      if (!data.success) throw new Error("Falha ao carregar prompts");
+      if (!data.success) {
+        throw new Error("Falha ao carregar prompts");
+      }
       return data.data;
     },
-    staleTime: 30000,
-    gcTime: 5 * 60 * 1000,
+
+    // 🔒 CONTROLE TOTAL DO CACHE (ANTI-FLICKER)
+    staleTime: 30000, // Cache é considerado fresco por 30s
+    gcTime: 5 * 60 * 1000, // Mantém cache por 5 minutos
+
+    // ❌ DESABILITA REFETCH AUTOMÁTICO
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 }
 
 // ===================================================
-// 🟢 MUTATION: Criar Prompt (VERSÃO FINAL)
+// 🟢 MUTATION: Criar Prompt
 // ===================================================
 export function useCreatePromptMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ payload, optimisticPrompt }) => {
-      console.log("📤 Criando prompt (SÓ TEXTO)...");
-      console.log("   Payload:", payload);
-
+    mutationFn: async ({ payload }) => {
+      console.log("📤 Criando prompt (somente texto)...");
       const { data } = await api.post("/prompts/text", payload);
 
       if (!data.success) {
         throw new Error(data.error || "Erro ao criar prompt");
       }
 
-      console.log("✅ Resposta da API:", data);
       return data.data || data.prompt;
     },
 
     onMutate: async ({ optimisticPrompt }) => {
-      console.log("📄 onMutate - Iniciando optimistic update");
-
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
       queryClient.setQueryData(["prompts"], (old) => {
-        const current = old || [];
-        console.log("   - Prompts atuais:", current.length);
-        console.log("   - Adicionando otimista:", optimisticPrompt._tempId);
+        const current = Array.isArray(old) ? old : [];
         return [optimisticPrompt, ...current];
       });
-
-      console.log("✨ Prompt otimista adicionado à lista!");
 
       return { previousPrompts };
     },
 
     onSuccess: (realPrompt, { optimisticPrompt }) => {
-      console.log("📄 onSuccess - Substituindo otimista pelo real");
-      console.log("   - tempId:", optimisticPrompt._tempId);
-      console.log("   - realId:", realPrompt.id);
-
       queryClient.setQueryData(["prompts"], (old) => {
-        if (!old) return [realPrompt];
+        if (!Array.isArray(old)) return [realPrompt];
 
         return old.map((p) => {
           if (p._tempId === optimisticPrompt._tempId) {
-            console.log("   - 🔄 Substituindo prompt otimista");
-
-            // ✅ Detecta se tem mídia para enviar (blob URLs)
             const hasBlobImage = p.image_url?.startsWith("blob:");
             const hasBlobVideo = p.video_url?.startsWith("blob:");
             const hasBlobThumb = p.thumb_url?.startsWith("blob:");
             const hasMedia = hasBlobImage || hasBlobVideo || hasBlobThumb;
 
-            console.log("   - Mídia pendente:", hasMedia);
-            console.log("   - Blob image:", hasBlobImage);
-            console.log("   - Blob video:", hasBlobVideo);
-            console.log("   - Blob thumb:", hasBlobThumb);
-
             return {
               ...realPrompt,
               _skipAnimation: true,
-              _uploadingMedia: hasMedia, // ✅ Flag para bloquear botões
-              // ✅ CORREÇÃO: Preserva blobs até upload completar
+              _uploadingMedia: hasMedia,
+
               image_url: hasBlobImage
                 ? p.image_url
                 : realPrompt.image_url || "",
+
               thumb_url: hasBlobThumb
                 ? p.thumb_url
                 : realPrompt.thumb_url || "",
+
               video_url: hasBlobVideo
                 ? p.video_url
                 : realPrompt.video_url || "",
             };
           }
+
           return p;
         });
       });
-
-      console.log("✅ Prompt real inserido com sucesso!");
 
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
 
     onError: (error, variables, context) => {
       console.error("❌ Erro ao criar prompt:", error);
-      console.error("   Message:", error.message);
-      console.error("   Response:", error.response?.data);
 
       if (context?.previousPrompts) {
         queryClient.setQueryData(["prompts"], context.previousPrompts);
-        console.log("📙 Rollback realizado - prompt otimista removido");
       }
     },
   });
@@ -131,34 +118,26 @@ export function useUpdatePromptMutation() {
 
   return useMutation({
     mutationFn: async ({ id, data }) => {
-      console.log("📝 Atualizando prompt:", id);
-
       const { data: response } = await api.put(`/prompts/${id}`, data);
-
       if (!response.success) {
         throw new Error(response.error || "Erro ao atualizar prompt");
       }
-
-      console.log("✅ Prompt atualizado:", response);
       return response.data;
     },
 
-    onMutate: async ({ id }) => {
+    onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
       const previousPrompts = queryClient.getQueryData(["prompts"]);
-
       return { previousPrompts };
     },
 
     onSuccess: (updatedPrompt) => {
       queryClient.setQueryData(["prompts"], (old) => {
-        if (!old) return [updatedPrompt];
-
+        if (!Array.isArray(old)) return [updatedPrompt];
         return old.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p));
       });
 
       queryClient.invalidateQueries({ queryKey: ["stats"] });
-      console.log("✅ Prompt atualizado:", updatedPrompt.id);
     },
 
     onError: (error, variables, context) => {
@@ -179,11 +158,9 @@ export function useDeletePromptMutation() {
   return useMutation({
     mutationFn: async (promptId) => {
       const { data } = await api.delete(`/prompts/${promptId}`);
-
       if (!data.success) {
         throw new Error(data.error || "Erro ao deletar prompt");
       }
-
       return promptId;
     },
 
@@ -192,11 +169,9 @@ export function useDeletePromptMutation() {
 
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
-      queryClient.setQueryData(["prompts"], (old) => {
-        return old?.filter((p) => p.id !== promptId) || [];
-      });
-
-      console.log("🗑️ Prompt removido otimisticamente:", promptId);
+      queryClient.setQueryData(["prompts"], (old) =>
+        Array.isArray(old) ? old.filter((p) => p.id !== promptId) : []
+      );
 
       return { previousPrompts };
     },
@@ -204,14 +179,12 @@ export function useDeletePromptMutation() {
     onError: (error, variables, context) => {
       if (context?.previousPrompts) {
         queryClient.setQueryData(["prompts"], context.previousPrompts);
-        console.log("📙 Rollback - prompt restaurado");
       }
       console.error("❌ Erro ao deletar prompt:", error);
     },
 
-    onSuccess: (promptId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stats"] });
-      console.log("✅ Prompt deletado:", promptId);
     },
   });
 }
@@ -225,11 +198,9 @@ export function useToggleFavoriteMutation() {
   return useMutation({
     mutationFn: async (promptId) => {
       const { data } = await api.post(`/prompts/${promptId}/favorite`, {});
-
       if (!data.success) {
         throw new Error("Erro ao atualizar favorito");
       }
-
       return data.data;
     },
 
@@ -238,13 +209,13 @@ export function useToggleFavoriteMutation() {
 
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
-      queryClient.setQueryData(["prompts"], (old) => {
-        return (
-          old?.map((p) =>
-            p.id === promptId ? { ...p, is_favorite: !p.is_favorite } : p
-          ) || []
-        );
-      });
+      queryClient.setQueryData(["prompts"], (old) =>
+        Array.isArray(old)
+          ? old.map((p) =>
+              p.id === promptId ? { ...p, is_favorite: !p.is_favorite } : p
+            )
+          : []
+      );
 
       return { previousPrompts };
     },
@@ -254,14 +225,6 @@ export function useToggleFavoriteMutation() {
         queryClient.setQueryData(["prompts"], context.previousPrompts);
       }
       console.error("❌ Erro ao toggle favorito:", error);
-    },
-
-    onSuccess: (updatedPrompt) => {
-      console.log(
-        "⭐ Favorito atualizado:",
-        updatedPrompt.id,
-        updatedPrompt.is_favorite
-      );
     },
   });
 }
