@@ -981,7 +981,7 @@ const savePrompt = async () => {
     const optimisticPrompt = {
       id: tempId,
       _tempId: tempId,
-      _clientId: clientId, // ✅ KEY ESTÁVEL
+      _clientId: clientId,
       _isOptimistic: true,
       _skipAnimation: false,
 
@@ -1020,9 +1020,6 @@ const savePrompt = async () => {
       payload.category_id = parseInt(promptForm.category_id);
     }
 
-    // =========================================================
-    // 📡 MUTATION — onSuccess FAZ O MERGE DEFENSIVO
-    // =========================================================
     const realPrompt = await createPromptMutation.mutateAsync({
       payload,
       optimisticPrompt,
@@ -1032,17 +1029,12 @@ const savePrompt = async () => {
       throw new Error("Backend não retornou ID do prompt");
     }
 
-    // =========================================================
-    // ❌ REMOVIDO: setQueryData duplicado estava AQUI!
-    // ✅ AGORA: Apenas o onSuccess do hook faz o merge
-    // =========================================================
-
     toast.success("✅ Prompt criado com sucesso!");
     resetPromptForm();
     setIsPromptDialogOpen(false);
 
     // =========================================================
-    // 📤 UPLOAD DE MÍDIA EM BACKGROUND
+    // 📤 UPLOAD DE MÍDIA EM BACKGROUND (CORRIGIDO)
     // =========================================================
     const promptId = realPrompt.id;
 
@@ -1068,29 +1060,63 @@ const savePrompt = async () => {
         mediaForm.append("extra_files", file)
       );
 
+      // ✅ LOG PARA DEBUG
+      console.log("📤 Iniciando upload de mídia para prompt:", promptId);
+
       api
         .post(`/prompts/${promptId}/media`, mediaForm, {
           headers: { "Content-Type": "multipart/form-data" },
           timeout: 180000,
         })
         .then((res) => {
+          console.log("✅ Upload completou! Resposta:", res.data);
+          
           if (res.data?.data) {
+            // ✅ FORÇAR SUBSTITUIÇÃO COMPLETA
             queryClient.setQueryData(["prompts"], (old) => {
               if (!Array.isArray(old)) return old;
-              return old.map((p) =>
-                p.id === promptId
-                  ? {
-                      ...p,
-                      ...res.data.data,
-                      _uploadingMedia: false,
-                    }
-                  : p
-              );
+              
+              const updated = old.map((p) => {
+                if (p.id === promptId) {
+                  // 🔥 SOBRESCREVER TUDO com dados do backend
+                  const newPrompt = {
+                    ...res.data.data,
+                    _uploadingMedia: false,
+                    _clientId: p._clientId, // Preserva apenas clientId
+                  };
+                  
+                  console.log("🔄 Atualizando prompt:", {
+                    old_thumb: p.thumb_url,
+                    new_thumb: newPrompt.thumb_url
+                  });
+                  
+                  return newPrompt;
+                }
+                return p;
+              });
+              
+              return updated;
             });
+            
+            toast.success("🎬 Mídia enviada com sucesso!");
+          } else {
+            console.warn("⚠️ Backend não retornou data:", res.data);
           }
         })
         .catch((err) => {
           console.error("❌ Erro no upload da mídia:", err);
+          console.error("   Detalhes:", err.response?.data);
+          
+          // Limpar flag de uploading
+          queryClient.setQueryData(["prompts"], (old) => {
+            if (!Array.isArray(old)) return old;
+            return old.map((p) =>
+              p.id === promptId
+                ? { ...p, _uploadingMedia: false }
+                : p
+            );
+          });
+          
           toast.warning(
             "Prompt criado, mas houve erro no upload da mídia."
           );
@@ -1106,7 +1132,6 @@ const savePrompt = async () => {
     setIsSaving(false);
   }
 };
-
 
 
 
