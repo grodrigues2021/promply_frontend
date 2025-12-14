@@ -382,7 +382,7 @@ export default function PromptManager({
   }
 
   // ✅ LIMITE DEFINITIVO: 10MB
-  const MAX_VIDEO_SIZE = 10 * 1024 * 1024; // 10MB
+  const MAX_VIDEO_SIZE = 20 * 1024 * 1024; // 10MB
   if (file.size > MAX_VIDEO_SIZE) {
     toast.error("Vídeo muito grande. Máximo permitido: 10MB.");
     e.target.value = "";
