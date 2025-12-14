@@ -1158,7 +1158,7 @@ const savePrompt = async () => {
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
     toast.error(error.message || "Erro ao salvar prompt");
-    queryClient.invalidateQueries(["prompts"]);
+    
   } finally {
     setIsSaving(false);
   }
