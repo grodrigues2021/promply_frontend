@@ -21,7 +21,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
-import { getYoutubeThumbnail } from "../lib/youtube";
+
 
 
 
