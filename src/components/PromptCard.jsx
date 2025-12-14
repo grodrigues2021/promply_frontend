@@ -717,19 +717,7 @@ const mediaInfo = useMemo(() => {
 
         {/* MÍDIA */}
 
-        {/* =====================================================
-            🖼️ THUMBNAIL ÚNICO — SEMPRE MONTADO
-        ===================================================== */}
-        <img
-          src={mediaInfo.thumbnailUrl || ""}
-          alt={prompt.title}
-          className={cn(
-            "absolute inset-0 w-full h-full object-cover transition-opacity duration-200",
-            mediaInfo.thumbnailUrl ? "opacity-100" : "opacity-0"
-          )}
-          draggable={false}
-        />
-
+        
         {mediaInfo.hasMedia && (
           <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
             
