@@ -1,6 +1,6 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ VERSÃO FINAL CORRIGIDA
+// ✅ VERSÃO FINAL COMPLETA
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -23,18 +23,16 @@ export function usePromptsQuery() {
 }
 
 // ===================================================
-// 🟢 MUTATION: Criar Prompt (CORRIGIDO)
+// 🟢 MUTATION: Criar Prompt (VERSÃO FINAL)
 // ===================================================
 export function useCreatePromptMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // ✅ CORREÇÃO: Recebe { payload, optimisticPrompt }
     mutationFn: async ({ payload, optimisticPrompt }) => {
       console.log("📤 Criando prompt (SÓ TEXTO)...");
       console.log("   Payload:", payload);
 
-      // ✅ CORREÇÃO: Usar /prompts/text (SEM ARQUIVOS!)
       const { data } = await api.post("/prompts/text", payload);
 
       if (!data.success) {
@@ -42,19 +40,16 @@ export function useCreatePromptMutation() {
       }
 
       console.log("✅ Resposta da API:", data);
-      return data.data || data.prompt; // Pode retornar em data.data ou data.prompt
+      return data.data || data.prompt;
     },
 
     onMutate: async ({ optimisticPrompt }) => {
       console.log("📄 onMutate - Iniciando optimistic update");
 
-      // Cancela queries pendentes
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
-      // Salva estado anterior para rollback
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
-      // Adiciona prompt otimista à lista
       queryClient.setQueryData(["prompts"], (old) => {
         const current = old || [];
         console.log("   - Prompts atuais:", current.length);
@@ -76,13 +71,22 @@ export function useCreatePromptMutation() {
         if (!old) return [realPrompt];
 
         return old.map((p) => {
-          // Encontra o prompt otimista e substitui pelo real
           if (p._tempId === optimisticPrompt._tempId) {
             console.log("   - 🔄 Substituindo prompt otimista");
+
+            const hasImageFile =
+              optimisticPrompt.image_url?.startsWith("blob:") &&
+              !optimisticPrompt.video_url?.startsWith("blob:");
+            const hasVideoFile =
+              optimisticPrompt.video_url?.startsWith("blob:");
+            const hasMedia = hasImageFile || hasVideoFile;
+
+            console.log("   - Mídia pendente:", hasMedia);
+
             return {
               ...realPrompt,
               _skipAnimation: true,
-              // Preserva blob URLs até mídia ser enviada
+              _uploadingMedia: hasMedia,
               image_url: realPrompt.image_url || p.image_url,
               thumb_url: realPrompt.thumb_url || p.thumb_url,
               video_url: realPrompt.video_url || p.video_url,
@@ -94,7 +98,6 @@ export function useCreatePromptMutation() {
 
       console.log("✅ Prompt real inserido com sucesso!");
 
-      // Invalidar stats para atualizar contadores
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
 
@@ -103,7 +106,6 @@ export function useCreatePromptMutation() {
       console.error("   Message:", error.message);
       console.error("   Response:", error.response?.data);
 
-      // Rollback: Restaura estado anterior
       if (context?.previousPrompts) {
         queryClient.setQueryData(["prompts"], context.previousPrompts);
         console.log("📙 Rollback realizado - prompt otimista removido");
@@ -111,7 +113,6 @@ export function useCreatePromptMutation() {
     },
 
     onSettled: () => {
-      // Garantir que os dados estão sincronizados
       queryClient.invalidateQueries({ queryKey: ["prompts"] });
     },
   });

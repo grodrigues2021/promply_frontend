@@ -861,21 +861,12 @@ export default function PromptManager({
       })
     : [];
 
-// ===================================================
-// 💾 SAVE PROMPT - VERSÃO CORRIGIDA FINAL
-// ===================================================
-// 📍 LOCALIZAÇÃO: PromptManager.jsx
-// 🔄 SUBSTITUIR: Toda a função savePrompt existente
-// ===================================================
-
 const savePrompt = async () => {
-  // ⏸️ Prevenir duplo clique
   if (isSaving) {
     console.warn("⏸️ Salvamento já em andamento");
     return;
   }
 
-  // ✅ Validar formulário
   if (!validateForm()) {
     console.warn("❌ Validação falhou");
     return;
@@ -884,37 +875,24 @@ const savePrompt = async () => {
   try {
     setIsSaving(true);
 
-    // ==========================================
-    // ✏️ MODO EDIÇÃO (SEM OTIMISTA)
-    // ==========================================
-    
+    // MODO EDIÇÃO
     if (isEditMode === true && editingPrompt?.id) {
       console.log("📝 Editando prompt:", editingPrompt.id);
-
       const promptId = editingPrompt.id;
 
-      // 📦 Preparar payload (SÓ TEXTO)
       const payload = {
         title: promptForm.title,
         content: promptForm.content,
         description: promptForm.description || "",
-        category_id:
-          promptForm.category_id !== "none"
-            ? parseInt(promptForm.category_id)
-            : null,
+        category_id: promptForm.category_id !== "none" ? parseInt(promptForm.category_id) : null,
         platform: promptForm.platform || "chatgpt",
         tags: promptForm.tags || "",
         youtube_url: promptForm.youtube_url || "",
         is_favorite: promptForm.is_favorite || false,
       };
 
-      // 🔄 Atualizar prompt
-      await updatePromptMutation.mutateAsync({
-        id: promptId,
-        data: payload,
-      });
+      await updatePromptMutation.mutateAsync({ id: promptId, data: payload });
 
-      // 📸 Upload de mídia (se houver)
       const mediaForm = new FormData();
       let hasMedia = false;
 
@@ -926,60 +904,42 @@ const savePrompt = async () => {
       if (promptForm.videoFile instanceof File) {
         mediaForm.append("video", promptForm.videoFile);
         hasMedia = true;
-        
         if (promptForm.imageFile instanceof File) {
           mediaForm.append("thumbnail", promptForm.imageFile);
         }
       }
 
       if (extraFiles.length > 0) {
-        extraFiles.forEach((file) => {
-          mediaForm.append("extra_files", file);
-        });
+        extraFiles.forEach((file) => mediaForm.append("extra_files", file));
         hasMedia = true;
       }
 
-      // 🚀 Enviar mídia
       if (hasMedia) {
         try {
           console.log("📤 Enviando mídia para o servidor...");
-          
-          const mediaResponse = await api.post(
-            `/prompts/${promptId}/media`,
-            mediaForm,
-            {
-              headers: { 'Content-Type': 'multipart/form-data' },
-              timeout: 60000
-            }
-          );
-
+          const mediaResponse = await api.post(`/prompts/${promptId}/media`, mediaForm, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            timeout: 60000
+          });
           console.log("✅ Mídia enviada:", mediaResponse.data);
 
           if (mediaResponse.data?.data) {
             queryClient.setQueryData(["prompts"], (oldData) => {
               if (!Array.isArray(oldData)) return oldData;
-              
-              return oldData.map(p => 
-                p.id === promptId 
-                  ? { ...p, ...mediaResponse.data.data }
-                  : p
-              );
+              return oldData.map(p => p.id === promptId ? { ...p, ...mediaResponse.data.data } : p);
             });
           }
-
         } catch (mediaError) {
           console.warn("⚠️ Falha ao subir mídia:", mediaError);
           toast.warning("Prompt atualizado, mas houve falha no upload de mídia.");
         }
       }
 
-      // ✅ FECHAR MODAL
       toast.success("✅ Prompt atualizado com sucesso!");
       localStorage.removeItem("prompt-draft");
       resetPromptForm();
       setIsPromptDialogOpen(false);
 
-      // 🔄 Invalidar em background
       Promise.all([
         queryClient.invalidateQueries(["stats"]),
         queryClient.invalidateQueries(["categories"])
@@ -988,48 +948,30 @@ const savePrompt = async () => {
       return;
     }
 
-    // ==========================================
-    // ➕ MODO CRIAÇÃO (COM PROMPTS OTIMISTAS)
-    // ==========================================
-
+    // MODO CRIAÇÃO (COM PROMPTS OTIMISTAS)
     console.log("✨ Criando novo prompt com optimistic update...");
 
-    // 🆔 Gerar ID temporário
     const tempId = `temp-${Date.now()}`;
 
-    // 📦 Criar prompt otimista
     const optimisticPrompt = {
       id: tempId,
       _tempId: tempId,
       _isOptimistic: true,
       _skipAnimation: false,
-      
       title: promptForm.title,
       content: promptForm.content,
       description: promptForm.description || "",
       tags: promptForm.tags || "",
-      category_id: promptForm.category_id !== "none" 
-        ? parseInt(promptForm.category_id) 
-        : null,
+      category_id: promptForm.category_id !== "none" ? parseInt(promptForm.category_id) : null,
       platform: promptForm.platform || "chatgpt",
       is_favorite: promptForm.is_favorite || false,
-      
-      // 🖼️ Usar blob URLs para preview local
       image_url: safeCreateObjectURL(promptForm.imageFile) || promptForm.image_url || "",
       video_url: safeCreateObjectURL(promptForm.videoFile) || promptForm.video_url || "",
       youtube_url: promptForm.youtube_url || "",
-      thumb_url: "",
-      
-      // 📁 Categoria (se existir)
-      category: promptForm.category_id !== "none"
-        ? myCategories.find(c => c.id === parseInt(promptForm.category_id))
-        : null,
-      
-      // 📅 Timestamps
+      thumb_url: promptForm.videoFile ? safeCreateObjectURL(promptForm.imageFile) : "",
+      category: promptForm.category_id !== "none" ? myCategories.find(c => c.id === parseInt(promptForm.category_id)) : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      
-      // 📊 Contadores
       usage_count: 0,
       copy_count: 0,
     };
@@ -1039,9 +981,9 @@ const savePrompt = async () => {
       title: optimisticPrompt.title,
       hasImage: !!optimisticPrompt.image_url,
       hasVideo: !!optimisticPrompt.video_url,
+      hasThumb: !!optimisticPrompt.thumb_url,
     });
 
-    // 📝 Preparar dados para API (SÓ TEXTO - SEM ARQUIVOS!)
     const textPayload = {
       title: promptForm.title,
       content: promptForm.content,
@@ -1058,15 +1000,18 @@ const savePrompt = async () => {
 
     console.log("🚀 Chamando createPromptMutation...");
 
-    // 🚀 CRIAR PROMPT (A mutation faz tudo!)
     const realPrompt = await createPromptMutation.mutateAsync({
-      payload: textPayload,  // ✅ SÓ DADOS TEXTUAIS
+      payload: textPayload,
       optimisticPrompt,
     });
 
     console.log("✅ Prompt criado:", realPrompt);
+    
+    if (!realPrompt || !realPrompt.id) {
+      console.error("❌ ERRO: Backend não retornou ID do prompt!");
+      throw new Error("Backend não retornou ID do prompt");
+    }
 
-    // ✅ FECHAR MODAL IMEDIATAMENTE
     toast.success("✅ Prompt criado com sucesso!");
     localStorage.removeItem("prompt-draft");
     resetPromptForm();
@@ -1074,9 +1019,7 @@ const savePrompt = async () => {
 
     console.log("✅ Modal fechado!");
 
-    // 📸 UPLOAD DE MÍDIA EM BACKGROUND (NÃO BLOQUEIA UI!)
     const promptId = realPrompt.id;
-    
     const hasImage = promptForm.imageFile instanceof File && !promptForm.videoFile;
     const hasVideo = promptForm.videoFile instanceof File;
     const hasExtraFiles = extraFiles.length > 0;
@@ -1095,7 +1038,6 @@ const savePrompt = async () => {
       if (hasVideo) {
         mediaForm.append("video", promptForm.videoFile);
         console.log("   - Adicionando vídeo");
-        
         if (promptForm.imageFile instanceof File) {
           mediaForm.append("thumbnail", promptForm.imageFile);
           console.log("   - Adicionando thumbnail do vídeo");
@@ -1109,7 +1051,6 @@ const savePrompt = async () => {
         });
       }
 
-      // ⚡ UPLOAD EM BACKGROUND (Não bloqueia)
       api.post(`/prompts/${promptId}/media`, mediaForm, {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 60000
@@ -1117,28 +1058,40 @@ const savePrompt = async () => {
       .then((mediaResponse) => {
         console.log("✅ [Background] Mídia enviada:", mediaResponse.data);
 
-        // Atualizar cache com dados completos do servidor
         if (mediaResponse.data?.data) {
           queryClient.setQueryData(["prompts"], (oldData) => {
             if (!Array.isArray(oldData)) return oldData;
-            
-            return oldData.map(p => 
-              p.id === promptId 
-                ? { ...p, ...mediaResponse.data.data }
-                : p
-            );
+            return oldData.map(p => {
+              if (p.id === promptId) {
+                const updated = { ...p, ...mediaResponse.data.data };
+                delete updated._uploadingMedia;
+                return updated;
+              }
+              return p;
+            });
           });
-          
           console.log("✅ Cache atualizado com URLs reais do B2");
+          console.log("✅ Flag _uploadingMedia removida - botões habilitados");
         }
       })
       .catch((mediaError) => {
         console.warn("⚠️ [Background] Falha ao subir mídia:", mediaError);
         toast.warning("Prompt criado, mas houve falha no upload de mídia.");
+        
+        queryClient.setQueryData(["prompts"], (oldData) => {
+          if (!Array.isArray(oldData)) return oldData;
+          return oldData.map(p => {
+            if (p.id === promptId) {
+              const updated = { ...p };
+              delete updated._uploadingMedia;
+              return updated;
+            }
+            return p;
+          });
+        });
       });
     }
 
-    // 🔄 Invalidar em background (não bloqueia UI)
     Promise.all([
       queryClient.invalidateQueries(["stats"]),
       queryClient.invalidateQueries(["categories"])
@@ -1148,15 +1101,9 @@ const savePrompt = async () => {
     
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
-    console.error("   Stack:", error.stack);
     toast.error(error.message || "Erro ao salvar prompt");
-    
-    // ❌ FECHAR MODAL MESMO COM ERRO
     setIsPromptDialogOpen(false);
-    
-    // Invalidar tudo
     await queryClient.invalidateQueries(["prompts"]);
-    
   } finally {
     setIsSaving(false);
   }

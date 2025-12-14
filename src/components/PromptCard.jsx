@@ -265,8 +265,10 @@ const PromptCard = React.memo(({
 
   // 🎯 Detecta se é um prompt otimista (temporário)
   const isOptimistic = useMemo(() => {
-    return String(prompt.id).startsWith('temp-') || prompt._isOptimistic;
-  }, [prompt.id, prompt._isOptimistic]);
+    return String(prompt.id).startsWith('temp-') || 
+           prompt._isOptimistic || 
+           prompt._uploadingMedia;
+  }, [prompt.id, prompt._isOptimistic, prompt._uploadingMedia]);
 
   // ========================================
   // ✅ LÓGICA DE MÍDIA CORRIGIDA
