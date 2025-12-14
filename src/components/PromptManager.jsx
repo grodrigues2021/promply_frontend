@@ -1224,8 +1224,7 @@ export default function PromptManager({
                   setPromptToShare(prompt);
                   setShowShareModal(true);
                 }}
-                onOpenImage={openImageModal}
-                onOpenVideo={openVideoModal}
+               
               />
             </div>
           </div>
