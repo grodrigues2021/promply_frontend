@@ -329,14 +329,19 @@ const PromptCard = React.memo(({
     
     // Prioridade: YouTube thumb > Image > Video thumb > Attachment
     if (youtubeThumbnail) {
-      thumbnailUrl = youtubeThumbnail;
-    } else if (prompt.image_url) {
-      thumbnailUrl = resolveMediaUrlWithCache(prompt.image_url, prompt.updated_at);
-    } else if (prompt.thumb_url) {
-      thumbnailUrl = resolveMediaUrlWithCache(prompt.thumb_url, prompt.updated_at);
-    } else if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
-      thumbnailUrl = resolveMediaUrl(safeAttachments[0].file_url);
-    }
+  thumbnailUrl = youtubeThumbnail;
+
+} else if (prompt.thumb_url) {
+  // ✅ PRIORIDADE PARA THUMBNAIL DE VÍDEO
+  thumbnailUrl = resolveMediaUrlWithCache(prompt.thumb_url, prompt.updated_at);
+
+} else if (prompt.image_url) {
+  thumbnailUrl = resolveMediaUrlWithCache(prompt.image_url, prompt.updated_at);
+
+} else if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
+  thumbnailUrl = resolveMediaUrl(safeAttachments[0].file_url);
+}
+
     
     console.log("✅ thumbnailUrl final:", thumbnailUrl);
 
