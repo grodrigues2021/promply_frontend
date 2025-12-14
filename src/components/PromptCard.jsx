@@ -1,5 +1,5 @@
 // src/components/PromptCard.jsx - VERSÃO CORRIGIDA E OTIMIZADA
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef, } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
@@ -21,6 +21,9 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
+
+
+
 
 const cardVariants = cva(
   "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
@@ -284,92 +287,106 @@ const isOptimistic = useMemo(() => {
 }, [prompt?.id, prompt?.title]);
 
 
-  // ========================================
-  // ✅ LÓGICA DE MÍDIA CORRIGIDA
-  // ========================================
-  const mediaInfo = useMemo(() => {
-    const safeAttachments = Array.isArray(attachments) ? attachments : [];
-    
-    const videoUrl = prompt.video_url || null;
-    const youtubeUrl = prompt.youtube_url || null;
-    const thumbUrl = prompt.thumb_url || null;
-    const imageUrl = prompt.image_url || null;
-    
-    console.log("🎬 DEBUG PromptCard mediaInfo:", {
-      promptId: prompt.id,
-      video_url: videoUrl,
-      youtube_url: youtubeUrl,
-      thumb_url: thumbUrl,
-      image_url: imageUrl,
-    });
-    
-    // ========================================
-    // 🎥 DETECTAR TIPO DE VÍDEO
-    // ========================================
-    
-    // ✅ CORREÇÃO: hasLocalVideo deve ser baseado em video_url, não thumb_url!
-    const hasYouTubeVideo = !!youtubeUrl;
-    const hasLocalVideo = !!videoUrl;  // ✅ Se tem video_url, é vídeo local
-    const hasVideo = hasYouTubeVideo || hasLocalVideo;
-    const hasImage = !!imageUrl;
-    const hasMedia = hasVideo || hasImage;
-    
-    // ========================================
-    // 🆔 YOUTUBE ID
-    // ========================================
-    
-    let videoId = null;
-    if (hasYouTubeVideo) {
-      videoId = extractYouTubeId(youtubeUrl);
-    }
-    
-    // ========================================
-    // 🖼️ CONSTRUIR THUMBNAIL URL (PRIORIDADE CORRETA)
-    // ========================================
-    
-    let thumbnailUrl = null;
-    
-    // PRIORIDADE 1: YouTube thumbnail
-    if (hasYouTubeVideo && videoId) {
-      thumbnailUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-      console.log("✅ Usando thumbnail do YouTube:", thumbnailUrl);
-    }
-    // PRIORIDADE 2: Thumbnail de vídeo local (thumb_url)
-    else if (thumbUrl) {
-      thumbnailUrl = resolveMediaUrlWithCache(thumbUrl, prompt.updated_at);
-      console.log("✅ Usando thumb_url do vídeo:", thumbnailUrl);
-    }
-    // PRIORIDADE 3: Imagem normal
-    else if (imageUrl) {
-      thumbnailUrl = resolveMediaUrlWithCache(imageUrl, prompt.updated_at);
-      console.log("✅ Usando image_url:", thumbnailUrl);
-    }
-    // PRIORIDADE 4: Primeiro anexo
-    else if (safeAttachments.length > 0 && safeAttachments[0].file_url) {
-      thumbnailUrl = resolveMediaUrl(safeAttachments[0].file_url);
-      console.log("✅ Usando anexo como thumbnail:", thumbnailUrl);
-    }
-    
-    console.log("🎯 thumbnailUrl final:", thumbnailUrl);
 
-    return { 
-      hasVideo,
-      hasYouTubeVideo,
-      hasLocalVideo,
-      hasImage, 
-      hasMedia, 
-      videoUrl,
-      videoId, 
-      thumbnailUrl 
-    };
-  }, [
-    prompt.video_url, 
-    prompt.youtube_url, 
-    prompt.image_url, 
-    prompt.thumb_url,
-    prompt.updated_at,
-    attachments
-  ]);
+// =====================================================
+// 🖼️ MEDIA INFO NORMALIZADO (ANTI-INCONSISTÊNCIA)
+// =====================================================
+const stableThumbnailRef = useRef(null);
+
+// -----------------------------------------------------
+// 🔄 RESET DO REF QUANDO O PROMPT MUDA
+// -----------------------------------------------------
+useEffect(() => {
+  stableThumbnailRef.current = null;
+}, [prompt._clientId]);
+
+const mediaInfo = useMemo(() => {
+  const thumbUrl = prompt.thumb_url || "";
+  const imageUrl = prompt.image_url || "";
+  const videoUrl = prompt.video_url || "";
+  const youtubeUrl = prompt.youtube_url || "";
+
+  let thumbnailUrl = "";
+  let hasImage = false;
+  let hasLocalVideo = false;
+  let hasYouTubeVideo = false;
+  let videoId = null;
+  let finalVideoUrl = "";
+
+  // -------------------------------------------------
+  // 🎬 YOUTUBE
+  // -------------------------------------------------
+  if (youtubeUrl) {
+    hasYouTubeVideo = true;
+    videoId = extractYoutubeVideoId(youtubeUrl);
+    thumbnailUrl = getYoutubeThumbnail(youtubeUrl);
+  }
+
+  // -------------------------------------------------
+  // 🎥 VÍDEO LOCAL
+  // -------------------------------------------------
+  else if (videoUrl) {
+    hasLocalVideo = true;
+    finalVideoUrl = resolveMediaUrl(videoUrl);
+
+    if (thumbUrl) {
+      if (
+        stableThumbnailRef.current &&
+        (prompt._uploadingMedia || thumbUrl.startsWith("blob:"))
+      ) {
+        thumbnailUrl = stableThumbnailRef.current;
+      } else {
+        thumbnailUrl = resolveMediaUrlWithCache(
+          thumbUrl,
+          prompt._uploadingMedia ? null : prompt.updated_at
+        );
+        stableThumbnailRef.current = thumbnailUrl;
+      }
+    }
+  }
+
+  // -------------------------------------------------
+  // 🖼️ IMAGEM
+  // -------------------------------------------------
+  else if (imageUrl) {
+    hasImage = true;
+
+    if (
+      stableThumbnailRef.current &&
+      (prompt._uploadingMedia || imageUrl.startsWith("blob:"))
+    ) {
+      thumbnailUrl = stableThumbnailRef.current;
+    } else {
+      thumbnailUrl = resolveMediaUrlWithCache(
+        imageUrl,
+        prompt._uploadingMedia ? null : prompt.updated_at
+      );
+      stableThumbnailRef.current = thumbnailUrl;
+    }
+  }
+
+  return {
+    // Flags principais
+    hasMedia: Boolean(hasImage || hasLocalVideo || hasYouTubeVideo),
+    hasImage,
+    hasLocalVideo,
+    hasYouTubeVideo,
+
+    // Dados de vídeo
+    videoId,
+    videoUrl: finalVideoUrl,
+
+    // Thumbnail
+    thumbnailUrl,
+  };
+}, [
+  prompt.thumb_url,
+  prompt.image_url,
+  prompt.video_url,
+  prompt.youtube_url,
+  prompt._uploadingMedia,
+]);
+
 
   const tagsArray = useMemo(() => {
     if (Array.isArray(prompt.tags)) return prompt.tags;
