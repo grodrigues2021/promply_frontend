@@ -318,8 +318,8 @@ const mediaInfo = useMemo(() => {
   // -------------------------------------------------
   if (youtubeUrl) {
     hasYouTubeVideo = true;
-    videoId = extractYoutubeVideoId(youtubeUrl);
-    thumbnailUrl = getYoutubeThumbnail(youtubeUrl);
+    videoId = extractYouTubeId(youtubeUrl);  // ✅ CORRETO
+    thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : "";  // ✅ CORRETO
   }
 
   // -------------------------------------------------
