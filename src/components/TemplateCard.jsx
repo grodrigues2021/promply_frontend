@@ -86,7 +86,7 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
 
 const TemplateCard = React.memo(({
   prompt,
-  template,
+  template: legacyTemplate,
   user,
   onEdit,
   onDelete,
@@ -97,7 +97,19 @@ const TemplateCard = React.memo(({
   onOpenVideo,
   className,
 }) => {
-  const item = template;
+  // ============================================================
+  // 🔁 Normalização de dados
+  // ============================================================
+  const item = prompt || legacyTemplate;
+
+  if (!item) {
+    console.warn("⚠️ TemplateCard renderizado sem dados:", {
+      prompt,
+      legacyTemplate,
+    });
+    return null;
+  }
+
 
 // ============================================================
 // 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
