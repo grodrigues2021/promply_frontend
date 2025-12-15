@@ -218,13 +218,11 @@ useEffect(() => {
     generatedThumb
   ]);
 
-  // ============================================================
-  // 🔒 Ref estável que previne flicker
-  // Atualiza sincronicamente durante o render quando thumbnail muda
-  // ============================================================
-  if (mediaInfo.thumbnailUrl && mediaInfo.thumbnailUrl !== stableThumbnailRef.current) {
+useEffect(() => {
+  if (mediaInfo.thumbnailUrl && !stableThumbnailRef.current) {
     stableThumbnailRef.current = mediaInfo.thumbnailUrl;
   }
+}, [mediaInfo.thumbnailUrl]);
 
 
   // Tags processadas
@@ -519,25 +517,25 @@ useEffect(() => {
                 onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-                {/* 🔒 CORREÇÃO DO FLICKER: Usa SEMPRE stableThumbnailRef se existir */}
-                {stableThumbnailRef.current && (
-                  <img
-                    src={
-                      stableThumbnailRef.current.startsWith("http")
-                        ? stableThumbnailRef.current
-                        : resolveMediaUrl(stableThumbnailRef.current)
-                    }
-                    alt={item.title}
-                    className="w-full h-full object-cover"
-                  />
-                )}
+                {/* Thumbnail estável – nunca some depois de existir */}
+{(stableThumbnailRef.current || mediaInfo.thumbnailUrl) && (
+  <img
+    src={
+      (stableThumbnailRef.current || mediaInfo.thumbnailUrl)?.startsWith("http")
+        ? (stableThumbnailRef.current || mediaInfo.thumbnailUrl)
+        : resolveMediaUrl(stableThumbnailRef.current || mediaInfo.thumbnailUrl)
+    }
+    alt={item.title}
+    className="w-full h-full object-cover"
+  />
+)}
 
-                {/* Placeholder roxo - APENAS se NUNCA houve thumbnail */}
-                {!stableThumbnailRef.current && (
-                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-                    <Play className="h-16 w-16 text-purple-400" />
-                  </div>
-                )}
+{/* Placeholder roxo – APENAS se NUNCA houve thumbnail */}
+{!stableThumbnailRef.current && !mediaInfo.thumbnailUrl && (
+  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+    <Play className="h-16 w-16 text-purple-400" />
+  </div>
+)}
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
