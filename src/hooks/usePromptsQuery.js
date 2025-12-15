@@ -1,13 +1,13 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ VERSÃO FINAL — ANTI-FLICKER DEFINITIVO
+// ✅ DEBUG ANTI-LOOPING — YOUTUBE + OPTIMISTIC
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
 
 // =========================================================
-// 🔒 FLAG GLOBAL: Bloq ueia refetch durante uploads
+// 🔒 FLAG GLOBAL: Bloqueia refetch durante uploads
 // =========================================================
 let uploadingMediaCount = 0;
 
@@ -24,7 +24,6 @@ function endMediaUpload() {
 function hasActiveUploads() {
   return uploadingMediaCount > 0;
 }
-
 // ===================================================
 // 🔵 HOOK: Buscar Prompts
 // ===================================================
@@ -40,22 +39,21 @@ export function usePromptsQuery() {
       }
 
       const { data } = await api.get("/prompts");
+
       if (!data.success) {
         throw new Error("Falha ao carregar prompts");
       }
+
       return data.data;
     },
 
-    // 🔒 CONTROLE TOTAL DO CACHE
     staleTime: 30000,
     gcTime: 5 * 60 * 1000,
 
-    // ❌ DESABILITA REFETCH AUTOMÁTICO
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
 
-    // ✅ Ignora erro de skip
     retry: (failureCount, error) => {
       if (error.message === "SKIP_REFETCH_DURING_UPLOAD") {
         return false;
@@ -64,9 +62,8 @@ export function usePromptsQuery() {
     },
   });
 }
-
 // ===================================================
-// 🟢 MUTATION: Criar Prompt
+// 🟢 MUTATION: Criar Prompt (ANTI-LOOPING YOUTUBE)
 // ===================================================
 export function useCreatePromptMutation() {
   const queryClient = useQueryClient();
@@ -83,48 +80,85 @@ export function useCreatePromptMutation() {
       return data.data || data.prompt;
     },
 
+    // ===================================================
+    // 🧪 ETAPA 2 — onMutate (PROMPT OTIMISTA)
+    // ===================================================
     onMutate: async ({ optimisticPrompt }) => {
+      console.log("🧪 [ETAPA 2] onMutate chamado");
+      console.log("🧪 [ETAPA 2] youtube_url =", optimisticPrompt.youtube_url);
+      console.log("🧪 [ETAPA 2] thumb_url =", optimisticPrompt.thumb_url);
+
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
       queryClient.setQueryData(["prompts"], (old) => {
         const current = Array.isArray(old) ? old : [];
+        console.log(
+          "🧪 [ETAPA 2] Inserindo no cache thumb_url =",
+          optimisticPrompt.thumb_url
+        );
         return [optimisticPrompt, ...current];
       });
 
       return { previousPrompts };
     },
 
+    // ===================================================
+    // 🧪 ETAPA 4 + 5 — onSuccess (MERGE FINAL)
+    // ===================================================
     onSuccess: (realPrompt, { optimisticPrompt }) => {
+      console.log("🧪 [ETAPA 4] onSuccess chamado");
+      console.log("🧪 [ETAPA 4] realPrompt.id =", realPrompt?.id);
+      console.log(
+        "🧪 [ETAPA 4] realPrompt.youtube_url =",
+        realPrompt?.youtube_url
+      );
+      console.log("🧪 [ETAPA 4] realPrompt.thumb_url =", realPrompt?.thumb_url);
+
       queryClient.setQueryData(["prompts"], (old) => {
-        if (!Array.isArray(old)) return [realPrompt];
+        if (!Array.isArray(old)) {
+          console.warn("🧪 Cache vazio, usando realPrompt direto");
+          return [realPrompt];
+        }
 
         return old.map((p) => {
           if (p._tempId === optimisticPrompt._tempId) {
             const hasBlobImage = p.image_url?.startsWith("blob:");
             const hasBlobVideo = p.video_url?.startsWith("blob:");
             const hasBlobThumb = p.thumb_url?.startsWith("blob:");
-            const hasMedia = hasBlobImage || hasBlobVideo || hasBlobThumb;
 
-            return {
+            console.log("🧪 [ETAPA 5] Merge", {
+              optimistic_thumb: p.thumb_url,
+              backend_thumb: realPrompt?.thumb_url,
+              hasBlobThumb,
+            });
+
+            const mergedPrompt = {
               ...realPrompt,
               _skipAnimation: true,
-              _uploadingMedia: hasMedia,
+              _uploadingMedia: hasBlobImage || hasBlobVideo || hasBlobThumb,
               _clientId: p._clientId,
 
               image_url: hasBlobImage
                 ? p.image_url
                 : realPrompt.image_url || p.image_url || "",
 
-              thumb_url: hasBlobThumb
-                ? p.thumb_url
-                : realPrompt.thumb_url || p.thumb_url || "",
-
               video_url: hasBlobVideo
                 ? p.video_url
                 : realPrompt.video_url || p.video_url || "",
+
+              thumb_url: hasBlobThumb
+                ? p.thumb_url
+                : realPrompt.thumb_url || p.thumb_url || "",
             };
+
+            console.log(
+              "🧪 [ETAPA 5] Resultado final thumb_url =",
+              mergedPrompt.thumb_url
+            );
+
+            return mergedPrompt;
           }
 
           return p;
@@ -136,14 +170,12 @@ export function useCreatePromptMutation() {
 
     onError: (error, variables, context) => {
       console.error("❌ Erro ao criar prompt:", error);
-
       if (context?.previousPrompts) {
         queryClient.setQueryData(["prompts"], context.previousPrompts);
       }
     },
   });
 }
-
 // ===================================================
 // 🟡 MUTATION: Atualizar Prompt
 // ===================================================
@@ -262,7 +294,6 @@ export function useToggleFavoriteMutation() {
     },
   });
 }
-
 // ===================================================
 // 📤 EXPORT: Controle de uploads
 // ===================================================

@@ -971,93 +971,143 @@ const savePrompt = async () => {
       return;
     }
 
-    // =========================================================
-    // ➕ MODO CRIAÇÃO (PROMPT OTIMISTA + CLIENT ID)
-    // =========================================================
+ // =========================================================
+// ➕ MODO CRIAÇÃO (PROMPT OTIMISTA + YOUTUBE AWARE)
+// =========================================================
 
-    const tempId = `temp-${Date.now()}`;
+const tempId = `temp-${Date.now()}`;
 
-    const clientId =
-      typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const clientId =
+  typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    const imageBlobUrl = safeCreateObjectURL(promptForm.imageFile);
-    const videoBlobUrl = safeCreateObjectURL(promptForm.videoFile);
+// URLs locais (optimistic)
+const imageBlobUrl = safeCreateObjectURL(promptForm.imageFile);
+const videoBlobUrl = safeCreateObjectURL(promptForm.videoFile);
 
-    // =========================================================
-    // 🎥 THUMBNAIL — PRIORIDADE CORRETA
-    // 1) Vídeo local → blob
-    // 2) YouTube → thumbnail pública
-    // =========================================================
-    let thumbUrl = "";
+// 🎯 THUMBNAIL DEFINITIVO PARA OPTIMISTIC
+let thumbUrl = "";
 
-    if (promptForm.videoFile && promptForm.imageFile) {
-      // 🎬 Vídeo local com thumbnail gerado no client
-      thumbUrl = safeCreateObjectURL(promptForm.imageFile);
-    } else if (promptForm.youtube_url) {
-      // 🎥 YouTube → thumbnail oficial
-      const ytThumb = getYouTubeThumbnail(promptForm.youtube_url);
-      if (ytThumb) {
-        thumbUrl = ytThumb;
-      }
-    }
+if (promptForm.videoFile && promptForm.imageFile) {
+  thumbUrl = safeCreateObjectURL(promptForm.imageFile);
+} else if (promptForm.youtube_url) {
+  const ytThumb = getYouTubeThumbnail(promptForm.youtube_url);
+  if (ytThumb) thumbUrl = ytThumb;
+}
 
+// =========================================================
+// 🧠 PROMPT OTIMISTA
+// =========================================================
+const optimisticPrompt = {
+  id: tempId,
+  _tempId: tempId,
+  _clientId: clientId,
+  _isOptimistic: true,
+  _skipAnimation: false,
 
-    const optimisticPrompt = {
-      id: tempId,
-      _tempId: tempId,
-      _clientId: clientId,
-      _isOptimistic: true,
-      _skipAnimation: false,
+  title: promptForm.title,
+  content: promptForm.content,
+  description: promptForm.description || "",
+  tags: promptForm.tags || "",
+  platform: promptForm.platform || "chatgpt",
+  is_favorite: promptForm.is_favorite || false,
+  youtube_url: promptForm.youtube_url || "",
+  category_id:
+    promptForm.category_id !== "none"
+      ? parseInt(promptForm.category_id)
+      : null,
 
+  image_url: imageBlobUrl || "",
+  video_url: videoBlobUrl || "",
+  thumb_url: thumbUrl || "",
+
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  usage_count: 0,
+};
+
+// =========================================================
+// 🧠 INSERE OTIMISTA MANUALMENTE NO CACHE
+// =========================================================
+queryClient.setQueryData(["prompts"], (old) => {
+  const current = Array.isArray(old) ? old : [];
+  return [optimisticPrompt, ...current];
+});
+
+// =========================================================
+// 🚀 DECISÃO DE ENDPOINT
+// =========================================================
+let realPrompt;
+
+if (promptForm.youtube_url) {
+  // ===========================
+  // 🎥 YOUTUBE → /prompts
+  // ===========================
+  const formData = new FormData();
+
+  formData.append("title", promptForm.title);
+  formData.append("content", promptForm.content);
+  formData.append("description", promptForm.description || "");
+  formData.append("tags", promptForm.tags || "");
+  formData.append("platform", promptForm.platform || "chatgpt");
+  formData.append("youtube_url", promptForm.youtube_url);
+
+  if (promptForm.category_id !== "none") {
+    formData.append("category_id", promptForm.category_id);
+  }
+
+  const response = await api.post("/prompts", formData);
+  realPrompt = response.data?.data;
+} else {
+  // ===========================
+  // 📝 TEXTO → /prompts/text
+  // ===========================
+  realPrompt = await createPromptMutation.mutateAsync({
+    payload: {
       title: promptForm.title,
       content: promptForm.content,
       description: promptForm.description || "",
       tags: promptForm.tags || "",
       platform: promptForm.platform || "chatgpt",
       is_favorite: promptForm.is_favorite || false,
-      youtube_url: promptForm.youtube_url || "",
       category_id:
         promptForm.category_id !== "none"
           ? parseInt(promptForm.category_id)
           : null,
+    },
+    optimisticPrompt,
+  });
+}
 
-      image_url: imageBlobUrl || "",
-      video_url: videoBlobUrl || "",
-      thumb_url: thumbUrl || "",
+if (!realPrompt?.id) {
+  throw new Error("Backend não retornou o prompt criado");
+}
 
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      usage_count: 0,
-    };
+// =========================================================
+// 🔄 SUBSTITUI OTIMISTA PELO REAL (COM THUMBNAIL)
+// =========================================================
+queryClient.setQueryData(["prompts"], (old) => {
+  if (!Array.isArray(old)) return [realPrompt];
 
-    const payload = {
-      title: promptForm.title,
-      content: promptForm.content,
-      description: promptForm.description || "",
-      tags: promptForm.tags || "",
-      platform: promptForm.platform || "chatgpt",
-      is_favorite: promptForm.is_favorite || false,
-      youtube_url: promptForm.youtube_url || "",
-    };
+  return old.map((p) =>
+    p._tempId === tempId
+      ? {
+          ...realPrompt,
+          _skipAnimation: true,
+          _clientId: clientId,
+        }
+      : p
+  );
+});
 
-    if (promptForm.category_id !== "none") {
-      payload.category_id = parseInt(promptForm.category_id);
-    }
+toast.success("✅ Prompt criado com sucesso!");
+resetPromptForm();
+setIsPromptDialogOpen(false);
 
-    const realPrompt = await createPromptMutation.mutateAsync({
-      payload,
-      optimisticPrompt,
-    });
+queryClient.invalidateQueries(["stats"]);
+queryClient.invalidateQueries(["categories"]);
 
-    if (!realPrompt?.id) {
-      throw new Error("Backend não retornou ID do prompt");
-    }
-
-    toast.success("✅ Prompt criado com sucesso!");
-    resetPromptForm();
-    setIsPromptDialogOpen(false);
 
     // =========================================================
     // 📤 UPLOAD DE MÍDIA EM BACKGROUND (PROTEGIDO)
@@ -1065,7 +1115,10 @@ const savePrompt = async () => {
     const promptId = realPrompt.id;
 
     const hasImage =
-      promptForm.imageFile instanceof File && !promptForm.videoFile;
+  promptForm.imageFile instanceof File &&
+  !promptForm.videoFile &&
+  !promptForm.youtube_url;
+
     const hasVideo = promptForm.videoFile instanceof File;
 
     if (promptId && (hasImage || hasVideo || extraFiles.length > 0)) {
