@@ -218,12 +218,13 @@ useEffect(() => {
     generatedThumb
   ]);
 
-// 🔒 Atualiza a ref estável sempre que a thumbnail muda
-useEffect(() => {
-  if (mediaInfo.thumbnailUrl) {
+  // ============================================================
+  // 🔒 Ref estável que previne flicker
+  // Atualiza sincronicamente durante o render quando thumbnail muda
+  // ============================================================
+  if (mediaInfo.thumbnailUrl && mediaInfo.thumbnailUrl !== stableThumbnailRef.current) {
     stableThumbnailRef.current = mediaInfo.thumbnailUrl;
   }
-}, [mediaInfo.thumbnailUrl]);
 
 
   // Tags processadas
