@@ -845,22 +845,16 @@ export default function TemplatesPage({ onBack }) {
             <PromptGrid
               prompts={filteredTemplates}
               isLoading={loading}
-              CardComponent={({ prompt }) => {
-                const template = prompt;
-                return (
-                  <TemplateCard
-                    template={template}
-                    user={user}
-                    onShare={() => openUseTemplateDialog(template)}
-                    onCopy={() => handleCopyTemplate(template)}
-                    onEdit={() => openEditTemplate(template)}
-                    onDelete={() => deleteTemplate(template.id)}
-                    onOpenImage={handleOpenImage}
-                    onOpenVideo={handleOpenVideo}
-                    onToggleFavorite={() => handleToggleFavorite(template)}
-                  />
-                );
-              }}
+             CardComponent={TemplateCard}
+             onShare={openUseTemplateDialog}
+              onCopy={handleCopyTemplate}
+              onEdit={openEditTemplate}
+              onDelete={(id) => deleteTemplate(id)}
+              onOpenImage={handleOpenImage}
+              onOpenVideo={handleOpenVideo}
+              onToggleFavorite={handleToggleFavorite}
+              user={user}
+
             />
           </main>
         </div>
