@@ -99,33 +99,20 @@ const TemplateCard = React.memo(({
   const item = template;
 
   // ============================================================
-  // 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
+  // 🎬 Refs e States
   // ============================================================
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [generatedThumb, setGeneratedThumb] = useState(null);
+  // REF ESTÁVEL - mantém a thumbnail mesmo durante re-renders
   const stableThumbnailRef = useRef(null);
+  const [imageError, setImageError] = useState(false);
 
+  // ============================================================
+  // 🎬 Geração de Thumbnail para vídeos MP4 locais
+  // ============================================================
   useEffect(() => {
-    // Só gera thumbnail se:
-    // 1. Tem video_url
-    // 2. NÃO tem thumb_url
-    // 3. É um vídeo local (não YouTube)
-    const videoType = detectVideoType(item?.video_url);
-    
-    console.log("🎬 Debug geração thumbnail:", {
-      video_url: item?.video_url,
-      thumb_url: item?.thumb_url,
-      videoType,
-      shouldGenerate: !!(item?.video_url && !item?.thumb_url && videoType === 'local')
-    });
-
-    if (!item?.video_url || item?.thumb_url || videoType !== 'local') {
-      console.log("⏭️ Pulando geração de thumbnail");
-      return;
-    }
-
-    console.log("✅ Iniciando geração de thumbnail...");
+    if (!item?.video_url || item?.thumb_url) return;
 
     const video = document.createElement("video");
     video.src = resolveMediaUrl(item.video_url);
@@ -136,7 +123,6 @@ const TemplateCard = React.memo(({
 
     const captureFrame = () => {
       try {
-        console.log("📸 Capturando frame do vídeo...");
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -146,12 +132,8 @@ const TemplateCard = React.memo(({
 
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
-        // Evita thumbnail preta
         if (dataUrl && dataUrl !== "data:,") {
-          console.log("✅ Thumbnail gerada com sucesso!");
           setGeneratedThumb(dataUrl);
-        } else {
-          console.warn("⚠️ Thumbnail vazia ou inválida");
         }
       } catch (err) {
         console.warn("❌ Falha ao gerar thumbnail do vídeo:", err);
@@ -159,39 +141,26 @@ const TemplateCard = React.memo(({
     };
 
     const handleLoadedMetadata = () => {
-      console.log("📹 Metadata carregada. Duração:", video.duration);
-      // captura em ~10% do vídeo ou 0.5s
       const safeTime = Math.min(
         Math.max(video.duration * 0.1, 0.5),
         video.duration - 0.1
       );
-      console.log("⏱️ Buscando frame em:", safeTime, "segundos");
       video.currentTime = safeTime;
-    };
-
-    const handleError = (e) => {
-      console.error("❌ Erro ao carregar vídeo:", e);
     };
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("seeked", captureFrame, { once: true });
-    video.addEventListener("error", handleError);
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("seeked", captureFrame);
-      video.removeEventListener("error", handleError);
     };
   }, [item?.video_url, item?.thumb_url]);
-
-  // Estado para gerenciar erros de carregamento de imagem
-  const [imageError, setImageError] = useState(false);
 
   // ============================================================
   // 🎯 LÓGICA UNIFICADA DE MÍDIA
   // ============================================================
   const mediaInfo = useMemo(() => {
-    // Detectar tipo de vídeo
     const videoUrl = item?.video_url || item?.youtube_url;
     const videoType = detectVideoType(videoUrl);
     
@@ -199,26 +168,15 @@ const TemplateCard = React.memo(({
     const hasLocalVideo = videoType === 'local';
     const hasVideo = hasYouTubeVideo || hasLocalVideo;
     
-    // Gerar thumbnail do YouTube se aplicável
     const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
     const youtubeThumbnail = videoId 
       ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
       : null;
     
-    // Determinar URL da thumbnail/imagem
-    // Prioridade: thumb_url > image_url > youtubeThumbnail
     let thumbnailUrl = null;
     if (hasVideo) {
-      // Prioridade:
-      // 1. thumb_url (se existir)
-      // 2. thumbnail do YouTube
-      // 3. thumbnail gerado client-side (MP4)
-      thumbnailUrl =
-        item?.thumb_url ||
-        youtubeThumbnail ||
-        generatedThumb;
+      thumbnailUrl = item?.thumb_url || youtubeThumbnail || generatedThumb;
     } else {
-      // Para imagens: usar image_url diretamente
       thumbnailUrl = item?.image_url;
     }
     
@@ -244,11 +202,12 @@ const TemplateCard = React.memo(({
     generatedThumb
   ]);
 
-  // Atualiza a referência estável sempre que a thumbnail está disponível
+  // ============================================================
+  // 🔒 SOLUÇÃO DO FLICKER: Ref estável que NUNCA limpa
+  // ============================================================
   useEffect(() => {
     if (mediaInfo.thumbnailUrl) {
       stableThumbnailRef.current = mediaInfo.thumbnailUrl;
-      console.log("✅ Thumbnail estável atualizada:", mediaInfo.thumbnailUrl.substring(0, 50));
     }
   }, [mediaInfo.thumbnailUrl]);
 
@@ -544,7 +503,7 @@ const TemplateCard = React.memo(({
                 onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-                {/* Thumbnail estável - usa a ref que nunca limpa */}
+                {/* 🔒 THUMBNAIL ESTÁVEL - Nunca some após ser carregada */}
                 {stableThumbnailRef.current && (
                   <img
                     src={
