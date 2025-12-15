@@ -77,6 +77,7 @@ function PromptGrid({
     >
       <CardComponent
         prompt={prompt}
+        user={user}
         onEdit={onEdit}
         onDelete={onDelete}
         onCopy={onCopy}
