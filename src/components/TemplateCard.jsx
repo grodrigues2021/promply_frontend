@@ -1,5 +1,5 @@
 // src/components/TemplateCard.jsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import {
@@ -98,6 +98,51 @@ const TemplateCard = React.memo(({
 }) => {
   const item = template;
 
+// ============================================================
+// 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
+// ============================================================
+const videoRef = useRef(null);
+const canvasRef = useRef(null);
+const [generatedThumb, setGeneratedThumb] = useState(null);
+
+useEffect(() => {
+  // Só gera thumbnail se:
+  // - for vídeo local (MP4)
+  // - NÃO existir thumb_url
+  if (!item?.video_url || item?.thumb_url) return;
+
+  const video = document.createElement("video");
+  video.src = resolveMediaUrl(item.video_url);
+  video.crossOrigin = "anonymous";
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = "metadata";
+
+  const captureFrame = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      setGeneratedThumb(dataUrl);
+    } catch (err) {
+      console.warn("❌ Falha ao gerar thumbnail do vídeo:", err);
+    }
+  };
+
+  video.addEventListener("loadeddata", captureFrame, { once: true });
+
+  return () => {
+    video.removeEventListener("loadeddata", captureFrame);
+  };
+}, [item?.video_url, item?.thumb_url]);
+
+
+
   // Estado para gerenciar erros de carregamento de imagem
   const [imageError, setImageError] = useState(false);
 
@@ -123,9 +168,16 @@ const TemplateCard = React.memo(({
     // Prioridade: thumb_url > image_url > youtubeThumbnail
     let thumbnailUrl = null;
     if (hasVideo) {
-      // Para vídeos: usar thumb_url gerado ou thumbnail do YouTube
-      thumbnailUrl = item?.thumb_url || youtubeThumbnail;
-    } else {
+  // Prioridade:
+  // 1. thumb_url (se existir)
+  // 2. thumbnail do YouTube
+  // 3. thumbnail gerado client-side (MP4)
+  thumbnailUrl =
+    item?.thumb_url ||
+    youtubeThumbnail ||
+    generatedThumb;
+}
+ else {
       // Para imagens: usar image_url diretamente
       thumbnailUrl = item?.image_url;
     }
@@ -148,7 +200,8 @@ const TemplateCard = React.memo(({
     item?.video_url,
     item?.youtube_url,
     item?.image_url,
-    item?.thumb_url
+    item?.thumb_url,
+    generatedThumb
   ]);
 
   // Tags processadas
