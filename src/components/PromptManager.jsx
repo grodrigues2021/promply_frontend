@@ -984,10 +984,25 @@ const savePrompt = async () => {
 
     const imageBlobUrl = safeCreateObjectURL(promptForm.imageFile);
     const videoBlobUrl = safeCreateObjectURL(promptForm.videoFile);
-    const thumbBlobUrl =
-      promptForm.videoFile && promptForm.imageFile
-        ? safeCreateObjectURL(promptForm.imageFile)
-        : "";
+
+    // =========================================================
+    // 🎥 THUMBNAIL — PRIORIDADE CORRETA
+    // 1) Vídeo local → blob
+    // 2) YouTube → thumbnail pública
+    // =========================================================
+    let thumbUrl = "";
+
+    if (promptForm.videoFile && promptForm.imageFile) {
+      // 🎬 Vídeo local com thumbnail gerado no client
+      thumbUrl = safeCreateObjectURL(promptForm.imageFile);
+    } else if (promptForm.youtube_url) {
+      // 🎥 YouTube → thumbnail oficial
+      const ytThumb = getYouTubeThumbnail(promptForm.youtube_url);
+      if (ytThumb) {
+        thumbUrl = ytThumb;
+      }
+    }
+
 
     const optimisticPrompt = {
       id: tempId,
@@ -1010,7 +1025,7 @@ const savePrompt = async () => {
 
       image_url: imageBlobUrl || "",
       video_url: videoBlobUrl || "",
-      thumb_url: thumbBlobUrl || "",
+      thumb_url: thumbUrl || "",
 
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
