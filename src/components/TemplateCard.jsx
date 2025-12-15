@@ -158,6 +158,8 @@ useEffect(() => {
   // Estado para gerenciar erros de carregamento de imagem
   const [imageError, setImageError] = useState(false);
 
+  const stableThumbnailRef = useRef(null);
+
   // ============================================================
   // 🎯 LÓGICA UNIFICADA DE MÍDIA
   // ============================================================
@@ -215,6 +217,13 @@ useEffect(() => {
     item?.thumb_url,
     generatedThumb
   ]);
+
+useEffect(() => {
+  if (mediaInfo.thumbnailUrl && !stableThumbnailRef.current) {
+    stableThumbnailRef.current = mediaInfo.thumbnailUrl;
+  }
+}, [mediaInfo.thumbnailUrl]);
+
 
   // Tags processadas
   const tagsArray = useMemo(() => {
@@ -508,13 +517,14 @@ useEffect(() => {
                 onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-                {mediaInfo.thumbnailUrl ? (
+                {(stableThumbnailRef.current || mediaInfo.thumbnailUrl) ? (
+
                   <img
                     src={
-                      mediaInfo.thumbnailUrl?.startsWith("http")
-                        ? mediaInfo.thumbnailUrl
-                        : resolveMediaUrl(mediaInfo.thumbnailUrl)
-                    }
+  (stableThumbnailRef.current || mediaInfo.thumbnailUrl)?.startsWith("http")
+    ? (stableThumbnailRef.current || mediaInfo.thumbnailUrl)
+    : resolveMediaUrl(stableThumbnailRef.current || mediaInfo.thumbnailUrl)
+}
                     alt={item?.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
