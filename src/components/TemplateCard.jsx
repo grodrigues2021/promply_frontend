@@ -112,7 +112,20 @@ const TemplateCard = React.memo(({
     // 2. NÃO tem thumb_url
     // 3. É um vídeo local (não YouTube)
     const videoType = detectVideoType(item?.video_url);
-    if (!item?.video_url || item?.thumb_url || videoType !== 'local') return;
+    
+    console.log("🎬 Debug geração thumbnail:", {
+      video_url: item?.video_url,
+      thumb_url: item?.thumb_url,
+      videoType,
+      shouldGenerate: !!(item?.video_url && !item?.thumb_url && videoType === 'local')
+    });
+
+    if (!item?.video_url || item?.thumb_url || videoType !== 'local') {
+      console.log("⏭️ Pulando geração de thumbnail");
+      return;
+    }
+
+    console.log("✅ Iniciando geração de thumbnail...");
 
     const video = document.createElement("video");
     video.src = resolveMediaUrl(item.video_url);
@@ -123,6 +136,7 @@ const TemplateCard = React.memo(({
 
     const captureFrame = () => {
       try {
+        console.log("📸 Capturando frame do vídeo...");
         const canvas = document.createElement("canvas");
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
@@ -134,7 +148,10 @@ const TemplateCard = React.memo(({
 
         // Evita thumbnail preta
         if (dataUrl && dataUrl !== "data:,") {
+          console.log("✅ Thumbnail gerada com sucesso!");
           setGeneratedThumb(dataUrl);
+        } else {
+          console.warn("⚠️ Thumbnail vazia ou inválida");
         }
       } catch (err) {
         console.warn("❌ Falha ao gerar thumbnail do vídeo:", err);
@@ -142,20 +159,28 @@ const TemplateCard = React.memo(({
     };
 
     const handleLoadedMetadata = () => {
+      console.log("📹 Metadata carregada. Duração:", video.duration);
       // captura em ~10% do vídeo ou 0.5s
       const safeTime = Math.min(
         Math.max(video.duration * 0.1, 0.5),
         video.duration - 0.1
       );
+      console.log("⏱️ Buscando frame em:", safeTime, "segundos");
       video.currentTime = safeTime;
+    };
+
+    const handleError = (e) => {
+      console.error("❌ Erro ao carregar vídeo:", e);
     };
 
     video.addEventListener("loadedmetadata", handleLoadedMetadata);
     video.addEventListener("seeked", captureFrame, { once: true });
+    video.addEventListener("error", handleError);
 
     return () => {
       video.removeEventListener("loadedmetadata", handleLoadedMetadata);
       video.removeEventListener("seeked", captureFrame);
+      video.removeEventListener("error", handleError);
     };
   }, [item?.video_url, item?.thumb_url]);
 
