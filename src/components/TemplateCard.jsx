@@ -1,5 +1,5 @@
 // src/components/TemplateCard.jsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
