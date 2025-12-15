@@ -48,13 +48,9 @@ export function useCreateTemplateMutation() {
       return data.data;
     },
 
-    onSuccess: (newTemplate) => {
-      queryClient.setQueryData(["templates"], (old) => {
-        return [newTemplate, ...(old || [])];
-      });
-
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["templates"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
-      console.log("✅ Template adicionado ao cache!");
     },
 
     onError: (error) => {
@@ -89,9 +85,18 @@ export function useUpdateTemplateMutation() {
       queryClient.setQueryData(["templates"], (old) => {
         if (!old) return [updatedTemplate];
 
-        return old.map((t) =>
-          t.id === updatedTemplate.id ? updatedTemplate : t
-        );
+        return old.map((t) => {
+          if (t.id !== updatedTemplate.id) return t;
+
+          return {
+            ...t,
+            ...updatedTemplate,
+            category:
+              updatedTemplate.category !== undefined
+                ? updatedTemplate.category
+                : t.category,
+          };
+        });
       });
 
       queryClient.invalidateQueries({ queryKey: ["stats"] });

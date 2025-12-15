@@ -111,7 +111,9 @@ export default function TemplateModal({
         setTitle(template?.title || "");
         setDescription(template?.description || "");
         setContent(template?.content || "");
-        setSelectedCategories(template?.categories_ids || []);
+        setSelectedCategories(
+    template?.category_id ? [Number(template.category_id)] : []
+);
         setPlatform(template?.platform || "");
         
         // 🟣 Normalização de tags
@@ -324,145 +326,130 @@ export default function TemplateModal({
     // ============================================================
     // 🟦 HANDLE SAVE - VERSÃO FINAL E CORRIGIDA
     // ============================================================
-    const handleSave = async () => {
-        console.log("💾 [TemplateModal] handleSave INICIADO");
+const handleSave = async () => {
+    console.log("💾 [TemplateModal] handleSave INICIADO");
 
-        if (!title.trim()) {
-            alert("Título é obrigatório.");
-            return;
-        }
-        if (!content.trim()) {
-            alert("Conteúdo é obrigatório.");
-            return;
-        }
+    if (!title.trim()) {
+        alert("Título é obrigatório.");
+        return;
+    }
 
-        setIsSaving(true);
+    if (!content.trim()) {
+        alert("Conteúdo é obrigatório.");
+        return;
+    }
 
-        try {
-            // 🔵 PREPARAR TAGS
-            const tagsArray = tagsInput
-                .split(",")
-                .map((t) => t.trim())
-                .filter(Boolean);
+    setIsSaving(true);
 
-            console.log("   📋 Tags processadas:", tagsArray);
+    try {
+        // ============================================================
+        // 🏷️ TAGS
+        // ============================================================
+        const tagsArray = tagsInput
+            .split(",")
+            .map(t => t.trim())
+            .filter(Boolean);
 
-            // 🔵 IDENTIFICADORES
-            const hasNewMedia = imageFile || videoFile;
-            const hasYouTube = extractYouTubeId(youtubeUrl);
-            const hasExtraFiles = extraFiles && extraFiles.length > 0;
+        // ============================================================
+        // 🟢 CATEGORY_ID (FONTE ÚNICA DA VERDADE)
+        // ============================================================
+        const categoryId =
+            selectedCategories.length > 0
+                ? Number(selectedCategories[0])
+                : null;
 
-            console.log("   🔍 Detecção de mídia:");
-            console.log("      - hasNewMedia:", hasNewMedia);
-            console.log("      - hasYouTube:", hasYouTube);
-            console.log("      - hasExtraFiles:", hasExtraFiles);
+        // ============================================================
+        // 🔍 DETECÇÃO DE MÍDIA
+        // ============================================================
+        const hasNewMedia = imageFile || videoFile;
+        const hasYouTube = extractYouTubeId(youtubeUrl);
+        const hasExtraFiles = extraFiles && extraFiles.length > 0;
 
-            // 🔵 NECESSIDADE DE FORMDATA
-            const mustUseFormData = hasNewMedia || hasYouTube || hasExtraFiles;
+        const mustUseFormData = hasNewMedia || hasYouTube || hasExtraFiles;
 
-            console.log("   📦 Usar FormData:", mustUseFormData);
+        let payload;
 
-            let payload;
+        // ============================================================
+        // 📦 FORMDATA (UPLOAD)
+        // ============================================================
+        if (mustUseFormData) {
+            payload = new FormData();
 
-            // ============================================================
-            // 🔵 CASO 1 - FORMDATA (upload de qualquer arquivo)
-            // ============================================================
-            if (mustUseFormData) {
-                console.log("   📤 Construindo FormData...");
-                payload = new FormData();
+            payload.append("title", title);
+            payload.append("description", description);
+            payload.append("content", content);
+            payload.append("tags", JSON.stringify(tagsArray));
+            payload.append("platform", platform || "");
 
-                payload.append("title", title);
-                payload.append("description", description);
-                payload.append("content", content);
-                payload.append("categories", JSON.stringify(selectedCategories));
-                payload.append("tags", JSON.stringify(tagsArray));
-                payload.append("platform", platform || "");
+            // ✅ CATEGORIA — CAMPO CORRETO
+            payload.append(
+                "category_id",
+                categoryId !== null ? String(categoryId) : ""
+            );
 
-                // 🔵 MÍDIA NOVA
-                if (imageFile) {
-                    payload.append("image", imageFile);
-                    console.log("      ✅ Imagem adicionada:", imageFile.name);
-                }
-                if (videoFile) {
-                    payload.append("video", videoFile);
-                    console.log("      ✅ Vídeo adicionado:", videoFile.name);
-                }
-
-                // 🔵 YOUTUBE
-                if (hasYouTube) {
-                    payload.append("youtube_url", youtubeUrl);
-                    const ytId = extractYouTubeId(youtubeUrl);
-                    if (ytId) {
-                        const ytThumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-                        payload.append("thumb_url", ytThumb);
-                        console.log("      ✅ YouTube URL adicionada:", youtubeUrl);
-                    }
-                }
-
-                // 🔵 ARQUIVOS EXTRAS (CRÍTICO!)
-                if (hasExtraFiles) {
-                    console.log(`      📎 Adicionando ${extraFiles.length} arquivo(s) extra(s):`);
-                    extraFiles.forEach((file, index) => {
-                        payload.append("extra_files", file);
-                        console.log(`         ${index + 1}. ${file.name} (${file.size} bytes)`);
-                    });
-                }
-
-                // 📋 LOG FINAL - Listar todo o FormData
-                console.log("   📋 FormData final - conteúdo completo:");
-                for (let [key, value] of payload.entries()) {
-                    if (value instanceof File) {
-                        console.log(`      🔑 ${key}: [File] ${value.name} (${value.size} bytes)`);
-                    } else {
-                        console.log(`      🔑 ${key}: ${value}`);
-                    }
-                }
-            }
-            // ============================================================
-            // 🔵 CASO 2 - JSON (nenhuma mídia envolvida)
-            // ============================================================
-            else {
-                console.log("   📤 Construindo JSON...");
-                
-                let finalThumbUrl = thumbUrl;
-                if (youtubeUrl) {
-                    const ytId = extractYouTubeId(youtubeUrl);
-                    if (ytId) {
-                        finalThumbUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-                    }
-                }
-
-                payload = {
-                    title,
-                    description,
-                    content,
-                    categories: selectedCategories,
-                    tags: tagsArray,
-                    platform: platform || null,
-                    youtube_url: youtubeUrl || null,
-                    thumb_url: finalThumbUrl || null,
-                    image_url: imageUrl || null,
-                    video_url: videoUrl || null,
-                };
-
-                console.log("   📋 JSON payload:", payload);
+            // 🖼️ IMAGEM
+            if (imageFile) {
+                payload.append("image", imageFile);
             }
 
-            // ============================================================
-            // 🔵 EXECUTAR SALVAMENTO
-            // ============================================================
-            console.log("   🚀 Chamando onSave...");
-            await onSave(payload, template?.id || null);
+            // 🎬 VÍDEO
+            if (videoFile) {
+                payload.append("video", videoFile);
+            }
 
-            console.log("   ✅ Template salvo com sucesso!");
-            setIsSaving(false);
-            onClose();
-        } catch (err) {
-            console.error("❌ Erro ao salvar template:", err);
-            alert("Erro ao salvar template.");
-            setIsSaving(false);
+            // ▶️ YOUTUBE
+            if (hasYouTube) {
+                payload.append("youtube_url", youtubeUrl);
+
+                const ytId = extractYouTubeId(youtubeUrl);
+                if (ytId) {
+                    payload.append(
+                        "thumb_url",
+                        `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+                    );
+                }
+            }
+
+            // 📎 ARQUIVOS EXTRAS
+            if (hasExtraFiles) {
+                extraFiles.forEach(file => {
+                    payload.append("extra_files", file);
+                });
+            }
         }
-    };
+
+        // ============================================================
+        // 📦 JSON (SEM UPLOAD)
+        // ============================================================
+        else {
+            payload = {
+                title,
+                description,
+                content,
+                tags: tagsArray,
+                platform: platform || null,
+                category_id: categoryId,
+                youtube_url: youtubeUrl || null,
+                thumb_url: thumbUrl || null,
+                image_url: imageUrl || null,
+                video_url: videoUrl || null,
+            };
+        }
+
+        // ============================================================
+        // 🚀 SALVAR
+        // ============================================================
+        await onSave(payload, template?.id || null);
+
+        setIsSaving(false);
+        onClose();
+
+    } catch (err) {
+        console.error("❌ Erro ao salvar template:", err);
+        alert("Erro ao salvar template.");
+        setIsSaving(false);
+    }
+};
 
     // ============================================================
     // 🔴 REMOVER ARQUIVO EXTRA EXISTENTE
