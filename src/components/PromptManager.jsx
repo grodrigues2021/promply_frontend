@@ -1124,6 +1124,7 @@ queryClient.invalidateQueries(["categories"]);
     if (promptId && (hasImage || hasVideo || extraFiles.length > 0)) {
       const mediaForm = new FormData();
 
+      
       if (hasImage) {
         mediaForm.append("image", promptForm.imageFile);
       }
