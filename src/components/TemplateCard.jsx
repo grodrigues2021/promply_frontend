@@ -106,9 +106,6 @@ const canvasRef = useRef(null);
 const [generatedThumb, setGeneratedThumb] = useState(null);
 
 useEffect(() => {
-  // Só gera thumbnail se:
-  // - for vídeo local (MP4)
-  // - NÃO existir thumb_url
   if (!item?.video_url || item?.thumb_url) return;
 
   const video = document.createElement("video");
@@ -128,16 +125,31 @@ useEffect(() => {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-      setGeneratedThumb(dataUrl);
+
+      // Evita thumbnail preta
+      if (dataUrl && dataUrl !== "data:,") {
+        setGeneratedThumb(dataUrl);
+      }
     } catch (err) {
       console.warn("❌ Falha ao gerar thumbnail do vídeo:", err);
     }
   };
 
-  video.addEventListener("loadeddata", captureFrame, { once: true });
+  const handleLoadedMetadata = () => {
+    // captura em ~10% do vídeo ou 0.5s
+    const safeTime = Math.min(
+      Math.max(video.duration * 0.1, 0.5),
+      video.duration - 0.1
+    );
+    video.currentTime = safeTime;
+  };
+
+  video.addEventListener("loadedmetadata", handleLoadedMetadata);
+  video.addEventListener("seeked", captureFrame, { once: true });
 
   return () => {
-    video.removeEventListener("loadeddata", captureFrame);
+    video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+    video.removeEventListener("seeked", captureFrame);
   };
 }, [item?.video_url, item?.thumb_url]);
 
