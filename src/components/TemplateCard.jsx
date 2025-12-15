@@ -179,63 +179,73 @@ useEffect(() => {
 
 
 
+const mediaInfo = useMemo(() => {
   // ============================================================
-  // 🎯 LÓGICA UNIFICADA DE MÍDIA
+  // 🎬 DETECÇÃO DE VÍDEO
   // ============================================================
-  const mediaInfo = useMemo(() => {
-    // Detectar tipo de vídeo
-    const videoUrl = item?.video_url || item?.youtube_url;
-    const videoType = detectVideoType(videoUrl);
-    
-    const hasYouTubeVideo = videoType === 'youtube';
-    const hasLocalVideo = videoType === 'local';
-    const hasVideo = hasYouTubeVideo || hasLocalVideo;
-    
-    // Gerar thumbnail do YouTube se aplicável
-    const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
-    const youtubeThumbnail = videoId 
-      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-      : null;
-    
-    // Determinar URL da thumbnail/imagem
-    // Prioridade: thumb_url > image_url > youtubeThumbnail
-    let thumbnailUrl = null;
-    if (hasVideo) {
-  // Prioridade:
-  // 1. thumb_url (se existir)
-  // 2. thumbnail do YouTube
-  // 3. thumbnail gerado client-side (MP4)
-  thumbnailUrl =
-    item?.thumb_url ||
-    youtubeThumbnail ||
-    generatedThumb;
-}
- else {
-      // Para imagens: usar image_url diretamente
-      thumbnailUrl = item?.image_url;
-    }
-    
-    const hasImage = !!thumbnailUrl;
-    const hasMedia = hasVideo || hasImage;
-    
-    return { 
-      hasVideo,
-      hasYouTubeVideo,
-      hasLocalVideo,
-      hasImage, 
-      hasMedia, 
-      videoUrl,
-      videoId, 
-      thumbnailUrl,
-      youtubeThumbnail,
-    };
-  }, [
-    item?.video_url,
-    item?.youtube_url,
-    item?.image_url,
-    item?.thumb_url,
-    generatedThumb
-  ]);
+  const videoUrl = item?.video_url || item?.youtube_url;
+  const videoType = detectVideoType(videoUrl);
+
+  const hasYouTubeVideo = videoType === "youtube";
+  const hasLocalVideo = videoType === "local";
+  const hasVideo = hasYouTubeVideo || hasLocalVideo;
+
+  // ============================================================
+  // ▶️ YOUTUBE
+  // ============================================================
+  const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
+  const youtubeThumbnail = videoId
+    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+    : null;
+
+  // ============================================================
+  // 🖼️ DEFINIÇÃO ÚNICA DE THUMBNAIL (DESKTOP + MOBILE)
+  // ============================================================
+  let thumbnailUrl = null;
+
+  if (hasVideo) {
+    /**
+     * PRIORIDADE CORRETA PARA VÍDEO (MP4 / YOUTUBE):
+     *
+     * 1. thumb_url  → backend (fonte única da verdade)
+     * 2. image_url  → thumbnail capturado no upload
+     * 3. youtubeThumbnail → fallback YouTube
+     * 4. generatedThumb → último fallback client-side
+     */
+    thumbnailUrl =
+      item?.thumb_url ||
+      item?.image_url ||
+      youtubeThumbnail ||
+      generatedThumb;
+  } else {
+    /**
+     * IMAGEM SIMPLES
+     */
+    thumbnailUrl = item?.image_url;
+  }
+
+  const hasImage = !!thumbnailUrl;
+  const hasMedia = hasVideo || hasImage;
+
+  return {
+    hasVideo,
+    hasYouTubeVideo,
+    hasLocalVideo,
+    hasImage,
+    hasMedia,
+    videoUrl,
+    videoId,
+    thumbnailUrl,
+    youtubeThumbnail,
+  };
+}, [
+  item?.video_url,
+  item?.youtube_url,
+  item?.image_url,
+  item?.thumb_url,
+  generatedThumb,
+]);
+
 
 useEffect(() => {
   if (!lockedThumbnail && mediaInfo.thumbnailUrl) {
