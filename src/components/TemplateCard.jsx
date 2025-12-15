@@ -408,8 +408,10 @@ useEffect(() => {
           </div>
 
           <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-            {item?.description || item?.content}
-          </p>
+  {item?.description?.trim()
+    ? item.description
+    : item?.content}
+</p>
         </div>
 
         {tagsArray.length > 0 && (
@@ -503,7 +505,8 @@ useEffect(() => {
           )}
 
           {/* Excluir – somente admin */}
-          {user?.is_admin && onDelete && (
+          {user?.is_admin && typeof onDelete === "function" && (
+
             <Button
               variant="outline"
               size="sm"
