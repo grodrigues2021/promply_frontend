@@ -1,5 +1,6 @@
 // src/components/TemplateCard.jsx
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import {
@@ -158,7 +159,13 @@ useEffect(() => {
   // Estado para gerenciar erros de carregamento de imagem
   const [imageError, setImageError] = useState(false);
 
-  const stableThumbnailRef = useRef(null);
+  // ============================================================
+  // 🔒 Thumbnail estável (nunca reverte depois de existir)
+  // ============================================================
+  const [lockedThumbnail, setLockedThumbnail] = useState(null);
+
+
+
 
   // ============================================================
   // 🎯 LÓGICA UNIFICADA DE MÍDIA
@@ -219,10 +226,13 @@ useEffect(() => {
   ]);
 
 useEffect(() => {
-  if (mediaInfo.thumbnailUrl && !stableThumbnailRef.current) {
-    stableThumbnailRef.current = mediaInfo.thumbnailUrl;
+  if (!lockedThumbnail && mediaInfo.thumbnailUrl) {
+    setLockedThumbnail(mediaInfo.thumbnailUrl);
   }
-}, [mediaInfo.thumbnailUrl]);
+}, [mediaInfo.thumbnailUrl, lockedThumbnail]);
+
+
+
 
 
   // Tags processadas
@@ -502,55 +512,53 @@ useEffect(() => {
       {mediaInfo.hasMedia ? (
         <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
           
-          {/* 🎬 VÍDEO LOCAL */}
-          {mediaInfo.hasLocalVideo && (
-            <>
-              {/* Badge de tipo */}
-              <div className="absolute top-2 right-2 z-20">
-                <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
-                  Vídeo
-                </Badge>
-              </div>
+{mediaInfo.hasLocalVideo && (
+  <>
+    {/* Badge de tipo */}
+    <div className="absolute top-2 right-2 z-20">
+      <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
+        Vídeo
+      </Badge>
+    </div>
 
-              <button
-                type="button"
-                onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-                className="relative w-full h-full group/media overflow-hidden"
-              >
-                {/* Thumbnail estável – nunca some depois de existir */}
-{(stableThumbnailRef.current || mediaInfo.thumbnailUrl) && (
-  <img
-    src={
-      (stableThumbnailRef.current || mediaInfo.thumbnailUrl)?.startsWith("http")
-        ? (stableThumbnailRef.current || mediaInfo.thumbnailUrl)
-        : resolveMediaUrl(stableThumbnailRef.current || mediaInfo.thumbnailUrl)
-    }
-    alt={item.title}
-    className="w-full h-full object-cover"
-  />
+    <button
+      type="button"
+      onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+      className="relative w-full h-full group/media overflow-hidden"
+    >
+      {/* Thumbnail definitiva – nunca desmonta */}
+      {lockedThumbnail ? (
+        <img
+          src={
+            lockedThumbnail.startsWith("http")
+              ? lockedThumbnail
+              : resolveMediaUrl(lockedThumbnail)
+          }
+          alt={item.title}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+          <Play className="h-16 w-16 text-purple-400" />
+        </div>
+      )}
+
+      {/* Overlay de hover (mantido) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+        <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+          <Play className="h-8 w-8 text-purple-600 fill-current" />
+        </div>
+      </div>
+
+      <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+        <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+          Clique para assistir
+        </span>
+      </div>
+    </button>
+  </>
 )}
 
-{/* Placeholder roxo – APENAS se NUNCA houve thumbnail */}
-{!stableThumbnailRef.current && !mediaInfo.thumbnailUrl && (
-  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-    <Play className="h-16 w-16 text-purple-400" />
-  </div>
-)}
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                    <Play className="h-8 w-8 text-purple-600 fill-current" />
-                  </div>
-                </div>
-
-                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                    Clique para assistir
-                  </span>
-                </div>
-              </button>
-            </>
-          )}
 
           {/* 🎥 YOUTUBE */}
           {mediaInfo.hasYouTubeVideo && (
