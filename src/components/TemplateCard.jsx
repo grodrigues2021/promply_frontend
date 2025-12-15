@@ -107,7 +107,12 @@ const TemplateCard = React.memo(({
   const stableThumbnailRef = useRef(null);
 
   useEffect(() => {
-    if (!item?.video_url || item?.thumb_url) return;
+    // Só gera thumbnail se:
+    // 1. Tem video_url
+    // 2. NÃO tem thumb_url
+    // 3. É um vídeo local (não YouTube)
+    const videoType = detectVideoType(item?.video_url);
+    if (!item?.video_url || item?.thumb_url || videoType !== 'local') return;
 
     const video = document.createElement("video");
     video.src = resolveMediaUrl(item.video_url);
@@ -218,6 +223,7 @@ const TemplateCard = React.memo(({
   useEffect(() => {
     if (mediaInfo.thumbnailUrl) {
       stableThumbnailRef.current = mediaInfo.thumbnailUrl;
+      console.log("✅ Thumbnail estável atualizada:", mediaInfo.thumbnailUrl.substring(0, 50));
     }
   }, [mediaInfo.thumbnailUrl]);
 
