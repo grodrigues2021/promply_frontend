@@ -1135,6 +1135,7 @@ queryClient.invalidateQueries(["categories"]);
         }
       }
 
+      
       extraFiles.forEach((file) =>
         mediaForm.append("extra_files", file)
       );
