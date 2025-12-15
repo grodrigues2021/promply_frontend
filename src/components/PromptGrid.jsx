@@ -12,6 +12,7 @@ function PromptGrid({
   prompts = [],
   isLoading = false,
   emptyMessage = "Nenhum prompt encontrado",
+  user,
   onEdit,
   onDelete,
   onCopy,
