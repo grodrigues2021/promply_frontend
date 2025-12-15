@@ -98,67 +98,64 @@ const TemplateCard = React.memo(({
 }) => {
   const item = template;
 
-// ============================================================
-// 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
-// ============================================================
-const videoRef = useRef(null);
-const canvasRef = useRef(null);
-const [generatedThumb, setGeneratedThumb] = useState(null);
+  // ============================================================
+  // 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
+  // ============================================================
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [generatedThumb, setGeneratedThumb] = useState(null);
+  const stableThumbnailRef = useRef(null);
 
-useEffect(() => {
-  if (!item?.video_url || item?.thumb_url) return;
+  useEffect(() => {
+    if (!item?.video_url || item?.thumb_url) return;
 
-  const video = document.createElement("video");
-  video.src = resolveMediaUrl(item.video_url);
-  video.crossOrigin = "anonymous";
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = "metadata";
+    const video = document.createElement("video");
+    video.src = resolveMediaUrl(item.video_url);
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
 
-  const captureFrame = () => {
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+    const captureFrame = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
 
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
 
-      // Evita thumbnail preta
-      if (dataUrl && dataUrl !== "data:,") {
-        setGeneratedThumb(dataUrl);
+        // Evita thumbnail preta
+        if (dataUrl && dataUrl !== "data:,") {
+          setGeneratedThumb(dataUrl);
+        }
+      } catch (err) {
+        console.warn("❌ Falha ao gerar thumbnail do vídeo:", err);
       }
-    } catch (err) {
-      console.warn("❌ Falha ao gerar thumbnail do vídeo:", err);
-    }
-  };
+    };
 
-  const handleLoadedMetadata = () => {
-    // captura em ~10% do vídeo ou 0.5s
-    const safeTime = Math.min(
-      Math.max(video.duration * 0.1, 0.5),
-      video.duration - 0.1
-    );
-    video.currentTime = safeTime;
-  };
+    const handleLoadedMetadata = () => {
+      // captura em ~10% do vídeo ou 0.5s
+      const safeTime = Math.min(
+        Math.max(video.duration * 0.1, 0.5),
+        video.duration - 0.1
+      );
+      video.currentTime = safeTime;
+    };
 
-  video.addEventListener("loadedmetadata", handleLoadedMetadata);
-  video.addEventListener("seeked", captureFrame, { once: true });
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("seeked", captureFrame, { once: true });
 
-  return () => {
-    video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-    video.removeEventListener("seeked", captureFrame);
-  };
-}, [item?.video_url, item?.thumb_url]);
-
-
+    return () => {
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("seeked", captureFrame);
+    };
+  }, [item?.video_url, item?.thumb_url]);
 
   // Estado para gerenciar erros de carregamento de imagem
   const [imageError, setImageError] = useState(false);
-
-  const stableThumbnailRef = useRef(null);
 
   // ============================================================
   // 🎯 LÓGICA UNIFICADA DE MÍDIA
@@ -182,16 +179,15 @@ useEffect(() => {
     // Prioridade: thumb_url > image_url > youtubeThumbnail
     let thumbnailUrl = null;
     if (hasVideo) {
-  // Prioridade:
-  // 1. thumb_url (se existir)
-  // 2. thumbnail do YouTube
-  // 3. thumbnail gerado client-side (MP4)
-  thumbnailUrl =
-    item?.thumb_url ||
-    youtubeThumbnail ||
-    generatedThumb;
-}
- else {
+      // Prioridade:
+      // 1. thumb_url (se existir)
+      // 2. thumbnail do YouTube
+      // 3. thumbnail gerado client-side (MP4)
+      thumbnailUrl =
+        item?.thumb_url ||
+        youtubeThumbnail ||
+        generatedThumb;
+    } else {
       // Para imagens: usar image_url diretamente
       thumbnailUrl = item?.image_url;
     }
@@ -218,12 +214,12 @@ useEffect(() => {
     generatedThumb
   ]);
 
-useEffect(() => {
-  if (mediaInfo.thumbnailUrl && !stableThumbnailRef.current) {
-    stableThumbnailRef.current = mediaInfo.thumbnailUrl;
-  }
-}, [mediaInfo.thumbnailUrl]);
-
+  // Atualiza a referência estável sempre que a thumbnail está disponível
+  useEffect(() => {
+    if (mediaInfo.thumbnailUrl) {
+      stableThumbnailRef.current = mediaInfo.thumbnailUrl;
+    }
+  }, [mediaInfo.thumbnailUrl]);
 
   // Tags processadas
   const tagsArray = useMemo(() => {
@@ -465,7 +461,7 @@ useEffect(() => {
             </Button>
           )}
 
-          {/* Editar — somente admin */}
+          {/* Editar – somente admin */}
           {user?.is_admin && onEdit && (
             <Button
               variant="outline"
@@ -480,7 +476,7 @@ useEffect(() => {
             </Button>
           )}
 
-          {/* Excluir — somente admin */}
+          {/* Excluir – somente admin */}
           {user?.is_admin && onDelete && (
             <Button
               variant="outline"
@@ -517,25 +513,25 @@ useEffect(() => {
                 onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-                {/* Thumbnail estável — nunca some depois de existir */}
-{(stableThumbnailRef.current || mediaInfo.thumbnailUrl) && (
-  <img
-    src={
-      (stableThumbnailRef.current || mediaInfo.thumbnailUrl)?.startsWith("http")
-        ? (stableThumbnailRef.current || mediaInfo.thumbnailUrl)
-        : resolveMediaUrl(stableThumbnailRef.current || mediaInfo.thumbnailUrl)
-    }
-    alt={item.title}
-    className="w-full h-full object-cover"
-  />
-)}
+                {/* Thumbnail estável - usa a ref que nunca limpa */}
+                {stableThumbnailRef.current && (
+                  <img
+                    src={
+                      stableThumbnailRef.current.startsWith("http")
+                        ? stableThumbnailRef.current
+                        : resolveMediaUrl(stableThumbnailRef.current)
+                    }
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                  />
+                )}
 
-{/* Placeholder roxo — APENAS se NUNCA houve thumbnail */}
-{!stableThumbnailRef.current && !mediaInfo.thumbnailUrl && (
-  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-    <Play className="h-16 w-16 text-purple-400" />
-  </div>
-)}
+                {/* Placeholder roxo - APENAS se NUNCA houve thumbnail */}
+                {!stableThumbnailRef.current && (
+                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+                    <Play className="h-16 w-16 text-purple-400" />
+                  </div>
+                )}
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
@@ -607,17 +603,16 @@ useEffect(() => {
               >
                 {!imageError ? (
                   <img
-                      src={
-                        mediaInfo.thumbnailUrl?.startsWith("http")
-                          ? mediaInfo.thumbnailUrl
-                          : resolveMediaUrl(mediaInfo.thumbnailUrl)
-                      }
-                      alt={item?.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                      loading="lazy"
-                      onError={() => setImageError(true)}
-                    />
-
+                    src={
+                      mediaInfo.thumbnailUrl?.startsWith("http")
+                        ? mediaInfo.thumbnailUrl
+                        : resolveMediaUrl(mediaInfo.thumbnailUrl)
+                    }
+                    alt={item?.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
+                    onError={() => setImageError(true)}
+                  />
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-100 to-blue-200">
                     <ImageIcon className="h-12 w-12 text-blue-400" />
