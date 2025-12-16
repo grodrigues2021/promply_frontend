@@ -82,7 +82,7 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
 
 
 /* ==========================================
-   📦 COMPONENTE TEMPLATE CARD (OTIMIZADO)
+   📦 COMPONENTE TEMPLATE CARD (COM INTERSECTION OBSERVER)
    ========================================== */
 
 const TemplateCard = React.memo(({
@@ -99,7 +99,7 @@ const TemplateCard = React.memo(({
   className,
 }) => {
   // ============================================================
-  // 🔍 Normalização de dados
+  // 📝 Normalização de dados
   // ============================================================
   const item = prompt || legacyTemplate;
 
@@ -120,70 +120,76 @@ const TemplateCard = React.memo(({
   // 📦 Cache persistente (recupera se já existe)
   // ============================================================
   const cachedThumbnail = thumbnailCache.get(templateId);
-
+  
   // ============================================================
-  // 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
+  // 🎬 Refs e estados para Intersection Observer
   // ============================================================
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const mediaContainerRef = useRef(null);
   const [localGeneratedThumb, setLocalGeneratedThumb] = useState(cachedThumbnail);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
+  // ============================================================
+  // 🎬 Intersection Observer - Processa SOB DEMANDA
+  // ============================================================
   useEffect(() => {
-    // Se já tem no cache, não precisa gerar
+    // ✅ Se já tem thumbnail no cache, não faz nada
     if (cachedThumbnail) return;
     
-    // Se já tem thumb_url do backend, não precisa gerar
+    // ✅ Se tem thumb_url do backend, não precisa gerar
     if (!item?.video_url || item?.thumb_url) return;
+    
+    // ✅ Só para vídeos MP4 locais (não YouTube)
+    if (item.video_url.includes('youtube') || item.video_url.includes('youtu.be')) return;
+    
+    // ✅ Se não tem ref do container, espera
+    if (!mediaContainerRef.current) return;
 
-    const video = document.createElement("video");
-    video.src = resolveMediaUrl(item.video_url);
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "metadata";
-
-    const captureFrame = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-
-        // Evita thumbnail preta
-        if (dataUrl && dataUrl !== "data:,") {
-          // ✅ Salvar no cache global
-          thumbnailCache.set(templateId, dataUrl);
-          setLocalGeneratedThumb(dataUrl);
-        }
-      } catch (err) {
-        console.warn("⚠️ Falha ao gerar thumbnail do vídeo:", err);
+    // ✅ INTERSECTION OBSERVER: Processa quando card entra na viewport
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting && !isProcessing) {
+            setIsProcessing(true);
+            
+            // Resolve URL do vídeo
+            const videoUrl = item.video_url.startsWith('http')
+              ? item.video_url
+              : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://api.promply.app'}/storage/${item.video_url}`;
+            
+            // ✅ Adiciona à fila global (max 5 simultâneos)
+            if (window.queueThumbnailGeneration) {
+              console.log(`🔄 [Observer] Enfileirando thumbnail: ${templateId}`);
+              
+              window.queueThumbnailGeneration(videoUrl, templateId, (success) => {
+                if (success) {
+                  const thumb = thumbnailCache.get(templateId);
+                  if (thumb) {
+                    setLocalGeneratedThumb(thumb);
+                  }
+                }
+                setIsProcessing(false);
+              });
+            }
+            
+            // Desconecta observer após processar
+            observer.disconnect();
+          }
+        });
+      },
+      {
+        root: null,
+        rootMargin: '200px', // Começa a processar 200px antes de aparecer
+        threshold: 0.01
       }
-    };
+    );
 
-    const handleLoadedMetadata = () => {
-      // captura em ~10% do vídeo ou 0.5s
-      const safeTime = Math.min(
-        Math.max(video.duration * 0.1, 0.5),
-        video.duration - 0.1
-      );
-      video.currentTime = safeTime;
-    };
-
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
-    video.addEventListener("seeked", captureFrame, { once: true });
+    observer.observe(mediaContainerRef.current);
 
     return () => {
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      video.removeEventListener("seeked", captureFrame);
+      observer.disconnect();
     };
-  }, [item?.video_url, item?.thumb_url, templateId, cachedThumbnail]);
-
-  // Estado para gerenciar erros de carregamento de imagem
-  const [imageError, setImageError] = useState(false);
+  }, [item?.video_url, item?.thumb_url, templateId, cachedThumbnail, isProcessing]);
 
   // ============================================================
   // 🖼️ Media Info com cache persistente
@@ -546,7 +552,10 @@ const TemplateCard = React.memo(({
 
       {/* MÍDIA À DIREITA */}
       {mediaInfo.hasMedia ? (
-        <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
+        <div 
+          ref={mediaContainerRef}
+          className={cn(mediaVariants({ layout: "horizontal" }), "relative")}
+        >
           
           {mediaInfo.hasLocalVideo && (
             <>
@@ -573,6 +582,11 @@ const TemplateCard = React.memo(({
                     alt={item.title}
                     className="w-full h-full object-cover"
                   />
+                ) : isProcessing ? (
+                  <div className="flex flex-col items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+                    <div className="w-12 h-12 border-4 border-purple-300 border-t-purple-600 rounded-full animate-spin mb-2"></div>
+                    <span className="text-xs text-purple-600 font-medium">Gerando thumbnail...</span>
+                  </div>
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
                     <Play className="h-16 w-16 text-purple-400" />

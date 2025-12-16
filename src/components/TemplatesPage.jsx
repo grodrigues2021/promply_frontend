@@ -34,6 +34,18 @@ import thumbnailCache from '@/lib/thumbnailCache';
 // ✅ Expor cache globalmente para acesso no useEffect
 if (typeof window !== 'undefined') {
   window.thumbnailCache = thumbnailCache;
+  
+  // ✅ SISTEMA DE FILA GLOBAL para Intersection Observer
+  window.thumbnailProcessingQueue = window.thumbnailProcessingQueue || {
+    queue: [],
+    processing: false,
+    activeCount: 0,
+    maxConcurrent: 5,
+  };
+  
+  // ✅ Expor funções globalmente para TemplateCard
+  window.queueThumbnailGeneration = queueThumbnailGeneration;
+  window.processSingleThumbnail = processSingleThumbnail;
 }
 
 // ✅ REACT QUERY HOOKS
@@ -88,6 +100,110 @@ function extractYouTubeId(url) {
     if (match?.[1]) return match[1];
   }
   return null;
+}
+
+// ✅ FUNÇÃO GLOBAL: Processar thumbnail individual
+async function processSingleThumbnail(videoUrl, templateId) {
+  try {
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    video.crossOrigin = 'anonymous';
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+
+    return await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        video.remove();
+        reject(new Error('Timeout'));
+      }, 5000);
+
+      video.onloadedmetadata = () => {
+        const safeTime = Math.min(Math.max(video.duration * 0.1, 0.5), video.duration - 0.1);
+        video.currentTime = safeTime;
+      };
+
+      video.onseeked = () => {
+        clearTimeout(timeout);
+        try {
+          const canvas = document.createElement('canvas');
+          const maxWidth = 800;
+          const scale = Math.min(1, maxWidth / video.videoWidth);
+          canvas.width = video.videoWidth * scale;
+          canvas.height = video.videoHeight * scale;
+          
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          
+          if (dataUrl && dataUrl !== 'data:,') {
+            thumbnailCache.set(templateId, dataUrl);
+            console.log(`✅ Thumbnail sob demanda: ${templateId}`);
+          }
+          
+          canvas.remove();
+          video.remove();
+          resolve(dataUrl);
+        } catch (err) {
+          clearTimeout(timeout);
+          video.remove();
+          reject(err);
+        }
+      };
+
+      video.onerror = () => {
+        clearTimeout(timeout);
+        video.remove();
+        reject(new Error('Erro ao carregar'));
+      };
+    });
+  } catch (error) {
+    console.warn(`⚠️ Falha thumbnail ${templateId}:`, error.message);
+    throw error;
+  }
+}
+
+// ✅ PROCESSADOR DE FILA GLOBAL
+async function processQueue() {
+  const queue = window.thumbnailProcessingQueue;
+  
+  if (queue.processing || queue.queue.length === 0) return;
+  if (queue.activeCount >= queue.maxConcurrent) return;
+  
+  queue.processing = true;
+  
+  while (queue.queue.length > 0 && queue.activeCount < queue.maxConcurrent) {
+    const item = queue.queue.shift();
+    if (!item) continue;
+    
+    queue.activeCount++;
+    
+    processSingleThumbnail(item.videoUrl, item.templateId)
+      .then(() => {
+        if (item.callback) item.callback(true);
+      })
+      .catch(() => {
+        if (item.callback) item.callback(false);
+      })
+      .finally(() => {
+        queue.activeCount--;
+        processQueue(); // Processa próximo da fila
+      });
+  }
+  
+  queue.processing = false;
+}
+
+// ✅ ADICIONAR À FILA
+function queueThumbnailGeneration(videoUrl, templateId, callback) {
+  const queue = window.thumbnailProcessingQueue;
+  
+  // Evita duplicatas
+  const exists = queue.queue.some(item => item.templateId === templateId);
+  if (exists) return;
+  
+  queue.queue.push({ videoUrl, templateId, callback });
+  processQueue();
 }
 
 function validateFile(file, allowedTypes, maxSize, typeName) {
