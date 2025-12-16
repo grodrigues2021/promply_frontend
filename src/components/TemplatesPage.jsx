@@ -780,7 +780,7 @@ export default function TemplatesPage({ onBack }) {
     const processVideoThumbnails = async () => {
       // ✅ OTIMIZAÇÃO: Só processa primeiros 15 vídeos no loading inicial
       // Resto carrega progressivamente depois (sob demanda no TemplateCard)
-      const MAX_INITIAL_VIDEOS = 15;
+      const MAX_INITIAL_VIDEOS = 5;
       const videosToProcess = videoTemplates.slice(0, MAX_INITIAL_VIDEOS);
       
       if (videoTemplates.length > MAX_INITIAL_VIDEOS) {
