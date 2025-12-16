@@ -758,7 +758,7 @@ export default function TemplatesPage({ onBack }) {
 
   // ===== PRÉ-PROCESSAMENTO DE THUMBNAILS =====
   // ✅ OTIMIZADO para muitos vídeos MP4
-  // ✅ Processa apenas primeiros 15 vídeos (resto sob demanda)
+  // ✅ Todos os vídeos carregam sob demanda via Intersection Observer
   useEffect(() => {
     // Só processa quando templates acabaram de chegar
     if (templates.length === 0 || loading) return;
@@ -778,8 +778,8 @@ export default function TemplatesPage({ onBack }) {
     }
 
     const processVideoThumbnails = async () => {
-      // ✅ OTIMIZAÇÃO: Só processa primeiros 15 vídeos no loading inicial
-      // Resto carrega progressivamente depois (sob demanda no TemplateCard)
+      // ✅ OTIMIZAÇÃO: Todos os vídeos carregam sob demanda via Intersection Observer
+      // Loading instantâneo, zero processamento inicial
       const MAX_INITIAL_VIDEOS = 0;
       const videosToProcess = videoTemplates.slice(0, MAX_INITIAL_VIDEOS);
       
@@ -892,50 +892,6 @@ export default function TemplatesPage({ onBack }) {
       return matchCat && matchSearch;
     });
   }, [templates, selectedCategory, searchTerm]);
-
-  // ===== TELA GLOBAL DE CARREGAMENTO =====
-  // ✅ SOLUÇÃO DEFINITIVA: Só bloqueia se NÃO tiver templates
-  // ✅ Categorias carregam depois (não bloqueiam UI)
-  const hasTemplatesData = templates.length > 0;
-  
-  console.log('🔍 [DEBUG LOADING]', {
-    hasTemplatesData,
-    templatesLength: templates.length,
-    categoriesLength: categories.length,
-    loading,
-    loadingCategories,
-    processingThumbnails
-  });
-  
-  // ✅ CRÍTICO: Só espera TEMPLATES + THUMBNAILS
-  // Categorias não bloqueiam (carregam rápido depois)
-  const isInitialLoading = 
-    (!hasTemplatesData && loading) ||
-    (processingThumbnails);
-  
-  console.log('🎯 [isInitialLoading]:', isInitialLoading);
-
-  if (isInitialLoading) {
-    console.log('⏳ [MOSTRANDO LOADING]');
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-purple-400 rounded-full animate-spin mx-auto" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
-          </div>
-          <p className="text-gray-600 font-medium">
-            {processingThumbnails ? 'Preparando thumbnails de vídeos...' : 'Carregando templates...'}
-          </p>
-          <p className="text-gray-400 text-sm mt-2">
-            {processingThumbnails ? 'Processando mídia para melhor experiência' : 'Preparando categorias e conteúdo'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-  
-  console.log('✅ [RENDERIZANDO PÁGINA]');
 
   // ===== RENDER =====
   return (
