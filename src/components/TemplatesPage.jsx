@@ -761,12 +761,16 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, selectedCategory, searchTerm]);
 
   // ===== TELA GLOBAL DE CARREGAMENTO =====
-  // ✅ CRÍTICO: Loading aguarda TUDO estar pronto na primeira carga
-  // ✅ Se já tiver cache (React Query + thumbnails), renderiza instantâneo
+  // ✅ CRÍTICO: SÓ mostra loading se REALMENTE não tiver NENHUM dado
+  // ✅ Se já tiver templates OU categorias (cache), renderiza instantâneo
+  const hasTemplatesData = templates.length > 0;
+  const hasCategoriesData = categories.length > 0;
+  
+  // ✅ Só mostra loading se NÃO tiver dados E estiver carregando
   const isInitialLoading = 
-    (loading && templates.length === 0) || 
-    (loadingCategories && categories.length === 0) ||
-    (processingThumbnails); // Aguarda thumbnails serem processadas
+    (!hasTemplatesData && loading) || 
+    (!hasCategoriesData && loadingCategories) ||
+    (processingThumbnails);
 
   if (isInitialLoading) {
     return (
