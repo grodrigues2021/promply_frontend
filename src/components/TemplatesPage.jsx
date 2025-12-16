@@ -761,13 +761,12 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, selectedCategory, searchTerm]);
 
   // ===== TELA GLOBAL DE CARREGAMENTO =====
-  // ✅ DEBUG: Vamos ver o que está acontecendo
+  // ✅ SOLUÇÃO DEFINITIVA: Só bloqueia se NÃO tiver templates
+  // ✅ Categorias carregam depois (não bloqueiam UI)
   const hasTemplatesData = templates.length > 0;
-  const hasCategoriesData = categories.length > 0;
   
   console.log('🔍 [DEBUG LOADING]', {
     hasTemplatesData,
-    hasCategoriesData,
     templatesLength: templates.length,
     categoriesLength: categories.length,
     loading,
@@ -775,10 +774,10 @@ export default function TemplatesPage({ onBack }) {
     processingThumbnails
   });
   
-  // ✅ Só mostra loading se NÃO tiver NENHUM dado ainda
+  // ✅ CRÍTICO: Só espera TEMPLATES + THUMBNAILS
+  // Categorias não bloqueiam (carregam rápido depois)
   const isInitialLoading = 
-    (!hasTemplatesData && loading) || 
-    (!hasCategoriesData && loadingCategories) ||
+    (!hasTemplatesData && loading) ||
     (processingThumbnails);
   
   console.log('🎯 [isInitialLoading]:', isInitialLoading);
