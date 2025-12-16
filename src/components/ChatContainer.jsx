@@ -10,6 +10,7 @@ import ChatMobileView from "./ChatMobileView";
  * - Desktop: Modal flutuante
  */
 export default function ChatContainer({ isOpen, onClose, onPromptSaved }) {
+  
   const isMobile = useIsMobile();
 
   if (!isOpen) return null;
