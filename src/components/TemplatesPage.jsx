@@ -645,10 +645,11 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, selectedCategory, searchTerm]);
 
   // ===== TELA GLOBAL DE CARREGAMENTO =====
-  // ✅ Bloqueia render até templates E categorias estarem prontos
-  const isPageLoading = loading || loadingCategories;
+  // ✅ Só mostra loading se REALMENTE não tiver dados (ignora cache)
+  // ✅ Considera cache do React Query: se já tem dados, não mostra loading
+  const isInitialLoading = (loading && templates.length === 0) || (loadingCategories && categories.length === 0);
 
-  if (isPageLoading) {
+  if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
