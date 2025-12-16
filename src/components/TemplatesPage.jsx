@@ -652,7 +652,7 @@ export default function TemplatesPage({ onBack }) {
     if (thumbnailsProcessed) return;
 
     const processVideoThumbnails = async () => {
-      // Verifica quais vídeos precisam de thumbnail
+      // ✅ CRÍTICO: Verifica ANTES de setar processingThumbnails
       const videoTemplates = templates.filter(t => {
         if (!t.video_url || t.thumb_url) return false;
         if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return false;
@@ -660,15 +660,15 @@ export default function TemplatesPage({ onBack }) {
         return !thumbnailCache.get(templateId);
       });
 
-      // Se não há vídeos para processar, marca como concluído
+      // ✅ Se não há vídeos para processar, libera UI imediatamente
       if (videoTemplates.length === 0) {
-        console.log('✅ Nenhum vídeo para processar - usando cache');
+        console.log('✅ Todos os vídeos já têm thumbnail em cache - liberando UI instantaneamente');
         setThumbnailsProcessed(true);
-        setProcessingThumbnails(false);
+        // NÃO seta processingThumbnails = true, deixa false
         return;
       }
 
-      // Inicia processamento (bloqueia UI)
+      // ✅ SÓ AGORA ativa o processamento (bloqueia UI)
       setProcessingThumbnails(true);
       console.log(`🎬 Processando ${videoTemplates.length} thumbnails antes de liberar UI...`);
 
