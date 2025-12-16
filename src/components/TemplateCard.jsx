@@ -22,6 +22,7 @@ import {
   TooltipProvider,
 } from "./ui/tooltip";
 import { resolveMediaUrl, extractYouTubeId, detectVideoType } from '../lib/media';
+import thumbnailCache from '../lib/thumbnailCache';
 
 // ============================================================
 // 🔵 PLATAFORMAS DISPONÍVEIS
@@ -98,7 +99,7 @@ const TemplateCard = React.memo(({
   className,
 }) => {
   // ============================================================
-  // 🔁 Normalização de dados
+  // 🔍 Normalização de dados
   // ============================================================
   const item = prompt || legacyTemplate;
 
@@ -110,152 +111,163 @@ const TemplateCard = React.memo(({
     return null;
   }
 
+  // ============================================================
+  // 🆔 ID único para cache
+  // ============================================================
+  const templateId = item?.id || item?.prompt_id;
 
-// ============================================================
-// 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
-// ============================================================
-const videoRef = useRef(null);
-const canvasRef = useRef(null);
-const [generatedThumb, setGeneratedThumb] = useState(null);
+  // ============================================================
+  // 📦 Cache persistente (recupera se já existe)
+  // ============================================================
+  const cachedThumbnail = thumbnailCache.get(templateId);
 
-useEffect(() => {
-  if (!item?.video_url || item?.thumb_url) return;
+  // ============================================================
+  // 🎬 Thumbnail client-side para vídeo MP4 (quando não existe)
+  // ============================================================
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [localGeneratedThumb, setLocalGeneratedThumb] = useState(cachedThumbnail);
 
-  const video = document.createElement("video");
-  video.src = resolveMediaUrl(item.video_url);
-  video.crossOrigin = "anonymous";
-  video.muted = true;
-  video.playsInline = true;
-  video.preload = "metadata";
+  useEffect(() => {
+    // Se já tem no cache, não precisa gerar
+    if (cachedThumbnail) return;
+    
+    // Se já tem thumb_url do backend, não precisa gerar
+    if (!item?.video_url || item?.thumb_url) return;
 
-  const captureFrame = () => {
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+    const video = document.createElement("video");
+    video.src = resolveMediaUrl(item.video_url);
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
 
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const captureFrame = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
 
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      // Evita thumbnail preta
-      if (dataUrl && dataUrl !== "data:,") {
-        setGeneratedThumb(dataUrl);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+
+        // Evita thumbnail preta
+        if (dataUrl && dataUrl !== "data:,") {
+          // ✅ Salvar no cache global
+          thumbnailCache.set(templateId, dataUrl);
+          setLocalGeneratedThumb(dataUrl);
+        }
+      } catch (err) {
+        console.warn("⚠️ Falha ao gerar thumbnail do vídeo:", err);
       }
-    } catch (err) {
-      console.warn("❌ Falha ao gerar thumbnail do vídeo:", err);
-    }
-  };
+    };
 
-  const handleLoadedMetadata = () => {
-    // captura em ~10% do vídeo ou 0.5s
-    const safeTime = Math.min(
-      Math.max(video.duration * 0.1, 0.5),
-      video.duration - 0.1
-    );
-    video.currentTime = safeTime;
-  };
+    const handleLoadedMetadata = () => {
+      // captura em ~10% do vídeo ou 0.5s
+      const safeTime = Math.min(
+        Math.max(video.duration * 0.1, 0.5),
+        video.duration - 0.1
+      );
+      video.currentTime = safeTime;
+    };
 
-  video.addEventListener("loadedmetadata", handleLoadedMetadata);
-  video.addEventListener("seeked", captureFrame, { once: true });
+    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("seeked", captureFrame, { once: true });
 
-  return () => {
-    video.removeEventListener("loadedmetadata", handleLoadedMetadata);
-    video.removeEventListener("seeked", captureFrame);
-  };
-}, [item?.video_url, item?.thumb_url]);
-
-
+    return () => {
+      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("seeked", captureFrame);
+    };
+  }, [item?.video_url, item?.thumb_url, templateId, cachedThumbnail]);
 
   // Estado para gerenciar erros de carregamento de imagem
   const [imageError, setImageError] = useState(false);
 
   // ============================================================
-  // 🔒 Thumbnail estável (nunca reverte depois de existir)
+  // 🖼️ Media Info com cache persistente
   // ============================================================
-  const [lockedThumbnail, setLockedThumbnail] = useState(null);
+  const mediaInfo = useMemo(() => {
+    // ============================================================
+    // 🎬 DETECÇÃO DE VÍDEO
+    // ============================================================
+    const videoUrl = item?.video_url || item?.youtube_url;
+    const videoType = detectVideoType(videoUrl);
 
+    const hasYouTubeVideo = videoType === "youtube";
+    const hasLocalVideo = videoType === "local";
+    const hasVideo = hasYouTubeVideo || hasLocalVideo;
 
+    // ============================================================
+    // ▶️ YOUTUBE
+    // ============================================================
+    const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
+    const youtubeThumbnail = videoId
+      ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+      : null;
 
+    // ============================================================
+    // 🖼️ DEFINIÇÃO ÚNICA DE THUMBNAIL (DESKTOP + MOBILE)
+    // ============================================================
+    let thumbnailUrl = null;
 
-const mediaInfo = useMemo(() => {
-  // ============================================================
-  // 🎬 DETECÇÃO DE VÍDEO
-  // ============================================================
-  const videoUrl = item?.video_url || item?.youtube_url;
-  const videoType = detectVideoType(videoUrl);
+    if (hasVideo) {
+      /**
+       * PRIORIDADE COM CACHE PERSISTENTE:
+       *
+       * 1. cachedThumbnail → cache em memória (persiste entre navegações)
+       * 2. thumb_url → backend (fonte única da verdade)
+       * 3. image_url → thumbnail capturado no upload
+       * 4. youtubeThumbnail → fallback YouTube
+       * 5. localGeneratedThumb → último fallback client-side
+       */
+      thumbnailUrl =
+        cachedThumbnail ||
+        item?.thumb_url ||
+        item?.image_url ||
+        youtubeThumbnail ||
+        localGeneratedThumb;
 
-  const hasYouTubeVideo = videoType === "youtube";
-  const hasLocalVideo = videoType === "local";
-  const hasVideo = hasYouTubeVideo || hasLocalVideo;
+      // ✅ Se encontrou thumbnail válido, salvar no cache
+      if (thumbnailUrl && !cachedThumbnail) {
+        thumbnailCache.set(templateId, thumbnailUrl);
+      }
+    } else {
+      /**
+       * IMAGEM SIMPLES
+       */
+      thumbnailUrl = item?.image_url;
 
-  // ============================================================
-  // ▶️ YOUTUBE
-  // ============================================================
-  const videoId = hasYouTubeVideo ? extractYouTubeId(videoUrl) : null;
-  const youtubeThumbnail = videoId
-    ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-    : null;
+      // Cache também para imagens simples
+      if (thumbnailUrl && !cachedThumbnail) {
+        thumbnailCache.set(templateId, thumbnailUrl);
+      }
+    }
 
-  // ============================================================
-  // 🖼️ DEFINIÇÃO ÚNICA DE THUMBNAIL (DESKTOP + MOBILE)
-  // ============================================================
-  let thumbnailUrl = null;
+    const hasImage = !!thumbnailUrl;
+    const hasMedia = hasVideo || hasImage;
 
-  if (hasVideo) {
-    /**
-     * PRIORIDADE CORRETA PARA VÍDEO (MP4 / YOUTUBE):
-     *
-     * 1. thumb_url  → backend (fonte única da verdade)
-     * 2. image_url  → thumbnail capturado no upload
-     * 3. youtubeThumbnail → fallback YouTube
-     * 4. generatedThumb → último fallback client-side
-     */
-    thumbnailUrl =
-      item?.thumb_url ||
-      item?.image_url ||
-      youtubeThumbnail ||
-      generatedThumb;
-  } else {
-    /**
-     * IMAGEM SIMPLES
-     */
-    thumbnailUrl = item?.image_url;
-  }
-
-  const hasImage = !!thumbnailUrl;
-  const hasMedia = hasVideo || hasImage;
-
-  return {
-    hasVideo,
-    hasYouTubeVideo,
-    hasLocalVideo,
-    hasImage,
-    hasMedia,
-    videoUrl,
-    videoId,
-    thumbnailUrl,
-    youtubeThumbnail,
-  };
-}, [
-  item?.video_url,
-  item?.youtube_url,
-  item?.image_url,
-  item?.thumb_url,
-  generatedThumb,
-]);
-
-
-useEffect(() => {
-  if (!lockedThumbnail && mediaInfo.thumbnailUrl) {
-    setLockedThumbnail(mediaInfo.thumbnailUrl);
-  }
-}, [mediaInfo.thumbnailUrl, lockedThumbnail]);
-
-
-
-
+    return {
+      hasVideo,
+      hasYouTubeVideo,
+      hasLocalVideo,
+      hasImage,
+      hasMedia,
+      videoUrl,
+      videoId,
+      thumbnailUrl,
+      youtubeThumbnail,
+    };
+  }, [
+    item?.video_url,
+    item?.youtube_url,
+    item?.image_url,
+    item?.thumb_url,
+    localGeneratedThumb,
+    cachedThumbnail,
+    templateId,
+  ]);
 
   // Tags processadas
   const tagsArray = useMemo(() => {
@@ -418,10 +430,10 @@ useEffect(() => {
           </div>
 
           <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-  {item?.description?.trim()
-    ? item.description
-    : item?.content}
-</p>
+            {item?.description?.trim()
+              ? item.description
+              : item?.content}
+          </p>
         </div>
 
         {tagsArray.length > 0 && (
@@ -516,7 +528,6 @@ useEffect(() => {
 
           {/* Excluir – somente admin */}
           {user?.is_admin && typeof onDelete === "function" && (
-
             <Button
               variant="outline"
               size="sm"
@@ -537,53 +548,52 @@ useEffect(() => {
       {mediaInfo.hasMedia ? (
         <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
           
-{mediaInfo.hasLocalVideo && (
-  <>
-    {/* Badge de tipo */}
-    <div className="absolute top-2 right-2 z-20">
-      <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
-        Vídeo
-      </Badge>
-    </div>
+          {mediaInfo.hasLocalVideo && (
+            <>
+              {/* Badge de tipo */}
+              <div className="absolute top-2 right-2 z-20">
+                <Badge className="gap-1 text-xs shadow-md bg-purple-600 text-white font-semibold px-2 py-0.5 rounded-md border border-purple-700">
+                  Vídeo
+                </Badge>
+              </div>
 
-    <button
-      type="button"
-      onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
-      className="relative w-full h-full group/media overflow-hidden"
-    >
-      {/* Thumbnail definitiva – nunca desmonta */}
-      {lockedThumbnail ? (
-        <img
-          src={
-            lockedThumbnail.startsWith("http")
-              ? lockedThumbnail
-              : resolveMediaUrl(lockedThumbnail)
-          }
-          alt={item.title}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
-          <Play className="h-16 w-16 text-purple-400" />
-        </div>
-      )}
+              <button
+                type="button"
+                onClick={() => onOpenVideo?.(mediaInfo.videoUrl)}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
+                {/* Thumbnail definitiva – persiste entre navegações */}
+                {mediaInfo.thumbnailUrl ? (
+                  <img
+                    src={
+                      mediaInfo.thumbnailUrl.startsWith("http")
+                        ? mediaInfo.thumbnailUrl
+                        : resolveMediaUrl(mediaInfo.thumbnailUrl)
+                    }
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200">
+                    <Play className="h-16 w-16 text-purple-400" />
+                  </div>
+                )}
 
-      {/* Overlay de hover (mantido) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-        <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-          <Play className="h-8 w-8 text-purple-600 fill-current" />
-        </div>
-      </div>
+                {/* Overlay de hover */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                    <Play className="h-8 w-8 text-purple-600 fill-current" />
+                  </div>
+                </div>
 
-      <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-        <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-          Clique para assistir
-        </span>
-      </div>
-    </button>
-  </>
-)}
-
+                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                    Clique para assistir
+                  </span>
+                </div>
+              </button>
+            </>
+          )}
 
           {/* 🎥 YOUTUBE */}
           {mediaInfo.hasYouTubeVideo && (
@@ -640,17 +650,16 @@ useEffect(() => {
               >
                 {!imageError ? (
                   <img
-                      src={
-                        mediaInfo.thumbnailUrl?.startsWith("http")
-                          ? mediaInfo.thumbnailUrl
-                          : resolveMediaUrl(mediaInfo.thumbnailUrl)
-                      }
-                      alt={item?.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                      loading="lazy"
-                      onError={() => setImageError(true)}
-                    />
-
+                    src={
+                      mediaInfo.thumbnailUrl?.startsWith("http")
+                        ? mediaInfo.thumbnailUrl
+                        : resolveMediaUrl(mediaInfo.thumbnailUrl)
+                    }
+                    alt={item?.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
+                    onError={() => setImageError(true)}
+                  />
                 ) : (
                   <div className="flex items-center justify-center w-full h-full bg-gradient-to-br from-blue-100 to-blue-200">
                     <ImageIcon className="h-12 w-12 text-blue-400" />
