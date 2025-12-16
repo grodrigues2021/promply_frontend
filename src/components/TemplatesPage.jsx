@@ -196,7 +196,6 @@ export default function TemplatesPage({ onBack }) {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [myCategories, setMyCategories] = useState([]);
   const [processingThumbnails, setProcessingThumbnails] = useState(false);
-  const [thumbnailsProcessed, setThumbnailsProcessed] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -643,31 +642,26 @@ export default function TemplatesPage({ onBack }) {
 
   // ===== PRÉ-PROCESSAMENTO DE THUMBNAILS =====
   // ✅ Gera thumbnails de vídeos MP4 ANTES de liberar a UI (primeira carga)
-  // ✅ Se já tiver cache, pula e libera instantâneo
+  // ✅ Verifica cache DIRETAMENTE (não depende de estado React)
   useEffect(() => {
     // Só processa quando templates acabaram de chegar
     if (templates.length === 0 || loading) return;
     
-    // Se já processou nesta sessão, não processa de novo
-    if (thumbnailsProcessed) return;
+    // ✅ CRÍTICO: Verifica cache DIRETAMENTE (não usa estado)
+    const videoTemplates = templates.filter(t => {
+      if (!t.video_url || t.thumb_url) return false;
+      if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return false;
+      const templateId = t?.id || t?.prompt_id;
+      return !thumbnailCache.get(templateId);
+    });
+
+    // ✅ Se não há vídeos para processar, NÃO ativa processamento
+    if (videoTemplates.length === 0) {
+      console.log('✅ Todos os vídeos já têm thumbnail em cache - liberando UI instantaneamente');
+      return;
+    }
 
     const processVideoThumbnails = async () => {
-      // ✅ CRÍTICO: Verifica ANTES de setar processingThumbnails
-      const videoTemplates = templates.filter(t => {
-        if (!t.video_url || t.thumb_url) return false;
-        if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return false;
-        const templateId = t?.id || t?.prompt_id;
-        return !thumbnailCache.get(templateId);
-      });
-
-      // ✅ Se não há vídeos para processar, libera UI imediatamente
-      if (videoTemplates.length === 0) {
-        console.log('✅ Todos os vídeos já têm thumbnail em cache - liberando UI instantaneamente');
-        setThumbnailsProcessed(true);
-        // NÃO seta processingThumbnails = true, deixa false
-        return;
-      }
-
       // ✅ SÓ AGORA ativa o processamento (bloqueia UI)
       setProcessingThumbnails(true);
       console.log(`🎬 Processando ${videoTemplates.length} thumbnails antes de liberar UI...`);
@@ -694,7 +688,7 @@ export default function TemplatesPage({ onBack }) {
                 const timeout = setTimeout(() => {
                   video.remove();
                   reject(new Error('Timeout ao carregar vídeo'));
-                }, 8000); // 8s timeout por vídeo
+                }, 8000);
 
                 video.onloadedmetadata = () => {
                   const safeTime = Math.min(Math.max(video.duration * 0.1, 0.5), video.duration - 0.1);
@@ -749,12 +743,11 @@ export default function TemplatesPage({ onBack }) {
       }
 
       console.log('✅ Todas as thumbnails processadas! Liberando UI...');
-      setThumbnailsProcessed(true);
       setProcessingThumbnails(false);
     };
 
     processVideoThumbnails();
-  }, [templates, loading, thumbnailsProcessed]);
+  }, [templates, loading]);
 
   // ===== FILTERED TEMPLATES =====
   // ✅ DEVE estar ANTES do return condicional (regra dos Hooks do React)
