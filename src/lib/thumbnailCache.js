@@ -21,15 +21,7 @@ class ThumbnailCache {
    */
   async init() {
     try {
-      // ✅ Detecta dispositivo móvel
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-      if (isMobile) {
-        console.log("📱 Mobile detectado: usando cache RAM apenas");
-        return; // Mobile não precisa de persistência
-      }
-
-      console.log("🗄️ ThumbnailCache inicializado (Desktop)");
+      console.log("🗄️ ThumbnailCache inicializado");
 
       this.db = await openDB(this.dbName, this.version, {
         upgrade(db) {
@@ -61,7 +53,7 @@ class ThumbnailCache {
       const store = tx.objectStore(this.storeName);
       const allKeys = await store.getAllKeys();
 
-      console.log(`💻 Desktop: carregando ${allKeys.length} thumbnails...`);
+      console.log(`💻 Carregando ${allKeys.length} thumbnails do IndexedDB...`);
       const startTime = performance.now();
 
       const promises = allKeys.map(async (key) => {
@@ -75,9 +67,7 @@ class ThumbnailCache {
       await tx.done;
 
       const elapsed = Math.round(performance.now() - startTime);
-      console.log(
-        `✅ Desktop: ${allKeys.length} thumbnails carregadas em ${elapsed}ms`
-      );
+      console.log(`✅ ${allKeys.length} thumbnails carregadas em ${elapsed}ms`);
     } catch (error) {
       console.warn("⚠️ Erro ao carregar do IndexedDB:", error);
     }
