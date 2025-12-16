@@ -195,6 +195,8 @@ export default function TemplatesPage({ onBack }) {
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [myCategories, setMyCategories] = useState([]);
+  const [processingThumbnails, setProcessingThumbnails] = useState(false);
+  const [thumbnailsProcessed, setThumbnailsProcessed] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState("Todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -640,25 +642,17 @@ export default function TemplatesPage({ onBack }) {
   );
 
   // ===== PRÉ-PROCESSAMENTO DE THUMBNAILS =====
-  // ✅ Gera thumbnails de vídeos MP4 em BACKGROUND (não bloqueia UI)
-  // ✅ Processa apenas na primeira carga quando dados chegam do servidor
+  // ✅ Gera thumbnails de vídeos MP4 ANTES de liberar a UI (primeira carga)
+  // ✅ Se já tiver cache, pula e libera instantâneo
   useEffect(() => {
-    // Só processa quando templates acabaram de chegar (primeira carga)
+    // Só processa quando templates acabaram de chegar
     if (templates.length === 0 || loading) return;
     
-    // Se já processou antes (todos têm cache), pula
-    const hasProcessedBefore = templates.every(t => {
-      if (!t.video_url || t.thumb_url) return true;
-      if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return true;
-      const templateId = t?.id || t?.prompt_id;
-      return thumbnailCache.get(templateId) !== null;
-    });
-    
-    if (hasProcessedBefore) return;
+    // Se já processou nesta sessão, não processa de novo
+    if (thumbnailsProcessed) return;
 
     const processVideoThumbnails = async () => {
-      console.log('🎬 Pré-processando thumbnails de vídeos em background...');
-
+      // Verifica quais vídeos precisam de thumbnail
       const videoTemplates = templates.filter(t => {
         if (!t.video_url || t.thumb_url) return false;
         if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return false;
@@ -666,7 +660,17 @@ export default function TemplatesPage({ onBack }) {
         return !thumbnailCache.get(templateId);
       });
 
-      console.log(`📹 ${videoTemplates.length} vídeos para processar`);
+      // Se não há vídeos para processar, marca como concluído
+      if (videoTemplates.length === 0) {
+        console.log('✅ Nenhum vídeo para processar - usando cache');
+        setThumbnailsProcessed(true);
+        setProcessingThumbnails(false);
+        return;
+      }
+
+      // Inicia processamento (bloqueia UI)
+      setProcessingThumbnails(true);
+      console.log(`🎬 Processando ${videoTemplates.length} thumbnails antes de liberar UI...`);
 
       // Processa até 3 vídeos em paralelo
       const processBatch = async (batch) => {
@@ -690,7 +694,7 @@ export default function TemplatesPage({ onBack }) {
                 const timeout = setTimeout(() => {
                   video.remove();
                   reject(new Error('Timeout ao carregar vídeo'));
-                }, 5000); // 5s timeout por vídeo
+                }, 8000); // 8s timeout por vídeo
 
                 video.onloadedmetadata = () => {
                   const safeTime = Math.min(Math.max(video.duration * 0.1, 0.5), video.duration - 0.1);
@@ -711,7 +715,7 @@ export default function TemplatesPage({ onBack }) {
                     
                     if (dataUrl && dataUrl !== 'data:,') {
                       thumbnailCache.set(templateId, dataUrl);
-                      console.log(`✅ Thumbnail gerada em background: template ${templateId}`);
+                      console.log(`✅ Thumbnail gerada: ${templateId}`);
                     }
                     
                     canvas.remove();
@@ -744,12 +748,13 @@ export default function TemplatesPage({ onBack }) {
         await processBatch(batch);
       }
 
-      console.log('✅ Pré-processamento de thumbnails concluído em background!');
+      console.log('✅ Todas as thumbnails processadas! Liberando UI...');
+      setThumbnailsProcessed(true);
+      setProcessingThumbnails(false);
     };
 
-    // Executa em background sem bloquear
     processVideoThumbnails();
-  }, [templates, loading]);
+  }, [templates, loading, thumbnailsProcessed]);
 
   // ===== FILTERED TEMPLATES =====
   // ✅ DEVE estar ANTES do return condicional (regra dos Hooks do React)
@@ -763,10 +768,12 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, selectedCategory, searchTerm]);
 
   // ===== TELA GLOBAL DE CARREGAMENTO =====
-  // ✅ CRÍTICO: Loading SÓ aparece na PRIMEIRA vez (sem dados em cache)
-  // ✅ Se já tiver dados (cache), renderiza IMEDIATAMENTE
-  // ✅ Thumbnails processam em BACKGROUND sem bloquear UI
-  const isInitialLoading = (loading && templates.length === 0) || (loadingCategories && categories.length === 0);
+  // ✅ CRÍTICO: Loading aguarda TUDO estar pronto na primeira carga
+  // ✅ Se já tiver cache (React Query + thumbnails), renderiza instantâneo
+  const isInitialLoading = 
+    (loading && templates.length === 0) || 
+    (loadingCategories && categories.length === 0) ||
+    (processingThumbnails); // Aguarda thumbnails serem processadas
 
   if (isInitialLoading) {
     return (
@@ -776,8 +783,12 @@ export default function TemplatesPage({ onBack }) {
             <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
             <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-purple-400 rounded-full animate-spin mx-auto" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
           </div>
-          <p className="text-gray-600 font-medium">Carregando templates...</p>
-          <p className="text-gray-400 text-sm mt-2">Preparando categorias e conteúdo</p>
+          <p className="text-gray-600 font-medium">
+            {processingThumbnails ? 'Preparando thumbnails de vídeos...' : 'Carregando templates...'}
+          </p>
+          <p className="text-gray-400 text-sm mt-2">
+            {processingThumbnails ? 'Processando mídia para melhor experiência' : 'Preparando categorias e conteúdo'}
+          </p>
         </div>
       </div>
     );
