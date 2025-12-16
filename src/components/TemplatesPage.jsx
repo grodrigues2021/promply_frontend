@@ -761,18 +761,30 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, selectedCategory, searchTerm]);
 
   // ===== TELA GLOBAL DE CARREGAMENTO =====
-  // ✅ CRÍTICO: SÓ mostra loading se REALMENTE não tiver NENHUM dado
-  // ✅ Se já tiver templates OU categorias (cache), renderiza instantâneo
+  // ✅ DEBUG: Vamos ver o que está acontecendo
   const hasTemplatesData = templates.length > 0;
   const hasCategoriesData = categories.length > 0;
   
-  // ✅ Só mostra loading se NÃO tiver dados E estiver carregando
+  console.log('🔍 [DEBUG LOADING]', {
+    hasTemplatesData,
+    hasCategoriesData,
+    templatesLength: templates.length,
+    categoriesLength: categories.length,
+    loading,
+    loadingCategories,
+    processingThumbnails
+  });
+  
+  // ✅ Só mostra loading se NÃO tiver NENHUM dado ainda
   const isInitialLoading = 
     (!hasTemplatesData && loading) || 
     (!hasCategoriesData && loadingCategories) ||
     (processingThumbnails);
+  
+  console.log('🎯 [isInitialLoading]:', isInitialLoading);
 
   if (isInitialLoading) {
+    console.log('⏳ [MOSTRANDO LOADING]');
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <div className="text-center">
@@ -790,6 +802,8 @@ export default function TemplatesPage({ onBack }) {
       </div>
     );
   }
+  
+  console.log('✅ [RENDERIZANDO PÁGINA]');
 
   // ===== RENDER =====
   return (
