@@ -633,6 +633,17 @@ export default function TemplatesPage({ onBack }) {
     [toggleFavoriteMutation]
   );
 
+  // ===== FILTERED TEMPLATES =====
+  // ✅ DEVE estar ANTES do return condicional (regra dos Hooks do React)
+  const filteredTemplates = useMemo(() => {
+    return templates.filter((t) => {
+      const matchCat = selectedCategory === "Todos" || 
+                       t.category?.name === selectedCategory;
+      const matchSearch = t.title?.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchCat && matchSearch;
+    });
+  }, [templates, selectedCategory, searchTerm]);
+
   // ===== TELA GLOBAL DE CARREGAMENTO =====
   // ✅ Bloqueia render até templates E categorias estarem prontos
   const isPageLoading = loading || loadingCategories;
@@ -651,16 +662,6 @@ export default function TemplatesPage({ onBack }) {
       </div>
     );
   }
-
-  // ===== FILTERED TEMPLATES =====
-  const filteredTemplates = useMemo(() => {
-    return templates.filter((t) => {
-      const matchCat = selectedCategory === "Todos" || 
-                       t.category?.name === selectedCategory;
-      const matchSearch = t.title?.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchCat && matchSearch;
-    });
-  }, [templates, selectedCategory, searchTerm]);
 
   // ===== RENDER =====
   return (
