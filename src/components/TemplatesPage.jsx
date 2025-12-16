@@ -29,6 +29,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { BookText } from "lucide-react";
 import TemplateModal from "@/components/templates/TemplateModal";
 import { useNavigate } from 'react-router-dom';
+import thumbnailCache from '@/lib/thumbnailCache';
+
+// ✅ Expor cache globalmente para acesso no useEffect
+if (typeof window !== 'undefined') {
+  window.thumbnailCache = thumbnailCache;
+}
 
 // ✅ REACT QUERY HOOKS
 import {
@@ -633,6 +639,118 @@ export default function TemplatesPage({ onBack }) {
     [toggleFavoriteMutation]
   );
 
+  // ===== PRÉ-PROCESSAMENTO DE THUMBNAILS =====
+  // ✅ Gera thumbnails de vídeos MP4 em BACKGROUND (não bloqueia UI)
+  // ✅ Processa apenas na primeira carga quando dados chegam do servidor
+  useEffect(() => {
+    // Só processa quando templates acabaram de chegar (primeira carga)
+    if (templates.length === 0 || loading) return;
+    
+    // Se já processou antes (todos têm cache), pula
+    const hasProcessedBefore = templates.every(t => {
+      if (!t.video_url || t.thumb_url) return true;
+      if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return true;
+      const templateId = t?.id || t?.prompt_id;
+      return thumbnailCache.get(templateId) !== null;
+    });
+    
+    if (hasProcessedBefore) return;
+
+    const processVideoThumbnails = async () => {
+      console.log('🎬 Pré-processando thumbnails de vídeos em background...');
+
+      const videoTemplates = templates.filter(t => {
+        if (!t.video_url || t.thumb_url) return false;
+        if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return false;
+        const templateId = t?.id || t?.prompt_id;
+        return !thumbnailCache.get(templateId);
+      });
+
+      console.log(`📹 ${videoTemplates.length} vídeos para processar`);
+
+      // Processa até 3 vídeos em paralelo
+      const processBatch = async (batch) => {
+        return Promise.allSettled(
+          batch.map(async (template) => {
+            const templateId = template?.id || template?.prompt_id;
+            
+            try {
+              const videoUrl = template.video_url.startsWith('http') 
+                ? template.video_url 
+                : `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://api.promply.app'}/storage/${template.video_url}`;
+
+              const video = document.createElement('video');
+              video.src = videoUrl;
+              video.crossOrigin = 'anonymous';
+              video.muted = true;
+              video.playsInline = true;
+              video.preload = 'metadata';
+
+              await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  video.remove();
+                  reject(new Error('Timeout ao carregar vídeo'));
+                }, 5000); // 5s timeout por vídeo
+
+                video.onloadedmetadata = () => {
+                  const safeTime = Math.min(Math.max(video.duration * 0.1, 0.5), video.duration - 0.1);
+                  video.currentTime = safeTime;
+                };
+
+                video.onseeked = () => {
+                  clearTimeout(timeout);
+                  try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                    
+                    if (dataUrl && dataUrl !== 'data:,') {
+                      thumbnailCache.set(templateId, dataUrl);
+                      console.log(`✅ Thumbnail gerada em background: template ${templateId}`);
+                    }
+                    
+                    canvas.remove();
+                    video.remove();
+                    resolve();
+                  } catch (err) {
+                    clearTimeout(timeout);
+                    video.remove();
+                    reject(err);
+                  }
+                };
+
+                video.onerror = () => {
+                  clearTimeout(timeout);
+                  video.remove();
+                  reject(new Error('Erro ao carregar vídeo'));
+                };
+              });
+            } catch (error) {
+              console.warn(`⚠️ Falha ao processar thumbnail ${templateId}:`, error.message);
+            }
+          })
+        );
+      };
+
+      // Processa em lotes de 3
+      const batchSize = 3;
+      for (let i = 0; i < videoTemplates.length; i += batchSize) {
+        const batch = videoTemplates.slice(i, i + batchSize);
+        await processBatch(batch);
+      }
+
+      console.log('✅ Pré-processamento de thumbnails concluído em background!');
+    };
+
+    // Executa em background sem bloquear
+    processVideoThumbnails();
+  }, [templates, loading]);
+
   // ===== FILTERED TEMPLATES =====
   // ✅ DEVE estar ANTES do return condicional (regra dos Hooks do React)
   const filteredTemplates = useMemo(() => {
@@ -645,8 +763,9 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, selectedCategory, searchTerm]);
 
   // ===== TELA GLOBAL DE CARREGAMENTO =====
-  // ✅ Só mostra loading se REALMENTE não tiver dados (ignora cache)
-  // ✅ Considera cache do React Query: se já tem dados, não mostra loading
+  // ✅ CRÍTICO: Loading SÓ aparece na PRIMEIRA vez (sem dados em cache)
+  // ✅ Se já tiver dados (cache), renderiza IMEDIATAMENTE
+  // ✅ Thumbnails processam em BACKGROUND sem bloquear UI
   const isInitialLoading = (loading && templates.length === 0) || (loadingCategories && categories.length === 0);
 
   if (isInitialLoading) {
