@@ -893,6 +893,25 @@ export default function TemplatesPage({ onBack }) {
     });
   }, [templates, selectedCategory, searchTerm]);
 
+  // ===== LOADING INTELIGENTE =====
+  // ✅ Mostra loading APENAS se não tiver dados E estiver buscando do servidor
+  // ✅ Com cache do React Query, isso é instantâneo em visitas subsequentes
+  // ✅ NÃO bloqueia por processamento de thumbnails (MAX_INITIAL_VIDEOS = 0)
+  const hasTemplatesData = templates.length > 0;
+  const isInitialLoading = !hasTemplatesData && loading;
+
+  if (isInitialLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-gray-600 font-medium">Carregando templates...</p>
+          <p className="text-gray-400 text-xs mt-1">Buscando conteúdo do servidor</p>
+        </div>
+      </div>
+    );
+  }
+
   // ===== RENDER =====
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
