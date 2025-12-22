@@ -1097,12 +1097,7 @@ const savePrompt = async () => {
     const videoFileToUpload = promptForm.videoFile;
     const extraFilesToUpload = [...extraFiles]; // ← CÓPIA DOS ARQUIVOS EXTRAS!
 
-    console.log("🔒 Cópias criadas:", {
-      hasImage,
-      hasVideo,
-      extraFilesCount: extraFilesToUpload.length,
-      needsMediaUpload,
-    });
+    
 
     // =========================================================
     // 🎉 PASSO 2: AGORA SIM PODE FECHAR O MODAL
@@ -1122,16 +1117,16 @@ const savePrompt = async () => {
 
       if (hasImage && imageFileToUpload) {
         mediaForm.append("image", imageFileToUpload);
-        console.log("📎 Imagem adicionada ao FormData");
+       
       }
 
       if (hasVideo && videoFileToUpload) {
         mediaForm.append("video", videoFileToUpload);
-        console.log("🎬 Vídeo adicionado ao FormData");
+        
         
         if (imageFileToUpload instanceof File) {
           mediaForm.append("thumbnail", imageFileToUpload);
-          console.log("🖼️ Thumbnail adicionado ao FormData");
+         
         }
       }
 
@@ -1139,12 +1134,12 @@ const savePrompt = async () => {
       if (extraFilesToUpload.length > 0) {
         extraFilesToUpload.forEach((file, index) => {
           mediaForm.append("extra_files", file);
-          console.log(`📄 Arquivo extra ${index + 1} adicionado:`, file.name);
+         
         });
       }
 
       startMediaUpload();
-      console.log("📤 Iniciando upload de mídia para prompt:", promptId);
+     
 
       api
         .post(`/prompts/${promptId}/media`, mediaForm, {
@@ -1152,7 +1147,7 @@ const savePrompt = async () => {
           timeout: 180000,
         })
         .then((res) => {
-          console.log("✅ Upload completou! Resposta:", res.data);
+          
 
           if (res.data?.data) {
             queryClient.setQueryData(["prompts"], (old) => {
@@ -1166,10 +1161,7 @@ const savePrompt = async () => {
                     _clientId: p._clientId,
                   };
 
-                  console.log("🔄 Atualizando prompt:", {
-                    old_thumb: p.thumb_url,
-                    new_thumb: newPrompt.thumb_url,
-                  });
+                  
 
                   return newPrompt;
                 }
@@ -1179,7 +1171,7 @@ const savePrompt = async () => {
 
             toast.success("🎬 Mídia enviada com sucesso!");
           } else {
-            console.warn("⚠️ Backend não retornou data:", res.data);
+           
           }
         })
         .catch((err) => {
@@ -1197,7 +1189,7 @@ const savePrompt = async () => {
         })
         .finally(() => {
           endMediaUpload();
-          console.log("🔓 Upload finalizado, refetch liberado");
+          
         });
     }
 

@@ -62,13 +62,7 @@ function PromptGrid({
   // =====================================================
   const stableKey = prompt._clientId;
 
-  if (!stableKey) {
-    console.warn(
-      "⚠️ Prompt sem _clientId detectado (fallback aplicado):",
-      prompt
-    );
-  }
-
+ 
   return (
     <div
       key={stableKey || prompt.id}

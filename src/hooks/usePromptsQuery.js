@@ -13,12 +13,10 @@ let uploadingMediaCount = 0;
 
 function startMediaUpload() {
   uploadingMediaCount++;
-  console.log(`📤 Upload iniciado (${uploadingMediaCount} em andamento)`);
 }
 
 function endMediaUpload() {
   uploadingMediaCount = Math.max(0, uploadingMediaCount - 1);
-  console.log(`✅ Upload finalizado (${uploadingMediaCount} restantes)`);
 }
 
 function hasActiveUploads() {
@@ -35,7 +33,6 @@ export function usePromptsQuery() {
     queryFn: async () => {
       // ✅ BLOQUEIO: Não refetch se há uploads ativos
       if (hasActiveUploads()) {
-        console.warn("⏸️ Refetch bloqueado: upload em andamento");
         throw new Error("SKIP_REFETCH_DURING_UPLOAD");
       }
 
@@ -72,8 +69,6 @@ export function useCreatePromptMutation() {
 
   return useMutation({
     mutationFn: async ({ payload }) => {
-      console.log("📤 Criando prompt...", payload);
-
       // ✅ DETECTA SE É YOUTUBE PELO PAYLOAD
       const isYouTube = Boolean(payload.youtube_url);
 
@@ -81,7 +76,6 @@ export function useCreatePromptMutation() {
 
       if (isYouTube) {
         // 🎥 YOUTUBE: Usa endpoint /prompts com FormData
-        console.log("🎥 Detectado YouTube, usando endpoint /prompts");
 
         const formData = new FormData();
         formData.append("title", payload.title);
@@ -98,7 +92,7 @@ export function useCreatePromptMutation() {
         response = await api.post("/prompts", formData);
       } else {
         // 📝 TEXTO/IMAGEM/VÍDEO: Usa endpoint /prompts/text
-        console.log("📝 Usando endpoint /prompts/text");
+
         response = await api.post("/prompts/text", payload);
       }
 
@@ -115,11 +109,6 @@ export function useCreatePromptMutation() {
     // 🧪 onMutate - INSERE PROMPT OTIMISTA
     // ===================================================
     onMutate: async ({ optimisticPrompt }) => {
-      console.log("🧪 [onMutate] Inserindo prompt otimista");
-      console.log("🧪 [onMutate] _clientId:", optimisticPrompt._clientId);
-      console.log("🧪 [onMutate] thumb_url:", optimisticPrompt.thumb_url);
-      console.log("🧪 [onMutate] youtube_url:", optimisticPrompt.youtube_url);
-
       // ✅ Cancela queries em andamento
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
@@ -142,7 +131,6 @@ export function useCreatePromptMutation() {
           return current;
         }
 
-        console.log("✅ [onMutate] Inserindo prompt otimista no cache");
         return [optimisticPrompt, ...current];
       });
 
@@ -153,19 +141,8 @@ export function useCreatePromptMutation() {
     // ✅ onSuccess - SUBSTITUI OTIMISTA PELO REAL
     // ===================================================
     onSuccess: (realPrompt, { optimisticPrompt }) => {
-      console.log("✅ [onSuccess] Backend retornou prompt:", realPrompt?.id);
-      console.log(
-        "✅ [onSuccess] realPrompt.thumb_url:",
-        realPrompt?.thumb_url
-      );
-      console.log(
-        "✅ [onSuccess] realPrompt.youtube_url:",
-        realPrompt?.youtube_url
-      );
-
       queryClient.setQueryData(["prompts"], (old) => {
         if (!Array.isArray(old)) {
-          console.warn("⚠️ Cache vazio, usando realPrompt direto");
           return [
             {
               ...realPrompt,
@@ -178,8 +155,6 @@ export function useCreatePromptMutation() {
         return old.map((p) => {
           // 🎯 ENCONTRA O PROMPT OTIMISTA PELO _clientId
           if (p._clientId === optimisticPrompt._clientId) {
-            console.log("🔄 [onSuccess] Substituindo otimista pelo real");
-
             // 🔍 DETECTA SE TEM BLOBS (mídia ainda não enviada)
             const hasBlobImage = p.image_url?.startsWith("blob:");
             const hasBlobVideo = p.video_url?.startsWith("blob:");
