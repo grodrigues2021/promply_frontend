@@ -866,7 +866,7 @@ export default function PromptManager({
 
 
 // =========================================================
-// 💾 FUNÇÃO savePrompt - VERSÃO CORRIGIDA
+// 💾 FUNÇÃO savePrompt - VERSÃO CORRIGIDA FINAL
 // =========================================================
 const savePrompt = async () => {
   if (isSaving) return;
@@ -1073,15 +1073,8 @@ const savePrompt = async () => {
       throw new Error("Backend não retornou o prompt criado");
     }
 
-    toast.success("✅ Prompt criado com sucesso!");
-    resetPromptForm();
-    setIsPromptDialogOpen(false);
-
-    queryClient.invalidateQueries(["stats"]);
-    queryClient.invalidateQueries(["categories"]);
-
     // =========================================================
-    // 📤 UPLOAD DE MÍDIA EM BACKGROUND (APENAS SE NÃO FOR YOUTUBE)
+    // 🔒 PASSO 1: CRIA CÓPIAS DOS ARQUIVOS **ANTES** DE FECHAR O MODAL
     // =========================================================
     const promptId = realPrompt.id;
 
@@ -1099,23 +1092,56 @@ const savePrompt = async () => {
       !promptForm.youtube_url && 
       (hasImage || hasVideo || extraFiles.length > 0);
 
+    // 🔒 CRIA CÓPIAS LOCAIS **ANTES** DE FECHAR O MODAL
+    const imageFileToUpload = promptForm.imageFile;
+    const videoFileToUpload = promptForm.videoFile;
+    const extraFilesToUpload = [...extraFiles]; // ← CÓPIA DOS ARQUIVOS EXTRAS!
+
+    console.log("🔒 Cópias criadas:", {
+      hasImage,
+      hasVideo,
+      extraFilesCount: extraFilesToUpload.length,
+      needsMediaUpload,
+    });
+
+    // =========================================================
+    // 🎉 PASSO 2: AGORA SIM PODE FECHAR O MODAL
+    // =========================================================
+    toast.success("✅ Prompt criado com sucesso!");
+    resetPromptForm(); // ← Vai limpar extraFiles no state
+    setIsPromptDialogOpen(false); // ← Vai chamar onOpenChange que também limpa
+
+    queryClient.invalidateQueries(["stats"]);
+    queryClient.invalidateQueries(["categories"]);
+
+    // =========================================================
+    // 📤 PASSO 3: UPLOAD EM BACKGROUND (USA AS CÓPIAS LOCAIS)
+    // =========================================================
     if (promptId && needsMediaUpload) {
       const mediaForm = new FormData();
 
-      if (hasImage) {
-        mediaForm.append("image", promptForm.imageFile);
+      if (hasImage && imageFileToUpload) {
+        mediaForm.append("image", imageFileToUpload);
+        console.log("📎 Imagem adicionada ao FormData");
       }
 
-      if (hasVideo) {
-        mediaForm.append("video", promptForm.videoFile);
-        if (promptForm.imageFile instanceof File) {
-          mediaForm.append("thumbnail", promptForm.imageFile);
+      if (hasVideo && videoFileToUpload) {
+        mediaForm.append("video", videoFileToUpload);
+        console.log("🎬 Vídeo adicionado ao FormData");
+        
+        if (imageFileToUpload instanceof File) {
+          mediaForm.append("thumbnail", imageFileToUpload);
+          console.log("🖼️ Thumbnail adicionado ao FormData");
         }
       }
 
-      extraFiles.forEach((file) =>
-        mediaForm.append("extra_files", file)
-      );
+      // ✅ USA A CÓPIA LOCAL (não o state que já foi limpo)
+      if (extraFilesToUpload.length > 0) {
+        extraFilesToUpload.forEach((file, index) => {
+          mediaForm.append("extra_files", file);
+          console.log(`📄 Arquivo extra ${index + 1} adicionado:`, file.name);
+        });
+      }
 
       startMediaUpload();
       console.log("📤 Iniciando upload de mídia para prompt:", promptId);
