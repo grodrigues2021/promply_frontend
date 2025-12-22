@@ -1,6 +1,6 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ DEBUG ANTI-LOOPING — YOUTUBE + OPTIMISTIC
+// ✅ VERSÃO CORRIGIDA - ANTI-FLICKER + YOUTUBE
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -24,6 +24,7 @@ function endMediaUpload() {
 function hasActiveUploads() {
   return uploadingMediaCount > 0;
 }
+
 // ===================================================
 // 🔵 HOOK: Buscar Prompts
 // ===================================================
@@ -62,16 +63,46 @@ export function usePromptsQuery() {
     },
   });
 }
+
 // ===================================================
-// 🟢 MUTATION: Criar Prompt (ANTI-LOOPING YOUTUBE)
+// 🟢 MUTATION: Criar Prompt (UNIFICADA)
 // ===================================================
 export function useCreatePromptMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ payload }) => {
-      console.log("📤 Criando prompt (somente texto)...");
-      const { data } = await api.post("/prompts/text", payload);
+      console.log("📤 Criando prompt...", payload);
+
+      // ✅ DETECTA SE É YOUTUBE PELO PAYLOAD
+      const isYouTube = Boolean(payload.youtube_url);
+
+      let response;
+
+      if (isYouTube) {
+        // 🎥 YOUTUBE: Usa endpoint /prompts com FormData
+        console.log("🎥 Detectado YouTube, usando endpoint /prompts");
+
+        const formData = new FormData();
+        formData.append("title", payload.title);
+        formData.append("content", payload.content);
+        formData.append("description", payload.description || "");
+        formData.append("tags", payload.tags || "");
+        formData.append("platform", payload.platform || "chatgpt");
+        formData.append("youtube_url", payload.youtube_url);
+
+        if (payload.category_id) {
+          formData.append("category_id", payload.category_id);
+        }
+
+        response = await api.post("/prompts", formData);
+      } else {
+        // 📝 TEXTO/IMAGEM/VÍDEO: Usa endpoint /prompts/text
+        console.log("📝 Usando endpoint /prompts/text");
+        response = await api.post("/prompts/text", payload);
+      }
+
+      const { data } = response;
 
       if (!data.success) {
         throw new Error(data.error || "Erro ao criar prompt");
@@ -81,23 +112,37 @@ export function useCreatePromptMutation() {
     },
 
     // ===================================================
-    // 🧪 ETAPA 2 — onMutate (PROMPT OTIMISTA)
+    // 🧪 onMutate - INSERE PROMPT OTIMISTA
     // ===================================================
     onMutate: async ({ optimisticPrompt }) => {
-      console.log("🧪 [ETAPA 2] onMutate chamado");
-      console.log("🧪 [ETAPA 2] youtube_url =", optimisticPrompt.youtube_url);
-      console.log("🧪 [ETAPA 2] thumb_url =", optimisticPrompt.thumb_url);
+      console.log("🧪 [onMutate] Inserindo prompt otimista");
+      console.log("🧪 [onMutate] _clientId:", optimisticPrompt._clientId);
+      console.log("🧪 [onMutate] thumb_url:", optimisticPrompt.thumb_url);
+      console.log("🧪 [onMutate] youtube_url:", optimisticPrompt.youtube_url);
 
+      // ✅ Cancela queries em andamento
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
+      // ✅ Salva estado anterior (para rollback)
       const previousPrompts = queryClient.getQueryData(["prompts"]);
 
+      // ✅ Insere prompt otimista no TOPO
       queryClient.setQueryData(["prompts"], (old) => {
         const current = Array.isArray(old) ? old : [];
-        console.log(
-          "🧪 [ETAPA 2] Inserindo no cache thumb_url =",
-          optimisticPrompt.thumb_url
+
+        // 🔍 VERIFICA SE JÁ EXISTE (segurança extra)
+        const exists = current.some(
+          (p) => p._clientId === optimisticPrompt._clientId
         );
+
+        if (exists) {
+          console.warn(
+            "⚠️ [onMutate] Prompt otimista já existe, ignorando duplicação"
+          );
+          return current;
+        }
+
+        console.log("✅ [onMutate] Inserindo prompt otimista no cache");
         return [optimisticPrompt, ...current];
       });
 
@@ -105,34 +150,61 @@ export function useCreatePromptMutation() {
     },
 
     // ===================================================
-    // 🧪 ETAPA 4 + 5 — onSuccess (MERGE FINAL)
+    // ✅ onSuccess - SUBSTITUI OTIMISTA PELO REAL
     // ===================================================
     onSuccess: (realPrompt, { optimisticPrompt }) => {
-      console.log("🧪 [ETAPA 4] onSuccess chamado");
-      console.log("🧪 [ETAPA 4] realPrompt.id =", realPrompt?.id);
+      console.log("✅ [onSuccess] Backend retornou prompt:", realPrompt?.id);
       console.log(
-        "🧪 [ETAPA 4] realPrompt.youtube_url =",
+        "✅ [onSuccess] realPrompt.thumb_url:",
+        realPrompt?.thumb_url
+      );
+      console.log(
+        "✅ [onSuccess] realPrompt.youtube_url:",
         realPrompt?.youtube_url
       );
-      console.log("🧪 [ETAPA 4] realPrompt.thumb_url =", realPrompt?.thumb_url);
 
       queryClient.setQueryData(["prompts"], (old) => {
         if (!Array.isArray(old)) {
-          console.warn("🧪 Cache vazio, usando realPrompt direto");
-          return [realPrompt];
+          console.warn("⚠️ Cache vazio, usando realPrompt direto");
+          return [
+            {
+              ...realPrompt,
+              _skipAnimation: true,
+              _clientId: optimisticPrompt._clientId,
+            },
+          ];
         }
 
         return old.map((p) => {
-          if (p._tempId === optimisticPrompt._tempId) {
+          // 🎯 ENCONTRA O PROMPT OTIMISTA PELO _clientId
+          if (p._clientId === optimisticPrompt._clientId) {
+            console.log("🔄 [onSuccess] Substituindo otimista pelo real");
+
+            // 🔍 DETECTA SE TEM BLOBS (mídia ainda não enviada)
             const hasBlobImage = p.image_url?.startsWith("blob:");
             const hasBlobVideo = p.video_url?.startsWith("blob:");
             const hasBlobThumb = p.thumb_url?.startsWith("blob:");
 
-            console.log("🧪 [ETAPA 5] Merge", {
-              optimistic_thumb: p.thumb_url,
-              backend_thumb: realPrompt?.thumb_url,
-              hasBlobThumb,
-            });
+            // 🎯 PRESERVA THUMBNAIL DO YOUTUBE
+            const isYouTube = Boolean(p.youtube_url || realPrompt.youtube_url);
+            let finalThumbUrl = "";
+
+            if (isYouTube) {
+              // ✅ YouTube: preserva thumbnail otimista ou usa do backend
+              finalThumbUrl = p.thumb_url || realPrompt.thumb_url || "";
+              console.log(
+                "🎥 [onSuccess] YouTube - thumb preservado:",
+                finalThumbUrl
+              );
+            } else if (hasBlobThumb) {
+              // ✅ Blob: mantém thumbnail local até upload completar
+              finalThumbUrl = p.thumb_url;
+              console.log("🖼️ [onSuccess] Blob thumb mantido:", finalThumbUrl);
+            } else {
+              // ✅ Backend: usa thumbnail do servidor
+              finalThumbUrl = realPrompt.thumb_url || "";
+              console.log("☁️ [onSuccess] Thumb do backend:", finalThumbUrl);
+            }
 
             const mergedPrompt = {
               ...realPrompt,
@@ -140,6 +212,7 @@ export function useCreatePromptMutation() {
               _uploadingMedia: hasBlobImage || hasBlobVideo || hasBlobThumb,
               _clientId: p._clientId,
 
+              // 📝 MERGE INTELIGENTE DE URLS
               image_url: hasBlobImage
                 ? p.image_url
                 : realPrompt.image_url || p.image_url || "",
@@ -148,15 +221,15 @@ export function useCreatePromptMutation() {
                 ? p.video_url
                 : realPrompt.video_url || p.video_url || "",
 
-              thumb_url: hasBlobThumb
-                ? p.thumb_url
-                : realPrompt.thumb_url || p.thumb_url || "",
+              thumb_url: finalThumbUrl,
             };
 
-            console.log(
-              "🧪 [ETAPA 5] Resultado final thumb_url =",
-              mergedPrompt.thumb_url
-            );
+            console.log("✅ [onSuccess] Merge completo:", {
+              id: mergedPrompt.id,
+              _uploadingMedia: mergedPrompt._uploadingMedia,
+              thumb_url: mergedPrompt.thumb_url,
+              youtube_url: mergedPrompt.youtube_url,
+            });
 
             return mergedPrompt;
           }
@@ -165,17 +238,24 @@ export function useCreatePromptMutation() {
         });
       });
 
+      // ✅ Atualiza stats
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
 
+    // ===================================================
+    // ❌ onError - ROLLBACK
+    // ===================================================
     onError: (error, variables, context) => {
-      console.error("❌ Erro ao criar prompt:", error);
+      console.error("❌ [onError] Erro ao criar prompt:", error);
+
       if (context?.previousPrompts) {
+        console.log("↩️ [onError] Fazendo rollback do cache");
         queryClient.setQueryData(["prompts"], context.previousPrompts);
       }
     },
   });
 }
+
 // ===================================================
 // 🟡 MUTATION: Atualizar Prompt
 // ===================================================
@@ -294,6 +374,7 @@ export function useToggleFavoriteMutation() {
     },
   });
 }
+
 // ===================================================
 // 📤 EXPORT: Controle de uploads
 // ===================================================
