@@ -16,6 +16,7 @@ import {
   X,
   Youtube,
   Download,
+  Upload,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -267,126 +268,113 @@ const PromptCard = React.memo(({
   });
 
   // 🎯 Detecta se é um prompt otimista (temporário)
-  // 🎯 Detecta se é um prompt otimista (temporário) ou fazendo upload
-  // 🎯 Detecta se é um prompt otimista (temporário)
-// 🔒 Um prompt só deve ser bloqueado enquanto NÃO existir no backend
-const isOptimistic = useMemo(() => {
-  // Segurança defensiva
-  if (!prompt || !prompt.id) return true;
+  const isOptimistic = useMemo(() => {
+    if (!prompt || !prompt.id) return true;
+    const isTempId = String(prompt.id).startsWith("temp-");
+    return isTempId;
+  }, [prompt?.id]);
 
-  const isTempId = String(prompt.id).startsWith("temp-");
+  // 🎯 Detecta se está fazendo upload de mídia
+  const isUploadingMedia = useMemo(() => {
+    return Boolean(prompt?._uploadingMedia);
+  }, [prompt?._uploadingMedia]);
 
-  if (isTempId) {
-    console.log("🔒 Prompt ainda otimista (ID temporário):", {
-      id: prompt.id,
-      title: prompt.title,
-    });
-  }
+  // 🎯 Prompt bloqueado = otimista OU fazendo upload
+  const isBlocked = isOptimistic || isUploadingMedia;
 
-  return isTempId;
-}, [prompt?.id, prompt?.title]);
+  // =====================================================
+  // 🖼️ MEDIA INFO NORMALIZADO (ANTI-INCONSISTÊNCIA)
+  // =====================================================
+  const stableThumbnailRef = useRef(null);
 
+  // -----------------------------------------------------
+  // 🔄 RESET DO REF QUANDO O PROMPT MUDA
+  // -----------------------------------------------------
+  useEffect(() => {
+    stableThumbnailRef.current = null;
+  }, [prompt._clientId]);
 
+  const mediaInfo = useMemo(() => {
+    const thumbUrl = prompt.thumb_url || "";
+    const imageUrl = prompt.image_url || "";
+    const videoUrl = prompt.video_url || "";
+    const youtubeUrl = prompt.youtube_url || "";
 
-// =====================================================
-// 🖼️ MEDIA INFO NORMALIZADO (ANTI-INCONSISTÊNCIA)
-// =====================================================
-const stableThumbnailRef = useRef(null);
+    let thumbnailUrl = "";
+    let hasImage = false;
+    let hasLocalVideo = false;
+    let hasYouTubeVideo = false;
+    let videoId = null;
+    let finalVideoUrl = "";
 
-// -----------------------------------------------------
-// 🔄 RESET DO REF QUANDO O PROMPT MUDA
-// -----------------------------------------------------
-useEffect(() => {
-  stableThumbnailRef.current = null;
-}, [prompt._clientId]);
+    // -------------------------------------------------
+    // 🎬 YOUTUBE
+    // -------------------------------------------------
+    if (youtubeUrl) {
+      hasYouTubeVideo = true;
+      videoId = extractYouTubeId(youtubeUrl);
+      thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : "";
+    }
 
-const mediaInfo = useMemo(() => {
-  const thumbUrl = prompt.thumb_url || "";
-  const imageUrl = prompt.image_url || "";
-  const videoUrl = prompt.video_url || "";
-  const youtubeUrl = prompt.youtube_url || "";
+    // -------------------------------------------------
+    // 🎥 VÍDEO LOCAL
+    // -------------------------------------------------
+    else if (videoUrl) {
+      hasLocalVideo = true;
+      finalVideoUrl = resolveMediaUrl(videoUrl);
 
-  let thumbnailUrl = "";
-  let hasImage = false;
-  let hasLocalVideo = false;
-  let hasYouTubeVideo = false;
-  let videoId = null;
-  let finalVideoUrl = "";
+      if (thumbUrl) {
+        if (
+          stableThumbnailRef.current &&
+          (prompt._uploadingMedia || thumbUrl.startsWith("blob:"))
+        ) {
+          thumbnailUrl = stableThumbnailRef.current;
+        } else {
+          thumbnailUrl = resolveMediaUrlWithCache(
+            thumbUrl,
+            prompt._uploadingMedia ? null : prompt.updated_at
+          );
+          stableThumbnailRef.current = thumbnailUrl;
+        }
+      }
+    }
 
-  // -------------------------------------------------
-  // 🎬 YOUTUBE
-  // -------------------------------------------------
-  if (youtubeUrl) {
-    hasYouTubeVideo = true;
-    videoId = extractYouTubeId(youtubeUrl);  // ✅ CORRETO
-    thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : "";  // ✅ CORRETO
-  }
+    // -------------------------------------------------
+    // 🖼️ IMAGEM
+    // -------------------------------------------------
+    else if (imageUrl) {
+      hasImage = true;
 
-  // -------------------------------------------------
-  // 🎥 VÍDEO LOCAL
-  // -------------------------------------------------
-  else if (videoUrl) {
-    hasLocalVideo = true;
-    finalVideoUrl = resolveMediaUrl(videoUrl);
-
-    if (thumbUrl) {
       if (
         stableThumbnailRef.current &&
-        (prompt._uploadingMedia || thumbUrl.startsWith("blob:"))
+        (prompt._uploadingMedia || imageUrl.startsWith("blob:"))
       ) {
         thumbnailUrl = stableThumbnailRef.current;
       } else {
         thumbnailUrl = resolveMediaUrlWithCache(
-          thumbUrl,
+          imageUrl,
           prompt._uploadingMedia ? null : prompt.updated_at
         );
         stableThumbnailRef.current = thumbnailUrl;
       }
     }
-  }
 
-  // -------------------------------------------------
-  // 🖼️ IMAGEM
-  // -------------------------------------------------
-  else if (imageUrl) {
-    hasImage = true;
-
-    if (
-      stableThumbnailRef.current &&
-      (prompt._uploadingMedia || imageUrl.startsWith("blob:"))
-    ) {
-      thumbnailUrl = stableThumbnailRef.current;
-    } else {
-      thumbnailUrl = resolveMediaUrlWithCache(
-        imageUrl,
-        prompt._uploadingMedia ? null : prompt.updated_at
-      );
-      stableThumbnailRef.current = thumbnailUrl;
-    }
-  }
-
-  return {
-    // Flags principais
-    hasMedia: Boolean(hasImage || hasLocalVideo || hasYouTubeVideo),
-    hasImage,
-    hasLocalVideo,
-    hasYouTubeVideo,
-
-    // Dados de vídeo
-    videoId,
-    videoUrl: finalVideoUrl,
-
-    // Thumbnail
-    thumbnailUrl,
-  };
-}, [
-  prompt.thumb_url,
-  prompt.image_url,
-  prompt.video_url,
-  prompt.youtube_url,
-  prompt._uploadingMedia,
-]);
-
+    return {
+      hasMedia: Boolean(hasImage || hasLocalVideo || hasYouTubeVideo),
+      hasImage,
+      hasLocalVideo,
+      hasYouTubeVideo,
+      videoId,
+      videoUrl: finalVideoUrl,
+      thumbnailUrl,
+    };
+  }, [
+    prompt.thumb_url,
+    prompt.image_url,
+    prompt.video_url,
+    prompt.youtube_url,
+    prompt._uploadingMedia,
+  ]);
 
   const tagsArray = useMemo(() => {
     if (Array.isArray(prompt.tags)) return prompt.tags;
@@ -421,7 +409,6 @@ const mediaInfo = useMemo(() => {
 
   // 🔵 Carregar anexos do prompt
   useEffect(() => {
-    // 🔒 Evitar IDs temporários (ex: "temp-123123")
     if (!prompt.id || typeof prompt.id !== "number") {
       setLoadingAttachments(false);
       return;
@@ -432,7 +419,9 @@ const mediaInfo = useMemo(() => {
         const res = await api.get(`/prompts/${prompt.id}/files`);
         setAttachments(res.data?.data || []);
       } catch (err) {
-        console.error("Erro ao carregar anexos:", err);
+        if (err.response?.status !== 404) {
+          console.error("Erro ao carregar anexos:", err);
+        }
       } finally {
         setLoadingAttachments(false);
       }
@@ -450,14 +439,6 @@ const mediaInfo = useMemo(() => {
 
   // Função para abrir modal
   const openModal = (type, src = null, videoId = null) => {
-    console.log("🎬 ABRINDO MODAL:", {
-      type: type,
-      src: src,
-      videoId: videoId,
-      hasVideo: mediaInfo.hasVideo,
-      hasLocalVideo: mediaInfo.hasLocalVideo,
-      videoUrl: mediaInfo.videoUrl
-    });
     setModalState({
       isOpen: true,
       type,
@@ -605,75 +586,113 @@ const mediaInfo = useMemo(() => {
           </div>
 
           {/* BOTÕES DE AÇÃO */}
-          <div className="flex gap-2 mt-auto">
-            {onCopy && !isInChat && (
-              <Button
-                variant="outline"
-                size="sm"
-                title="Copiar conteúdo"
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  try {
-                    await navigator.clipboard.writeText(prompt.content);
-                    toast.success("✅ Conteúdo copiado!");
-                  } catch (error) {
-                    console.error("Erro ao copiar:", error);
-                    toast.error("❌ Erro ao copiar conteúdo");
+          <div className="flex flex-col gap-2 mt-auto">
+            <div className="flex gap-2">
+              {onCopy && !isInChat && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Copiar conteúdo"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await navigator.clipboard.writeText(prompt.content);
+                      toast.success("✅ Conteúdo copiado!");
+                    } catch (error) {
+                      console.error("Erro ao copiar:", error);
+                      toast.error("❌ Erro ao copiar conteúdo");
+                    }
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              )}
+
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title={
+                    isOptimistic
+                      ? "⏳ Aguarde a criação do prompt"
+                      : isUploadingMedia
+                      ? "⏳ Aguarde o upload terminar"
+                      : "Editar Prompt"
                   }
-                }}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
+                  disabled={isBlocked}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(prompt);
+                  }}
+                  className={isBlocked ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              )}
+           
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title={
+                    isOptimistic
+                      ? "⏳ Aguarde a criação do prompt"
+                      : isUploadingMedia
+                      ? "⏳ Aguarde o upload terminar"
+                      : "Excluir Prompt"
+                  }
+                  disabled={isBlocked}
+                  className={cn(
+                    "text-red-600 hover:text-red-700",
+                    isBlocked && "opacity-50 cursor-not-allowed"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(prompt.id);
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+
+              {onShare && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title="Compartilhar no Chat"
+                  className="text-purple-600 hover:text-purple-700"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onShare(prompt);
+                  }}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+
+            {/* ✅ INDICADOR DE UPLOAD */}
+            {isUploadingMedia && (
+              <div className="px-3 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-md border border-orange-200 dark:border-orange-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                  <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
+                    🎬 Enviando mídia... Aguarde antes de editar
+                  </p>
+                </div>
+              </div>
             )}
 
-            {onEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                title={isOptimistic ? "Aguarde a criação do prompt" : "Editar Prompt"}
-                disabled={isOptimistic}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(prompt);
-                }}
-                className={isOptimistic ? "opacity-50 cursor-not-allowed" : ""}
-              >
-                <Edit className="w-4 h-4" />
-              </Button>
-            )}
-         
-            {onDelete && (
-              <Button
-                variant="outline"
-                size="sm"
-                title={isOptimistic ? "Aguarde a criação do prompt" : "Excluir Prompt"}
-                disabled={isOptimistic}
-                className={cn(
-                  "text-red-600 hover:text-red-700",
-                  isOptimistic && "opacity-50 cursor-not-allowed"
-                )}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(prompt.id);
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
-
-            {onShare && (
-              <Button
-                variant="outline"
-                size="sm"
-                title="Compartilhar no Chat"
-                className="text-purple-600 hover:text-purple-700"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onShare(prompt);
-                }}
-              >
-                <Share2 className="w-4 h-4" />
-              </Button>
+            {/* ✅ INDICADOR DE CRIAÇÃO OTIMISTA */}
+            {isOptimistic && !isUploadingMedia && (
+              <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                    ⏳ Criando prompt...
+                  </p>
+                </div>
+              </div>
             )}
           </div>
 
@@ -716,8 +735,6 @@ const mediaInfo = useMemo(() => {
         </div>
 
         {/* MÍDIA */}
-
-        
         {mediaInfo.hasMedia && (
           <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
             
@@ -788,13 +805,10 @@ const mediaInfo = useMemo(() => {
                 type="button"
                 onClick={() => {
                   const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
-                  console.log("🎬 Abrindo vídeo local:", finalVideoUrl);
-                  console.log("🖼️ Thumbnail do vídeo:", mediaInfo.thumbnailUrl);
                   openModal("video", finalVideoUrl);
                 }}
                 className="relative w-full h-full group/media overflow-hidden"
               >
-                {/* ✅ EXIBIR THUMBNAIL SE EXISTIR */}
                 {mediaInfo.thumbnailUrl ? (
                   <img
                     src={mediaInfo.thumbnailUrl}
@@ -802,15 +816,12 @@ const mediaInfo = useMemo(() => {
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
                     onError={(e) => {
-                      console.error("❌ Erro ao carregar thumbnail:", mediaInfo.thumbnailUrl);
-                      // Fallback para ícone de play
                       e.target.style.display = 'none';
                       e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
                     }}
                   />
                 ) : null}
                 
-                {/* Fallback icon (sempre renderizado, mas oculto se houver thumbnail) */}
                 <div className={cn(
                   "fallback-icon flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200",
                   mediaInfo.thumbnailUrl && "hidden"
@@ -818,7 +829,6 @@ const mediaInfo = useMemo(() => {
                   <Play className="h-16 w-16 text-purple-400" />
                 </div>
 
-                {/* Overlay de hover */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                   <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
                     <Play className="h-8 w-8 text-purple-600 fill-current" />
@@ -894,7 +904,8 @@ const mediaInfo = useMemo(() => {
     prevProps.prompt.video_url === nextProps.prompt.video_url &&
     prevProps.prompt.youtube_url === nextProps.prompt.youtube_url &&
     prevProps.prompt.thumb_url === nextProps.prompt.thumb_url &&
-    prevProps.prompt.tags === nextProps.prompt.tags
+    prevProps.prompt.tags === nextProps.prompt.tags &&
+    prevProps.prompt._uploadingMedia === nextProps.prompt._uploadingMedia
   );
 });
 

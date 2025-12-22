@@ -623,18 +623,24 @@ export default function PromptManager({
     setPromptForm(formData);
 
     try {
-      const response = await api.get(`/prompts/${prompt.id}/files`);
-      
-      if (response.data?.data) {
-        const files = response.data.data;
-        setAttachments(files);
-      } else {
-        setAttachments([]);
-      }
-    } catch (error) {
-      console.error("❌ Erro ao carregar anexos:", error);
-      setAttachments([]);
-    }
+  const response = await api.get(`/prompts/${prompt.id}/files`);
+  
+  // ✅ Verifica se tem success e data
+  if (response.data?.success && response.data?.data) {
+    setAttachments(response.data.data);
+  } else {
+    setAttachments([]);
+  }
+} catch (error) {
+  // ✅ Silencia 404 (arquivos ainda sendo processados)
+  if (error.response?.status === 404) {
+    console.log("ℹ️ Arquivos ainda não disponíveis (upload em andamento)");
+    setAttachments([]);
+  } else {
+    console.error("❌ Erro ao carregar anexos:", error);
+    setAttachments([]);
+  }
+}
 
     setIsPromptDialogOpen(true);
   }, [extractYouTubeId]);
