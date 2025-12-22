@@ -866,7 +866,7 @@ export default function PromptManager({
 
 
 // =========================================================
-// Função savePrompt (SUBSTITUIR a função completa)
+// 💾 FUNÇÃO savePrompt - VERSÃO CORRIGIDA
 // =========================================================
 const savePrompt = async () => {
   if (isSaving) return;
@@ -880,7 +880,7 @@ const savePrompt = async () => {
 
   try {
     // =========================================================
-    // 📝 MODO EDIÇÃO FLICKER RESOLVIDO
+    // ✏️ MODO EDIÇÃO
     // =========================================================
     if (isEditMode && editingPrompt?.id) {
       const promptId = editingPrompt.id;
@@ -930,7 +930,7 @@ const savePrompt = async () => {
 
       if (hasMedia) {
         try {
-          startMediaUpload(); // ✅ BLOQUEIA REFETCH
+          startMediaUpload();
 
           const mediaResponse = await api.post(
             `/prompts/${promptId}/media`,
@@ -957,7 +957,7 @@ const savePrompt = async () => {
             "Prompt atualizado, mas houve erro no upload da mídia."
           );
         } finally {
-          endMediaUpload(); // ✅ LIBERA REFETCH
+          endMediaUpload();
         }
       }
 
@@ -971,160 +971,137 @@ const savePrompt = async () => {
       return;
     }
 
- // =========================================================
-// ➕ MODO CRIAÇÃO (PROMPT OTIMISTA + YOUTUBE AWARE)
-// =========================================================
+    // =========================================================
+    // ➕ MODO CRIAÇÃO - UNIFICADO
+    // =========================================================
 
-const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${Date.now()}`;
 
-const clientId =
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const clientId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-// URLs locais (optimistic)
-const imageBlobUrl = safeCreateObjectURL(promptForm.imageFile);
-const videoBlobUrl = safeCreateObjectURL(promptForm.videoFile);
+    // 🎯 URLs locais (optimistic)
+    const imageBlobUrl = safeCreateObjectURL(promptForm.imageFile);
+    const videoBlobUrl = safeCreateObjectURL(promptForm.videoFile);
 
-// 🎯 THUMBNAIL DEFINITIVO PARA OPTIMISTIC
-let thumbUrl = "";
+    // 🎯 THUMBNAIL DEFINITIVO PARA OPTIMISTIC
+    let thumbUrl = "";
 
-if (promptForm.videoFile && promptForm.imageFile) {
-  thumbUrl = safeCreateObjectURL(promptForm.imageFile);
-} else if (promptForm.youtube_url) {
-  const ytThumb = getYouTubeThumbnail(promptForm.youtube_url);
-  if (ytThumb) thumbUrl = ytThumb;
-}
+    if (promptForm.videoFile && promptForm.imageFile) {
+      thumbUrl = safeCreateObjectURL(promptForm.imageFile);
+    } else if (promptForm.youtube_url) {
+      const ytThumb = getYouTubeThumbnail(promptForm.youtube_url);
+      if (ytThumb) thumbUrl = ytThumb;
+    }
 
-// =========================================================
-// 🧠 PROMPT OTIMISTA
-// =========================================================
-const optimisticPrompt = {
-  id: tempId,
-  _tempId: tempId,
-  _clientId: clientId,
-  _isOptimistic: true,
-  _skipAnimation: false,
+    // =========================================================
+    // 🧠 PROMPT OTIMISTA
+    // =========================================================
+    const optimisticPrompt = {
+      id: tempId,
+      _tempId: tempId,
+      _clientId: clientId,
+      _isOptimistic: true,
+      _skipAnimation: false,
 
-  title: promptForm.title,
-  content: promptForm.content,
-  description: promptForm.description || "",
-  tags: promptForm.tags || "",
-  platform: promptForm.platform || "chatgpt",
-  is_favorite: promptForm.is_favorite || false,
-  youtube_url: promptForm.youtube_url || "",
-  category_id:
-    promptForm.category_id !== "none"
-      ? parseInt(promptForm.category_id)
-      : null,
-
-  image_url: imageBlobUrl || "",
-  video_url: videoBlobUrl || "",
-  thumb_url: thumbUrl || "",
-
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  usage_count: 0,
-};
-
-// =========================================================
-// 🧠 INSERE OTIMISTA MANUALMENTE NO CACHE
-// =========================================================
-queryClient.setQueryData(["prompts"], (old) => {
-  const current = Array.isArray(old) ? old : [];
-  return [optimisticPrompt, ...current];
-});
-
-// =========================================================
-// 🚀 DECISÃO DE ENDPOINT
-// =========================================================
-let realPrompt;
-
-if (promptForm.youtube_url) {
-  // ===========================
-  // 🎥 YOUTUBE → /prompts
-  // ===========================
-  const formData = new FormData();
-
-  formData.append("title", promptForm.title);
-  formData.append("content", promptForm.content);
-  formData.append("description", promptForm.description || "");
-  formData.append("tags", promptForm.tags || "");
-  formData.append("platform", promptForm.platform || "chatgpt");
-  formData.append("youtube_url", promptForm.youtube_url);
-
-  if (promptForm.category_id !== "none") {
-    formData.append("category_id", promptForm.category_id);
-  }
-
-  const response = await api.post("/prompts", formData);
-  realPrompt = response.data?.data;
-} else {
-  // ===========================
-  // 📝 TEXTO → /prompts/text
-  // ===========================
-  realPrompt = await createPromptMutation.mutateAsync({
-    payload: {
       title: promptForm.title,
       content: promptForm.content,
       description: promptForm.description || "",
       tags: promptForm.tags || "",
       platform: promptForm.platform || "chatgpt",
       is_favorite: promptForm.is_favorite || false,
+      youtube_url: promptForm.youtube_url || "",
       category_id:
         promptForm.category_id !== "none"
           ? parseInt(promptForm.category_id)
           : null,
-    },
-    optimisticPrompt,
-  });
-}
 
-if (!realPrompt?.id) {
-  throw new Error("Backend não retornou o prompt criado");
-}
+      image_url: imageBlobUrl || "",
+      video_url: videoBlobUrl || "",
+      thumb_url: thumbUrl || "",
 
-// =========================================================
-// 🔄 SUBSTITUI OTIMISTA PELO REAL (COM THUMBNAIL)
-// =========================================================
-queryClient.setQueryData(["prompts"], (old) => {
-  if (!Array.isArray(old)) return [realPrompt];
-
-  return old.map((p) =>
-    p._tempId === tempId
-      ? {
-          ...realPrompt,
-          _skipAnimation: true,
-          _clientId: clientId,
-        }
-      : p
-  );
-});
-
-toast.success("✅ Prompt criado com sucesso!");
-resetPromptForm();
-setIsPromptDialogOpen(false);
-
-queryClient.invalidateQueries(["stats"]);
-queryClient.invalidateQueries(["categories"]);
-
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      usage_count: 0,
+    };
 
     // =========================================================
-    // 📤 UPLOAD DE MÍDIA EM BACKGROUND (PROTEGIDO)
+    // 🚀 CHAMADA UNIFICADA - SEMPRE USA A MUTATION
+    // =========================================================
+    let realPrompt;
+
+    if (promptForm.youtube_url) {
+      // ✅ YOUTUBE: Envia pela mutation com youtube_url no payload
+      realPrompt = await createPromptMutation.mutateAsync({
+        payload: {
+          title: promptForm.title,
+          content: promptForm.content,
+          description: promptForm.description || "",
+          tags: promptForm.tags || "",
+          platform: promptForm.platform || "chatgpt",
+          is_favorite: promptForm.is_favorite || false,
+          youtube_url: promptForm.youtube_url,
+          category_id:
+            promptForm.category_id !== "none"
+              ? parseInt(promptForm.category_id)
+              : null,
+        },
+        optimisticPrompt,
+      });
+    } else {
+      // ✅ TEXTO/IMAGEM/VÍDEO: Usa endpoint /text
+      realPrompt = await createPromptMutation.mutateAsync({
+        payload: {
+          title: promptForm.title,
+          content: promptForm.content,
+          description: promptForm.description || "",
+          tags: promptForm.tags || "",
+          platform: promptForm.platform || "chatgpt",
+          is_favorite: promptForm.is_favorite || false,
+          category_id:
+            promptForm.category_id !== "none"
+              ? parseInt(promptForm.category_id)
+              : null,
+        },
+        optimisticPrompt,
+      });
+    }
+
+    if (!realPrompt?.id) {
+      throw new Error("Backend não retornou o prompt criado");
+    }
+
+    toast.success("✅ Prompt criado com sucesso!");
+    resetPromptForm();
+    setIsPromptDialogOpen(false);
+
+    queryClient.invalidateQueries(["stats"]);
+    queryClient.invalidateQueries(["categories"]);
+
+    // =========================================================
+    // 📤 UPLOAD DE MÍDIA EM BACKGROUND (APENAS SE NÃO FOR YOUTUBE)
     // =========================================================
     const promptId = realPrompt.id;
 
+    // ✅ VALIDAÇÃO CORRIGIDA
     const hasImage =
-  promptForm.imageFile instanceof File &&
-  !promptForm.videoFile &&
-  !promptForm.youtube_url;
+      promptForm.imageFile instanceof File &&
+      !promptForm.videoFile &&
+      !promptForm.youtube_url;
 
-    const hasVideo = promptForm.videoFile instanceof File;
+    const hasVideo = 
+      promptForm.videoFile instanceof File &&
+      !promptForm.youtube_url;
 
-    if (promptId && (hasImage || hasVideo || extraFiles.length > 0)) {
+    const needsMediaUpload = 
+      !promptForm.youtube_url && 
+      (hasImage || hasVideo || extraFiles.length > 0);
+
+    if (promptId && needsMediaUpload) {
       const mediaForm = new FormData();
 
-      
       if (hasImage) {
         mediaForm.append("image", promptForm.imageFile);
       }
@@ -1136,12 +1113,10 @@ queryClient.invalidateQueries(["categories"]);
         }
       }
 
-      
       extraFiles.forEach((file) =>
         mediaForm.append("extra_files", file)
       );
 
-      // ✅ BLOQUEIA REFETCH ANTES DO UPLOAD
       startMediaUpload();
       console.log("📤 Iniciando upload de mídia para prompt:", promptId);
 
@@ -1152,11 +1127,11 @@ queryClient.invalidateQueries(["categories"]);
         })
         .then((res) => {
           console.log("✅ Upload completou! Resposta:", res.data);
-          
+
           if (res.data?.data) {
             queryClient.setQueryData(["prompts"], (old) => {
               if (!Array.isArray(old)) return old;
-              
+
               return old.map((p) => {
                 if (p.id === promptId) {
                   const newPrompt = {
@@ -1164,18 +1139,18 @@ queryClient.invalidateQueries(["categories"]);
                     _uploadingMedia: false,
                     _clientId: p._clientId,
                   };
-                  
+
                   console.log("🔄 Atualizando prompt:", {
                     old_thumb: p.thumb_url,
-                    new_thumb: newPrompt.thumb_url
+                    new_thumb: newPrompt.thumb_url,
                   });
-                  
+
                   return newPrompt;
                 }
                 return p;
               });
             });
-            
+
             toast.success("🎬 Mídia enviada com sucesso!");
           } else {
             console.warn("⚠️ Backend não retornou data:", res.data);
@@ -1184,22 +1159,17 @@ queryClient.invalidateQueries(["categories"]);
         .catch((err) => {
           console.error("❌ Erro no upload da mídia:", err);
           console.error("   Detalhes:", err.response?.data);
-          
+
           queryClient.setQueryData(["prompts"], (old) => {
             if (!Array.isArray(old)) return old;
             return old.map((p) =>
-              p.id === promptId
-                ? { ...p, _uploadingMedia: false }
-                : p
+              p.id === promptId ? { ...p, _uploadingMedia: false } : p
             );
           });
-          
-          toast.warning(
-            "Prompt criado, mas houve erro no upload da mídia."
-          );
+
+          toast.warning("Prompt criado, mas houve erro no upload da mídia.");
         })
         .finally(() => {
-          // ✅ LIBERA REFETCH APÓS UPLOAD
           endMediaUpload();
           console.log("🔓 Upload finalizado, refetch liberado");
         });
