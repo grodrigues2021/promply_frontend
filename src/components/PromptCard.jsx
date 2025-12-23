@@ -22,6 +22,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
+import thumbnailCache from "../lib/thumbnailCache"; // ✅ ADICIONAR IMPORT
 
 
 
@@ -255,7 +256,53 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-  // Estado dos anexos
+  // ========================================
+  // 🆕 CORREÇÃO: State para thumbnail do cache
+  // ========================================
+  const promptId = prompt?.id;
+  
+  const [cachedThumbnail, setCachedThumbnail] = useState(
+    thumbnailCache.get(promptId)
+  );
+
+  // 🆕 Escuta mudanças no cache
+  useEffect(() => {
+    if (!promptId) return;
+
+    // Verifica cache imediatamente
+    const thumb = thumbnailCache.get(promptId);
+    if (thumb && thumb !== cachedThumbnail) {
+      console.log(`🔄 PromptCard: Cache atualizado para ID ${promptId}`);
+      setCachedThumbnail(thumb);
+    }
+
+    // Continua verificando (para thumbnails geradas depois)
+    const interval = setInterval(() => {
+      const newThumb = thumbnailCache.get(promptId);
+      if (newThumb && newThumb !== cachedThumbnail) {
+        console.log(`🔄 PromptCard: Nova thumbnail para ID ${promptId}`);
+        setCachedThumbnail(newThumb);
+        clearInterval(interval); // Para de verificar depois que encontrar
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [promptId, cachedThumbnail]);
+
+  // 🔍 DEBUG: Log do estado da thumbnail
+  useEffect(() => {
+    console.log('🎴 PromptCard renderizado:', {
+      id: promptId,
+      title: prompt?.title,
+      thumb_url: prompt?.thumb_url,
+      video_url: prompt?.video_url,
+      cachedThumbnail: cachedThumbnail ? 'SIM ✅' : 'NÃO ❌',
+    });
+  }, [promptId, prompt?.thumb_url, prompt?.video_url, cachedThumbnail]);
+
+  // ========================================
+  // Estados originais
+  // ========================================
   const [attachments, setAttachments] = useState([]);
   const [loadingAttachments, setLoadingAttachments] = useState(true);
 
@@ -323,7 +370,13 @@ const PromptCard = React.memo(({
       hasLocalVideo = true;
       finalVideoUrl = resolveMediaUrl(videoUrl);
 
-      if (thumbUrl) {
+      // ✅ PRIORIDADE 1: Thumbnail do cache (copiada do template)
+      if (cachedThumbnail) {
+        thumbnailUrl = cachedThumbnail;
+        console.log(`✅ PromptCard usando thumbnail do cache: ${promptId}`);
+      }
+      // ✅ PRIORIDADE 2: Thumbnail do banco de dados
+      else if (thumbUrl) {
         if (
           stableThumbnailRef.current &&
           (prompt._uploadingMedia || thumbUrl.startsWith("blob:"))
@@ -374,6 +427,8 @@ const PromptCard = React.memo(({
     prompt.video_url,
     prompt.youtube_url,
     prompt._uploadingMedia,
+    cachedThumbnail, // ✅ ADICIONAR DEPENDÊNCIA
+    promptId,
   ]);
 
   const tagsArray = useMemo(() => {
