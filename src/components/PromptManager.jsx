@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptManager.jsx
-// ✅ VERSÃO CORRIGIDA - Optimistic Updates + Draft System Fixed
+// ✅ VERSÃO CORRIGIDA - Draft System Fixed v2
 // ==========================================
 
 import { toast } from "sonner";
@@ -177,6 +177,7 @@ export default function PromptManager({
   const [attachments, setAttachments] = useState([]);
   const extraFilesInputRef = useRef(null);
   const isRestoringDraft = useRef(false);
+  const shouldBlockDraftSave = useRef(false); // ✅ NOVA FLAG DE CONTROLE
 
   const [formErrors, setFormErrors] = useState({
     title: "",
@@ -541,6 +542,9 @@ export default function PromptManager({
   const resetPromptForm = useCallback(() => {
     console.log("🔄 Resetando formulário...");
     
+    // ✅ BLOQUEIA SALVAMENTO DE RASCUNHO IMEDIATAMENTE
+    shouldBlockDraftSave.current = true;
+    
     setPromptForm({
       title: "",
       content: "",
@@ -570,12 +574,16 @@ export default function PromptManager({
       extraFilesInputRef.current.value = "";
     }
 
-    // ✅ LIMPA RASCUNHO APENAS SE NÃO ESTIVER SALVANDO
-    if (!isSaving) {
-      console.log("🗑️ Limpando rascunho do localStorage (reset manual)");
-      localStorage.removeItem("prompt-draft");
-    }
-  }, [isEditMode, isSaving]);
+    // ✅ LIMPA RASCUNHO SEMPRE (não depende de isSaving)
+    console.log("🗑️ Limpando rascunho do localStorage");
+    localStorage.removeItem("prompt-draft");
+    
+    // ✅ DESBLOQUEIA após 100ms (tempo para React processar updates)
+    setTimeout(() => {
+      shouldBlockDraftSave.current = false;
+      console.log("🔓 Salvamento de rascunho desbloqueado");
+    }, 100);
+  }, [isEditMode]);
 
   const resetCategoryForm = useCallback(() => {
     setCategoryForm({
@@ -782,8 +790,14 @@ export default function PromptManager({
           overlay.remove();
         }
       });
+    } else {
+      // ✅ DESBLOQUEIA ao abrir modal para NOVO prompt
+      if (!isEditMode && !editingPrompt) {
+        shouldBlockDraftSave.current = false;
+        console.log("🆕 Modal aberto para novo prompt - salvamento desbloqueado");
+      }
     }
-  }, [isPromptDialogOpen]);
+  }, [isPromptDialogOpen, isEditMode, editingPrompt]);
 
   // ===================================================
   // 💾 RASCUNHO - SALVAMENTO AUTOMÁTICO (DEBOUNCED)
@@ -794,9 +808,13 @@ export default function PromptManager({
     if (isSaving) return; // Salvando no servidor
     if (isEditMode || editingPrompt) return; // Editando prompt existente
     if (isRestoringDraft.current) return; // Restaurando rascunho
+    if (shouldBlockDraftSave.current) return; // ✅ BLOQUEIO ATIVO
 
     // ✅ DEBOUNCE: Aguarda 2 segundos sem digitação
     const timeoutId = setTimeout(() => {
+      // ✅ VERIFICA NOVAMENTE antes de salvar
+      if (shouldBlockDraftSave.current) return;
+      
       const hasContent =
         promptForm.title?.trim() ||
         promptForm.content?.trim() ||
@@ -1132,13 +1150,10 @@ export default function PromptManager({
       const extraFilesToUpload = [...extraFiles];
 
       // =========================================================
-      // 🎉 PASSO 2: LIMPA RASCUNHO E FECHA O MODAL
+      // 🎉 PASSO 2: FECHA O MODAL E RESETA
       // =========================================================
-      console.log("🗑️ Limpando rascunho após salvamento bem-sucedido");
-      localStorage.removeItem("prompt-draft");
-      
       toast.success("✅ Prompt criado com sucesso!");
-      resetPromptForm();
+      resetPromptForm(); // ← Já limpa localStorage internamente
       setIsPromptDialogOpen(false);
 
       queryClient.invalidateQueries(["stats"]);
