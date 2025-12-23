@@ -684,7 +684,7 @@ export default function TemplatesPage({ onBack }) {
     setIsUseTemplateDialogOpen(true);
   }, []);
 
-  // ✅ ATUALIZADO: useTemplate com MUTATION
+// âœ… ATUALIZADO: useTemplate com MUTATION + Cache de Thumbnails
   const useTemplate = useCallback(
     async () => {
       if (!selectedTemplate) return;
@@ -698,10 +698,20 @@ export default function TemplatesPage({ onBack }) {
         };
 
         // ✅ USAR MUTATION
-        await useTemplateMutation.mutateAsync({
+        const result = await useTemplateMutation.mutateAsync({
           templateId: selectedTemplate.id,
           payload,
         });
+
+        // ============================================================
+        // 🆕 CORREÇÃO: Salvar thumb_url no cache após criar prompt
+        // ============================================================
+        if (result?.prompt?.thumb_url && result?.prompt?.id) {
+          console.log(`💾 [UseTemplate] Salvando thumbnail do prompt ${result.prompt.id} no cache`);
+          
+          // Salva thumbnail do template no cache com ID do novo prompt
+          thumbnailCache.set(result.prompt.id, result.prompt.thumb_url);
+        }
 
         toast.success("✅ Prompt criado com sucesso!");
 

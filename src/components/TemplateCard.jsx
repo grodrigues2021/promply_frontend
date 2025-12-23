@@ -25,7 +25,7 @@ import { resolveMediaUrl, extractYouTubeId, detectVideoType } from '../lib/media
 import thumbnailCache from '../lib/thumbnailCache';
 
 // ============================================================
-// 🔵 PLATAFORMAS DISPONÍVEIS
+// 📵 PLATAFORMAS DISPONÍVEIS
 // ============================================================
 const PLATFORMS = {
   chatgpt: { label: "ChatGPT", icon: "🤖", color: "#10a37f" },
@@ -99,7 +99,7 @@ const TemplateCard = React.memo(({
   className,
 }) => {
   // ============================================================
-  // 📝 Normalização de dados
+  // 🔍 Normalização de dados
   // ============================================================
   const item = prompt || legacyTemplate;
 
@@ -159,7 +159,7 @@ const TemplateCard = React.memo(({
             
             // ✅ Adiciona à fila global (max 5 simultâneos)
             if (window.queueThumbnailGeneration) {
-              console.log(`🔄 [Observer] Enfileirando thumbnail: ${templateId}`);
+              console.log(`📄 [Observer] Enfileirando thumbnail: ${templateId}`);
               
               window.queueThumbnailGeneration(videoUrl, templateId, (success) => {
                 if (success) {
@@ -190,6 +190,22 @@ const TemplateCard = React.memo(({
       observer.disconnect();
     };
   }, [item?.video_url, item?.thumb_url, templateId, cachedThumbnail, isProcessing]);
+
+  // ============================================================
+  // 🆕 CORREÇÃO: CACHE AUTOMÁTICO - Salva thumb_url do backend
+  // ============================================================
+  useEffect(() => {
+    // ✅ Se o backend enviou thumb_url e não está no cache
+    if (item?.thumb_url && !cachedThumbnail && templateId) {
+      console.log(`💾 [Cache] Salvando thumb_url do backend para ID ${templateId}`);
+      
+      // Salva no IndexedDB para persistir entre sessões
+      thumbnailCache.set(templateId, item.thumb_url);
+      
+      // Atualiza estado local para forçar re-render
+      setLocalGeneratedThumb(item.thumb_url);
+    }
+  }, [item?.thumb_url, templateId, cachedThumbnail]);
 
   // ============================================================
   // 🖼️ Media Info com cache persistente
