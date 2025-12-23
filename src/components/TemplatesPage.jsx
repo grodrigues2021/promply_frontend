@@ -605,15 +605,17 @@ export default function TemplatesPage({ onBack }) {
     createTemplateMutation,
   ]);
 
-  // ✅ ATUALIZADO: handleSaveTemplate com MUTATION
+  // ✅ CORRIGIDO: handleSaveTemplate SEM DUPLICAÇÃO
   const handleSaveTemplate = useCallback(
     async (payload, templateId) => {
       try {
         let formData;
 
         if (payload instanceof FormData) {
+          // ✅ Payload já é FormData (vem do TemplateModal com extra_files)
           formData = payload;
         } else {
+          // ✅ Cria FormData apenas se payload for objeto JSON
           formData = new FormData();
           formData.append("title", payload.title);
           formData.append("content", payload.content);
@@ -630,11 +632,7 @@ export default function TemplatesPage({ onBack }) {
           if (payload.youtube_url) formData.append("youtube_url", payload.youtube_url);
         }
 
-        if (extraFiles.length > 0) {
-          extraFiles.forEach((file) => {
-            formData.append("extra_files", file);
-          });
-        }
+        // ✅ REMOVIDO: Bloco de extra_files (TemplateModal já enviou)
 
         // ✅ USAR MUTATION
         if (templateId) {
@@ -650,13 +648,13 @@ export default function TemplatesPage({ onBack }) {
 
         setIsTemplateModalOpen(false);
         setSelectedTemplateForModal(null);
-        setExtraFiles([]);
+        setExtraFiles([]); // ✅ Limpa estado local
       } catch (error) {
         console.error("❌ Erro ao salvar template:", error);
         toast.error(error.message || "Erro ao salvar template");
       }
     },
-    [extraFiles, updateTemplateMutation, createTemplateMutation]
+    [updateTemplateMutation, createTemplateMutation] // ✅ Removido extraFiles da dependência
   );
 
   // ✅ ATUALIZADO: deleteTemplate com MUTATION
@@ -757,8 +755,6 @@ export default function TemplatesPage({ onBack }) {
   );
 
   // ===== PRÉ-PROCESSAMENTO DE THUMBNAILS =====
-  // ✅ OTIMIZADO para muitos vídeos MP4
-  // ✅ Todos os vídeos carregam sob demanda via Intersection Observer
   useEffect(() => {
     // Só processa quando templates acabaram de chegar
     if (templates.length === 0 || loading) return;
@@ -778,8 +774,6 @@ export default function TemplatesPage({ onBack }) {
     }
 
     const processVideoThumbnails = async () => {
-      // ✅ OTIMIZAÇÃO: Todos os vídeos carregam sob demanda via Intersection Observer
-      // Loading instantâneo, zero processamento inicial
       const MAX_INITIAL_VIDEOS = 0;
       const videosToProcess = videoTemplates.slice(0, MAX_INITIAL_VIDEOS);
       
@@ -787,11 +781,9 @@ export default function TemplatesPage({ onBack }) {
         console.log(`⚡ Otimização: Processando apenas ${MAX_INITIAL_VIDEOS} de ${videoTemplates.length} vídeos inicialmente`);
       }
 
-      // ✅ SÓ AGORA ativa o processamento (bloqueia UI)
       setProcessingThumbnails(true);
       console.log(`🎬 Processando ${videosToProcess.length} thumbnails antes de liberar UI...`);
 
-      // ✅ OTIMIZADO: Processa até 5 vídeos em paralelo (era 3)
       const processBatch = async (batch) => {
         return Promise.allSettled(
           batch.map(async (template) => {
@@ -810,7 +802,6 @@ export default function TemplatesPage({ onBack }) {
               video.preload = 'metadata';
 
               await new Promise((resolve, reject) => {
-                // ✅ OTIMIZADO: Timeout 5s (era 8s)
                 const timeout = setTimeout(() => {
                   video.remove();
                   reject(new Error('Timeout ao carregar vídeo'));
@@ -825,9 +816,6 @@ export default function TemplatesPage({ onBack }) {
                   clearTimeout(timeout);
                   try {
                     const canvas = document.createElement('canvas');
-                    
-                    // ✅ OTIMIZAÇÃO 1: Reduzir resolução (economia de 60% no processamento)
-                    // Limita largura máxima a 800px (thumbnails não precisam ser HD)
                     const maxWidth = 800;
                     const scale = Math.min(1, maxWidth / video.videoWidth);
                     canvas.width = video.videoWidth * scale;
@@ -835,9 +823,6 @@ export default function TemplatesPage({ onBack }) {
                     
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    
-                    // ✅ OTIMIZAÇÃO 2: Qualidade JPEG reduzida (0.85 → 0.7)
-                    // Economia de 30-40% no tamanho, imperceptível para thumbnails
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                     
                     if (dataUrl && dataUrl !== 'data:,') {
@@ -868,7 +853,6 @@ export default function TemplatesPage({ onBack }) {
         );
       };
 
-      // ✅ OTIMIZADO: Processa em lotes de 5 (era 3)
       const batchSize = 5;
       for (let i = 0; i < videosToProcess.length; i += batchSize) {
         const batch = videosToProcess.slice(i, i + batchSize);
@@ -883,7 +867,6 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, loading]);
 
   // ===== FILTERED TEMPLATES =====
-  // ✅ DEVE estar ANTES do return condicional (regra dos Hooks do React)
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
       const matchCat = selectedCategory === "Todos" || 
@@ -894,9 +877,6 @@ export default function TemplatesPage({ onBack }) {
   }, [templates, selectedCategory, searchTerm]);
 
   // ===== LOADING INTELIGENTE =====
-  // ✅ Mostra loading APENAS se não tiver dados E estiver buscando do servidor
-  // ✅ Com cache do React Query, isso é instantâneo em visitas subsequentes
-  // ✅ NÃO bloqueia por processamento de thumbnails (MAX_INITIAL_VIDEOS = 0)
   const hasTemplatesData = templates.length > 0;
   const isInitialLoading = !hasTemplatesData && loading;
 
@@ -1116,8 +1096,8 @@ export default function TemplatesPage({ onBack }) {
             <PromptGrid
               prompts={filteredTemplates}
               isLoading={loading}
-             CardComponent={TemplateCard}
-             onShare={openUseTemplateDialog}
+              CardComponent={TemplateCard}
+              onShare={openUseTemplateDialog}
               onCopy={handleCopyTemplate}
               onEdit={openEditTemplate}
               onDelete={(id) => deleteTemplate(id)}
@@ -1125,7 +1105,6 @@ export default function TemplatesPage({ onBack }) {
               onOpenVideo={handleOpenVideo}
               onToggleFavorite={handleToggleFavorite}
               user={user}
-
             />
           </main>
         </div>
