@@ -23,7 +23,7 @@ import {
 } from "./ui/tooltip";
 import { resolveMediaUrl, extractYouTubeId, detectVideoType } from '../lib/media';
 import thumbnailCache from '../lib/thumbnailCache';
-
+import DebugTemplateCache from './DebugTemplateCache';
 // ============================================================
 // 📵 PLATAFORMAS DISPONÍVEIS
 // ============================================================
@@ -318,11 +318,22 @@ const TemplateCard = React.memo(({
     return PLATFORMS[platformKey] || null;
   }, [item?.platform]);
 
-  // Contadores
   const favoritesCount = item?.favorites_count || 0;
   const usageCount = item?.usage_count || 0;
 
+  // 🔍 DEBUG: Log completo do item
+  useEffect(() => {
+    console.log('🎴 TemplateCard renderizado:', {
+      id: templateId,
+      title: item?.title,
+      thumb_url: item?.thumb_url,
+      video_url: item?.video_url,
+      cachedThumbnail: cachedThumbnail ? 'SIM ✅' : 'NÃO ❌',
+    });
+  }, [templateId, item?.thumb_url, cachedThumbnail]);
+
   return (
+   
     <div className={cn(cardVariants({ layout: "horizontal", hover: "lift" }), className)}>
       {/* CONTEÚDO À ESQUERDA */}
       <div className={cn(contentVariants({ layout: "horizontal" }))}>
