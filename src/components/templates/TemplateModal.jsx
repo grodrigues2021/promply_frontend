@@ -100,20 +100,20 @@ export default function TemplateModal({
     const isEdit = !!template?.id;
 
     // ============================================================
-    // 🟡 RESET - Ao abrir modal
+    // 🟡 RESET - Ao abrir modal (✅ COM CORREÇÃO)
     // ============================================================
     useEffect(() => {
         if (!isOpen) return;
 
-        console.log("🔄 [TemplateModal] Reset - Modal aberto");
-        console.log("   📝 Template:", template?.id ? `ID ${template.id}` : "NOVO");
+        console.log("📄 [TemplateModal] Reset - Modal aberto");
+        console.log("   🔎 Template:", template?.id ? `ID ${template.id}` : "NOVO");
 
         setTitle(template?.title || "");
         setDescription(template?.description || "");
         setContent(template?.content || "");
         setSelectedCategories(
-    template?.category_id ? [Number(template.category_id)] : []
-);
+            template?.category_id ? [Number(template.category_id)] : []
+        );
         setPlatform(template?.platform || "");
         
         // 🟣 Normalização de tags
@@ -145,12 +145,13 @@ export default function TemplateModal({
         setVideoFile(null);
         setPreview(null);
 
-        // 🔵 ARQUIVOS EXTRAS
+        // 🔵 ARQUIVOS EXTRAS (✅ CORREÇÃO PRINCIPAL)
         if (template?.id) {
-            console.log("   📎 Carregando arquivos extras existentes...");
+            console.log("   🔎 Carregando arquivos extras existentes...");
             loadExistingFiles(template.id);
+            setExtraFiles([]); // ✅ CORREÇÃO: Limpa arquivos novos ao editar
         } else {
-            console.log("   📎 Zerando arquivos extras (novo template)");
+            console.log("   🔎 Zerando arquivos extras (novo template)");
             setExistingFiles([]);
             setExtraFiles([]);
         }
@@ -213,7 +214,7 @@ export default function TemplateModal({
         if (!file) return;
 
         const type = detectFileType(file);
-        console.log(`📎 Arquivo selecionado: ${file.name} (${type})`);
+        console.log(`🔎 Arquivo selecionado: ${file.name} (${type})`);
 
         if (type === "image") {
             setImageFile(file);
@@ -326,130 +327,130 @@ export default function TemplateModal({
     // ============================================================
     // 🟦 HANDLE SAVE - VERSÃO FINAL E CORRIGIDA
     // ============================================================
-const handleSave = async () => {
-    console.log("💾 [TemplateModal] handleSave INICIADO");
+    const handleSave = async () => {
+        console.log("💾 [TemplateModal] handleSave INICIADO");
 
-    if (!title.trim()) {
-        alert("Título é obrigatório.");
-        return;
-    }
+        if (!title.trim()) {
+            alert("Título é obrigatório.");
+            return;
+        }
 
-    if (!content.trim()) {
-        alert("Conteúdo é obrigatório.");
-        return;
-    }
+        if (!content.trim()) {
+            alert("Conteúdo é obrigatório.");
+            return;
+        }
 
-    setIsSaving(true);
+        setIsSaving(true);
 
-    try {
-        // ============================================================
-        // 🏷️ TAGS
-        // ============================================================
-        const tagsArray = tagsInput
-            .split(",")
-            .map(t => t.trim())
-            .filter(Boolean);
+        try {
+            // ============================================================
+            // 🏷️ TAGS
+            // ============================================================
+            const tagsArray = tagsInput
+                .split(",")
+                .map(t => t.trim())
+                .filter(Boolean);
 
-        // ============================================================
-        // 🟢 CATEGORY_ID (FONTE ÚNICA DA VERDADE)
-        // ============================================================
-        const categoryId =
-            selectedCategories.length > 0
-                ? Number(selectedCategories[0])
-                : null;
+            // ============================================================
+            // 🟢 CATEGORY_ID (FONTE ÚNICA DA VERDADE)
+            // ============================================================
+            const categoryId =
+                selectedCategories.length > 0
+                    ? Number(selectedCategories[0])
+                    : null;
 
-        // ============================================================
-        // 🔍 DETECÇÃO DE MÍDIA
-        // ============================================================
-        const hasNewMedia = imageFile || videoFile;
-        const hasYouTube = extractYouTubeId(youtubeUrl);
-        const hasExtraFiles = extraFiles && extraFiles.length > 0;
+            // ============================================================
+            // 🔍 DETECÇÃO DE MÍDIA
+            // ============================================================
+            const hasNewMedia = imageFile || videoFile;
+            const hasYouTube = extractYouTubeId(youtubeUrl);
+            const hasExtraFiles = extraFiles && extraFiles.length > 0;
 
-        const mustUseFormData = hasNewMedia || hasYouTube || hasExtraFiles;
+            const mustUseFormData = hasNewMedia || hasYouTube || hasExtraFiles;
 
-        let payload;
+            let payload;
 
-        // ============================================================
-        // 📦 FORMDATA (UPLOAD)
-        // ============================================================
-        if (mustUseFormData) {
-            payload = new FormData();
+            // ============================================================
+            // 📦 FORMDATA (UPLOAD)
+            // ============================================================
+            if (mustUseFormData) {
+                payload = new FormData();
 
-            payload.append("title", title);
-            payload.append("description", description);
-            payload.append("content", content);
-            payload.append("tags", JSON.stringify(tagsArray));
-            payload.append("platform", platform || "");
+                payload.append("title", title);
+                payload.append("description", description);
+                payload.append("content", content);
+                payload.append("tags", JSON.stringify(tagsArray));
+                payload.append("platform", platform || "");
 
-            // ✅ CATEGORIA — CAMPO CORRETO
-            payload.append(
-                "category_id",
-                categoryId !== null ? String(categoryId) : ""
-            );
+                // ✅ CATEGORIA – CAMPO CORRETO
+                payload.append(
+                    "category_id",
+                    categoryId !== null ? String(categoryId) : ""
+                );
 
-            // 🖼️ IMAGEM
-            if (imageFile) {
-                payload.append("image", imageFile);
-            }
+                // 🖼️ IMAGEM
+                if (imageFile) {
+                    payload.append("image", imageFile);
+                }
 
-            // 🎬 VÍDEO
-            if (videoFile) {
-                payload.append("video", videoFile);
-            }
+                // 🎬 VÍDEO
+                if (videoFile) {
+                    payload.append("video", videoFile);
+                }
 
-            // ▶️ YOUTUBE
-            if (hasYouTube) {
-                payload.append("youtube_url", youtubeUrl);
+                // ▶️ YOUTUBE
+                if (hasYouTube) {
+                    payload.append("youtube_url", youtubeUrl);
 
-                const ytId = extractYouTubeId(youtubeUrl);
-                if (ytId) {
-                    payload.append(
-                        "thumb_url",
-                        `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
-                    );
+                    const ytId = extractYouTubeId(youtubeUrl);
+                    if (ytId) {
+                        payload.append(
+                            "thumb_url",
+                            `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+                        );
+                    }
+                }
+
+                // 📎 ARQUIVOS EXTRAS
+                if (hasExtraFiles) {
+                    extraFiles.forEach(file => {
+                        payload.append("extra_files", file);
+                    });
                 }
             }
 
-            // 📎 ARQUIVOS EXTRAS
-            if (hasExtraFiles) {
-                extraFiles.forEach(file => {
-                    payload.append("extra_files", file);
-                });
+            // ============================================================
+            // 📦 JSON (SEM UPLOAD)
+            // ============================================================
+            else {
+                payload = {
+                    title,
+                    description,
+                    content,
+                    tags: tagsArray,
+                    platform: platform || null,
+                    category_id: categoryId,
+                    youtube_url: youtubeUrl || null,
+                    thumb_url: thumbUrl || null,
+                    image_url: imageUrl || null,
+                    video_url: videoUrl || null,
+                };
             }
+
+            // ============================================================
+            // 🚀 SALVAR
+            // ============================================================
+            await onSave(payload, template?.id || null);
+
+            setIsSaving(false);
+            onClose();
+
+        } catch (err) {
+            console.error("❌ Erro ao salvar template:", err);
+            alert("Erro ao salvar template.");
+            setIsSaving(false);
         }
-
-        // ============================================================
-        // 📦 JSON (SEM UPLOAD)
-        // ============================================================
-        else {
-            payload = {
-                title,
-                description,
-                content,
-                tags: tagsArray,
-                platform: platform || null,
-                category_id: categoryId,
-                youtube_url: youtubeUrl || null,
-                thumb_url: thumbUrl || null,
-                image_url: imageUrl || null,
-                video_url: videoUrl || null,
-            };
-        }
-
-        // ============================================================
-        // 🚀 SALVAR
-        // ============================================================
-        await onSave(payload, template?.id || null);
-
-        setIsSaving(false);
-        onClose();
-
-    } catch (err) {
-        console.error("❌ Erro ao salvar template:", err);
-        alert("Erro ao salvar template.");
-        setIsSaving(false);
-    }
-};
+    };
 
     // ============================================================
     // 🔴 REMOVER ARQUIVO EXTRA EXISTENTE
