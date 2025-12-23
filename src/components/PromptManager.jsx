@@ -177,7 +177,6 @@ export default function PromptManager({
   const [attachments, setAttachments] = useState([]);
   const extraFilesInputRef = useRef(null);
   const isRestoringDraft = useRef(false);
-  const shouldBlockDraftSave = useRef(false); // ✅ NOVA FLAG DE CONTROLE
 
   const [formErrors, setFormErrors] = useState({
     title: "",
@@ -312,6 +311,22 @@ export default function PromptManager({
     setFormErrors(errors);
     return isValid;
   };
+
+  // ===================================================
+  // 💾 RASCUNHO - Verificar se há conteúdo não salvo
+  // ===================================================
+  const hasUnsavedContent = useCallback(() => {
+    return (
+      promptForm.title?.trim() ||
+      promptForm.content?.trim() ||
+      promptForm.description?.trim() ||
+      promptForm.tags?.trim() ||
+      promptForm.image_url ||
+      promptForm.video_url ||
+      promptForm.youtube_url ||
+      extraFiles.length > 0
+    );
+  }, [promptForm, extraFiles]);
 
   // ===================================================
   // 🖼️ UPLOAD DE IMAGEM
@@ -542,9 +557,6 @@ export default function PromptManager({
   const resetPromptForm = useCallback(() => {
     console.log("🔄 Resetando formulário...");
     
-    // ✅ BLOQUEIA SALVAMENTO DE RASCUNHO IMEDIATAMENTE
-    shouldBlockDraftSave.current = true;
-    
     setPromptForm({
       title: "",
       content: "",
@@ -573,16 +585,6 @@ export default function PromptManager({
     if (extraFilesInputRef.current) {
       extraFilesInputRef.current.value = "";
     }
-
-    // ✅ LIMPA RASCUNHO SEMPRE (não depende de isSaving)
-    console.log("🗑️ Limpando rascunho do localStorage");
-    localStorage.removeItem("prompt-draft");
-    
-    // ✅ DESBLOQUEIA após 100ms (tempo para React processar updates)
-    setTimeout(() => {
-      shouldBlockDraftSave.current = false;
-      console.log("🔓 Salvamento de rascunho desbloqueado");
-    }, 100);
   }, [isEditMode]);
 
   const resetCategoryForm = useCallback(() => {
@@ -790,48 +792,8 @@ export default function PromptManager({
           overlay.remove();
         }
       });
-    } else {
-      // ✅ DESBLOQUEIA ao abrir modal para NOVO prompt
-      if (!isEditMode && !editingPrompt) {
-        shouldBlockDraftSave.current = false;
-        console.log("🆕 Modal aberto para novo prompt - salvamento desbloqueado");
-      }
     }
-  }, [isPromptDialogOpen, isEditMode, editingPrompt]);
-
-  // ===================================================
-  // 💾 RASCUNHO - SALVAMENTO AUTOMÁTICO (DEBOUNCED)
-  // ===================================================
-  useEffect(() => {
-    // ❌ NÃO SALVAR SE:
-    if (!isPromptDialogOpen) return; // Modal fechado
-    if (isSaving) return; // Salvando no servidor
-    if (isEditMode || editingPrompt) return; // Editando prompt existente
-    if (isRestoringDraft.current) return; // Restaurando rascunho
-    if (shouldBlockDraftSave.current) return; // ✅ BLOQUEIO ATIVO
-
-    // ✅ DEBOUNCE: Aguarda 2 segundos sem digitação
-    const timeoutId = setTimeout(() => {
-      // ✅ VERIFICA NOVAMENTE antes de salvar
-      if (shouldBlockDraftSave.current) return;
-      
-      const hasContent =
-        promptForm.title?.trim() ||
-        promptForm.content?.trim() ||
-        promptForm.description?.trim() ||
-        promptForm.tags?.trim() ||
-        promptForm.youtube_url?.trim() ||
-        promptForm.image_url?.trim() ||
-        promptForm.video_url?.trim();
-
-      if (hasContent) {
-        console.log("💾 Salvando rascunho automaticamente...");
-        localStorage.setItem("prompt-draft", JSON.stringify(promptForm));
-      }
-    }, 2000); // 2 segundos de debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [promptForm, isSaving, isPromptDialogOpen, isEditMode, editingPrompt]);
+  }, [isPromptDialogOpen]);
 
   // ===================================================
   // 📋 RASCUNHO - RESTAURAÇÃO NA ABERTURA
@@ -1152,6 +1114,11 @@ export default function PromptManager({
       // =========================================================
       // 🎉 PASSO 2: FECHA O MODAL E RESETA
       // =========================================================
+      
+      // ✅ LIMPA RASCUNHO APÓS SALVAMENTO BEM-SUCEDIDO
+      console.log("🗑️ Limpando rascunho após salvamento");
+      localStorage.removeItem("prompt-draft");
+      
       toast.success("✅ Prompt criado com sucesso!");
       resetPromptForm(); // ← Já limpa localStorage internamente
       setIsPromptDialogOpen(false);
@@ -1527,13 +1494,50 @@ export default function PromptManager({
       <PromptModal
         isOpen={isPromptDialogOpen}
         onOpenChange={(open) => {
-          setIsPromptDialogOpen(open);
+          // ========================================
+          // 🚪 FECHANDO O MODAL
+          // ========================================
           if (!open) {
+            // ✅ Ignora verificação se estiver editando ou salvando
+            if (isEditMode || editingPrompt || isSaving) {
+              setIsPromptDialogOpen(open);
+              setExtraFiles([]);
+              if (extraFilesInputRef.current) {
+                extraFilesInputRef.current.value = "";
+              }
+              return;
+            }
+
+            // ✅ Verifica se há conteúdo não salvo
+            if (hasUnsavedContent()) {
+              const shouldSaveDraft = confirm(
+                "💾 Você tem alterações não salvas!\n\n" +
+                "Deseja salvar como rascunho?\n\n" +
+                "• OK = Salvar rascunho e fechar\n" +
+                "• CANCELAR = Descartar e fechar"
+              );
+
+              // true = Salvar rascunho
+              if (shouldSaveDraft) {
+                console.log("💾 Salvando rascunho...");
+                localStorage.setItem("prompt-draft", JSON.stringify(promptForm));
+                toast.success("💾 Rascunho salvo!");
+              } else {
+                // false = Descartar
+                console.log("🗑️ Descartando alterações...");
+                localStorage.removeItem("prompt-draft");
+                toast.info("🗑️ Alterações descartadas");
+              }
+            }
+
+            // Limpa arquivos extras
             setExtraFiles([]);
             if (extraFilesInputRef.current) {
               extraFilesInputRef.current.value = "";
             }
           }
+
+          setIsPromptDialogOpen(open);
         }}
         promptForm={promptForm}
         setPromptForm={setPromptForm}
