@@ -972,17 +972,19 @@ export default function TemplatesPage({ onBack }) {
         </div>
       )}
 
+      {/* ✅ CORREÇÃO 1: Overlay mobile com z-30 (era z-40) */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
 
       <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
+          {/* ✅ CORREÇÃO 2: Sidebar com z-40 (era z-50) */}
           <aside
-            className={`fixed lg:static top-0 left-0 h-full lg:h-auto bg-white lg:bg-transparent w-64 lg:w-[240px] shadow-lg lg:shadow-none p-5 rounded-r-xl lg:rounded-xl transform transition-transform duration-300 ease-in-out z-50 ${
+            className={`fixed lg:static top-0 left-0 h-full lg:h-auto bg-white lg:bg-transparent w-64 lg:w-[240px] shadow-lg lg:shadow-none p-5 rounded-r-xl lg:rounded-xl transform transition-transform duration-300 ease-in-out z-40 ${
               isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
             }`}
           >
