@@ -178,6 +178,14 @@ export default function PromptManager({
   const extraFilesInputRef = useRef(null);
   const isRestoringDraft = useRef(false);
 
+  // ===================================================
+  // 🧠 CONTROLE DEFINITIVO DE RASCUNHO
+  // ===================================================
+  const isDraftEnabled = useRef(true);
+  const isResettingForm = useRef(false);
+
+const DRAFT_STORAGE_KEY = "prompt-draft-v2";
+
   const [formErrors, setFormErrors] = useState({
     title: "",
     content: ""
@@ -535,40 +543,64 @@ export default function PromptManager({
     return tags;
   }, []);
 
+const resetPromptForm = useCallback(() => {
   // ===================================================
-  // 🔄 RESET FORMS
+  // 🛑 BLOQUEIA QUALQUER OPERAÇÃO DE DRAFT
   // ===================================================
+  isResettingForm.current = true;
+  isDraftEnabled.current = false;
+  isRestoringDraft.current = false;
 
-  const resetPromptForm = useCallback(() => {
-    setPromptForm({
-      title: "",
-      content: "",
-      description: "",
-      tags: "",
-      category_id: "none",
-      platform: "chatgpt",
-      is_favorite: false,
-      image_url: "",
-      video_url: "",
-      youtube_url: "",
-      videoFile: null,
-      imageFile: null,
-      selectedMedia: "none",
-    });
-    
-    if (!isEditMode) {
-      setEditingPrompt(null);
-    }
-    setIsEditMode(false);
+  // ===================================================
+  // 🧹 REMOVE QUALQUER RASCUNHO PERSISTIDO
+  // ===================================================
+  localStorage.removeItem(DRAFT_STORAGE_KEY);
 
-    setExtraFiles([]);
-    setAttachments([]);
-    setFormErrors({ title: "", content: "" });
-    
-    if (extraFilesInputRef.current) {
-      extraFilesInputRef.current.value = "";
-    }
-  }, [isEditMode]);
+  // ===================================================
+  // 🔄 RESET COMPLETO DO FORMULÁRIO
+  // ===================================================
+  setPromptForm({
+    title: "",
+    content: "",
+    description: "",
+    tags: "",
+    category_id: "none",
+    platform: "chatgpt",
+    is_favorite: false,
+    image_url: "",
+    video_url: "",
+    youtube_url: "",
+    videoFile: null,
+    imageFile: null,
+    selectedMedia: "none",
+  });
+
+  // ===================================================
+  // 🧠 CONTROLE DE EDIÇÃO
+  // ===================================================
+  setEditingPrompt(null);
+  setIsEditMode(false);
+
+  // ===================================================
+  // 📎 LIMPEZA DE ARQUIVOS E ERROS
+  // ===================================================
+  setExtraFiles([]);
+  setAttachments([]);
+  setFormErrors({ title: "", content: "" });
+
+  if (extraFilesInputRef.current) {
+    extraFilesInputRef.current.value = "";
+  }
+
+  // ===================================================
+  // ✅ LIBERA DRAFT APÓS RESET COMPLETO
+  // ===================================================
+  setTimeout(() => {
+    isResettingForm.current = false;
+    isDraftEnabled.current = true;
+  }, 0);
+}, []);
+
 
   const resetCategoryForm = useCallback(() => {
     setCategoryForm({
@@ -781,65 +813,97 @@ export default function PromptManager({
   }, [isPromptDialogOpen]);
 
   useEffect(() => {
-    if (!isPromptDialogOpen) return;
-    if (isSaving) return;
+  if (!isPromptDialogOpen) return;
+  if (!isDraftEnabled.current) return;
+  if (isSaving) return;
+  if (isEditMode || editingPrompt) return;
+  if (isResettingForm.current) return;
+  if (isRestoringDraft.current) return;
 
-    const hasContent =
-      promptForm.title?.trim() ||
-      promptForm.content?.trim() ||
-      promptForm.description?.trim() ||
-      promptForm.tags?.trim();
+  const hasValidDraft =
+    promptForm.title?.trim() &&
+    promptForm.content?.trim();
 
-    if (hasContent) {
-      localStorage.setItem("prompt-draft", JSON.stringify(promptForm));
-    }
-  }, [promptForm, isSaving, isPromptDialogOpen]);
+  if (!hasValidDraft) return;
+
+  localStorage.setItem(
+    DRAFT_STORAGE_KEY,
+    JSON.stringify({
+      title: promptForm.title,
+      content: promptForm.content,
+      description: promptForm.description,
+      tags: promptForm.tags,
+      category_id: promptForm.category_id,
+      platform: promptForm.platform,
+      is_favorite: promptForm.is_favorite,
+      image_url: promptForm.image_url,
+      video_url: promptForm.video_url,
+      youtube_url: promptForm.youtube_url,
+      selectedMedia: promptForm.selectedMedia,
+    })
+  );
+}, [
+  promptForm,
+  isSaving,
+  isPromptDialogOpen,
+  isEditMode,
+  editingPrompt,
+]);
+
 
   useEffect(() => {
-    if (!isPromptDialogOpen) return;
+  if (!isPromptDialogOpen) return;
+  if (isEditMode || editingPrompt) return;
 
-    if (isEditMode || editingPrompt) {
-      isRestoringDraft.current = false;
-      return;
-    }
+  const isFormEmpty =
+    !promptForm.title &&
+    !promptForm.content &&
+    !promptForm.image_url &&
+    !promptForm.video_url &&
+    !promptForm.youtube_url;
 
-    if (isRestoringDraft.current) return;
+  if (!isFormEmpty) return;
 
-    const isFormEmpty =
-      !promptForm.title &&
-      !promptForm.content &&
-      !promptForm.image_url &&
-      !promptForm.video_url &&
-      !promptForm.youtube_url;
+  const draftRaw = localStorage.getItem(DRAFT_STORAGE_KEY);
+  if (!draftRaw) return;
 
-    if (!isFormEmpty) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(draftRaw);
+  } catch {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+    return;
+  }
 
-    const draft = localStorage.getItem("prompt-draft");
-    if (!draft) return;
+  const hasValidDraft =
+    parsed.title?.trim() &&
+    parsed.content?.trim();
 
-    const parsed = JSON.parse(draft);
+  if (!hasValidDraft) {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+    return;
+  }
 
-    const hasContent =
-      parsed.title?.trim() ||
-      parsed.content?.trim() ||
-      parsed.description?.trim() ||
-      parsed.tags?.trim();
+  isRestoringDraft.current = true;
+  isDraftEnabled.current = false;
 
-    if (!hasContent) return;
+  const shouldRestore = window.confirm("Recuperar rascunho anterior?");
+  if (shouldRestore) {
+    setPromptForm((prev) => ({
+      ...prev,
+      ...parsed,
+    }));
+  }
 
-    isRestoringDraft.current = true;
+  localStorage.removeItem(DRAFT_STORAGE_KEY);
 
-    const shouldRestore = confirm("Recuperar rascunho anterior?");
-    if (shouldRestore) {
-      setPromptForm(parsed);
-    }
+  setTimeout(() => {
+    isRestoringDraft.current = false;
+    isDraftEnabled.current = true;
+  }, 300);
+}, [isPromptDialogOpen, isEditMode, editingPrompt]);
 
-    localStorage.removeItem("prompt-draft");
 
-    setTimeout(() => {
-      isRestoringDraft.current = false;
-    }, 300);
-  }, [isPromptDialogOpen]);
 
   useEffect(() => {
     if (isPopupMode && defaultView === "chat") {
@@ -872,7 +936,7 @@ export default function PromptManager({
 
 
 // =========================================================
-// 💾 FUNÇÃO savePrompt - VERSÃO CORRIGIDA FINAL
+// 💾 FUNÇÃO savePrompt - VERSÃO FINAL DEFINITIVA
 // =========================================================
 const savePrompt = async () => {
   if (isSaving) return;
@@ -885,9 +949,9 @@ const savePrompt = async () => {
   setIsSaving(true);
 
   try {
-    // =========================================================
+    // ===================================================
     // ✏️ MODO EDIÇÃO
-    // =========================================================
+    // ===================================================
     if (isEditMode && editingPrompt?.id) {
       const promptId = editingPrompt.id;
 
@@ -910,6 +974,9 @@ const savePrompt = async () => {
         data: payload,
       });
 
+      // ===================================================
+      // 📎 UPLOAD DE MÍDIA (EDIÇÃO)
+      // ===================================================
       const mediaForm = new FormData();
       let hasMedia = false;
 
@@ -967,6 +1034,13 @@ const savePrompt = async () => {
         }
       }
 
+      // ===================================================
+      // 🧹 LIMPEZA DEFINITIVA DE RASCUNHO (EDIÇÃO)
+      // ===================================================
+      isDraftEnabled.current = false;
+      isResettingForm.current = true;
+      localStorage.removeItem(DRAFT_STORAGE_KEY);
+
       toast.success("✅ Prompt atualizado com sucesso!");
       resetPromptForm();
       setIsPromptDialogOpen(false);
@@ -977,24 +1051,20 @@ const savePrompt = async () => {
       return;
     }
 
-    // =========================================================
-    // ➕ MODO CRIAÇÃO - UNIFICADO
-    // =========================================================
+    // ===================================================
+    // ➕ MODO CRIAÇÃO
+    // ===================================================
 
     const tempId = `temp-${Date.now()}`;
-
     const clientId =
       typeof crypto !== "undefined" && crypto.randomUUID
         ? crypto.randomUUID()
         : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    // 🎯 URLs locais (optimistic)
     const imageBlobUrl = safeCreateObjectURL(promptForm.imageFile);
     const videoBlobUrl = safeCreateObjectURL(promptForm.videoFile);
 
-    // 🎯 THUMBNAIL DEFINITIVO PARA OPTIMISTIC
     let thumbUrl = "";
-
     if (promptForm.videoFile && promptForm.imageFile) {
       thumbUrl = safeCreateObjectURL(promptForm.imageFile);
     } else if (promptForm.youtube_url) {
@@ -1002,9 +1072,6 @@ const savePrompt = async () => {
       if (ytThumb) thumbUrl = ytThumb;
     }
 
-    // =========================================================
-    // 🧠 PROMPT OTIMISTA
-    // =========================================================
     const optimisticPrompt = {
       id: tempId,
       _tempId: tempId,
@@ -1033,13 +1100,9 @@ const savePrompt = async () => {
       usage_count: 0,
     };
 
-    // =========================================================
-    // 🚀 CHAMADA UNIFICADA - SEMPRE USA A MUTATION
-    // =========================================================
     let realPrompt;
 
     if (promptForm.youtube_url) {
-      // ✅ YOUTUBE: Envia pela mutation com youtube_url no payload
       realPrompt = await createPromptMutation.mutateAsync({
         payload: {
           title: promptForm.title,
@@ -1057,7 +1120,6 @@ const savePrompt = async () => {
         optimisticPrompt,
       });
     } else {
-      // ✅ TEXTO/IMAGEM/VÍDEO: Usa endpoint /text
       realPrompt = await createPromptMutation.mutateAsync({
         payload: {
           title: promptForm.title,
@@ -1079,128 +1141,80 @@ const savePrompt = async () => {
       throw new Error("Backend não retornou o prompt criado");
     }
 
-    // =========================================================
-    // 🔒 PASSO 1: CRIA CÓPIAS DOS ARQUIVOS **ANTES** DE FECHAR O MODAL
-    // =========================================================
     const promptId = realPrompt.id;
 
-    // ✅ VALIDAÇÃO CORRIGIDA
     const hasImage =
       promptForm.imageFile instanceof File &&
       !promptForm.videoFile &&
       !promptForm.youtube_url;
 
-    const hasVideo = 
+    const hasVideo =
       promptForm.videoFile instanceof File &&
       !promptForm.youtube_url;
 
-    const needsMediaUpload = 
-      !promptForm.youtube_url && 
+    const needsMediaUpload =
+      !promptForm.youtube_url &&
       (hasImage || hasVideo || extraFiles.length > 0);
 
-    // 🔒 CRIA CÓPIAS LOCAIS **ANTES** DE FECHAR O MODAL
     const imageFileToUpload = promptForm.imageFile;
     const videoFileToUpload = promptForm.videoFile;
-    const extraFilesToUpload = [...extraFiles]; // ← CÓPIA DOS ARQUIVOS EXTRAS!
+    const extraFilesToUpload = [...extraFiles];
 
-    
+    // ===================================================
+    // 🧹 LIMPEZA DEFINITIVA DE RASCUNHO (CRIAÇÃO)
+    // ===================================================
+    isDraftEnabled.current = false;
+    isResettingForm.current = true;
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
 
-    // =========================================================
-    // 🎉 PASSO 2: AGORA SIM PODE FECHAR O MODAL
-    // =========================================================
     toast.success("✅ Prompt criado com sucesso!");
-    resetPromptForm(); // ← Vai limpar extraFiles no state
-    setIsPromptDialogOpen(false); // ← Vai chamar onOpenChange que também limpa
+    resetPromptForm();
+    setIsPromptDialogOpen(false);
 
     queryClient.invalidateQueries(["stats"]);
     queryClient.invalidateQueries(["categories"]);
 
-    // =========================================================
-    // 📤 PASSO 3: UPLOAD EM BACKGROUND (USA AS CÓPIAS LOCAIS)
-    // =========================================================
+    // ===================================================
+    // 📤 UPLOAD DE MÍDIA EM BACKGROUND
+    // ===================================================
     if (promptId && needsMediaUpload) {
       const mediaForm = new FormData();
 
       if (hasImage && imageFileToUpload) {
         mediaForm.append("image", imageFileToUpload);
-       
       }
 
       if (hasVideo && videoFileToUpload) {
         mediaForm.append("video", videoFileToUpload);
-        
-        
+
         if (imageFileToUpload instanceof File) {
           mediaForm.append("thumbnail", imageFileToUpload);
-         
         }
       }
 
-      // ✅ USA A CÓPIA LOCAL (não o state que já foi limpo)
       if (extraFilesToUpload.length > 0) {
-        extraFilesToUpload.forEach((file, index) => {
+        extraFilesToUpload.forEach((file) => {
           mediaForm.append("extra_files", file);
-         
         });
       }
 
-      startMediaUpload();
-     
+      try {
+        startMediaUpload();
 
-      api
-        .post(`/prompts/${promptId}/media`, mediaForm, {
+        await api.post(`/prompts/${promptId}/media`, mediaForm, {
           headers: { "Content-Type": "multipart/form-data" },
           timeout: 180000,
-        })
-        .then((res) => {
-          
-
-          if (res.data?.data) {
-            queryClient.setQueryData(["prompts"], (old) => {
-              if (!Array.isArray(old)) return old;
-
-              return old.map((p) => {
-                if (p.id === promptId) {
-                  const newPrompt = {
-                    ...res.data.data,
-                    _uploadingMedia: false,
-                    _clientId: p._clientId,
-                  };
-
-                  
-
-                  return newPrompt;
-                }
-                return p;
-              });
-            });
-
-            toast.success("🎬 Mídia enviada com sucesso!");
-          } else {
-           
-          }
-        })
-        .catch((err) => {
-          console.error("❌ Erro no upload da mídia:", err);
-          console.error("   Detalhes:", err.response?.data);
-
-          queryClient.setQueryData(["prompts"], (old) => {
-            if (!Array.isArray(old)) return old;
-            return old.map((p) =>
-              p.id === promptId ? { ...p, _uploadingMedia: false } : p
-            );
-          });
-
-          toast.warning("Prompt criado, mas houve erro no upload da mídia.");
-        })
-        .finally(() => {
-          endMediaUpload();
-          
         });
+
+        toast.success("🎬 Mídia enviada com sucesso!");
+      } catch (err) {
+        console.error("❌ Erro no upload da mídia:", err);
+        toast.warning("Prompt criado, mas houve erro no upload da mídia.");
+      } finally {
+        endMediaUpload();
+      }
     }
 
-    queryClient.invalidateQueries(["stats"]);
-    queryClient.invalidateQueries(["categories"]);
   } catch (error) {
     console.error("❌ Erro ao salvar prompt:", error);
     toast.error(error.message || "Erro ao salvar prompt");
@@ -1208,6 +1222,7 @@ const savePrompt = async () => {
     setIsSaving(false);
   }
 };
+
 
 
 
