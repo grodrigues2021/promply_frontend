@@ -226,7 +226,7 @@ export function useToggleFavoriteTemplateMutation() {
 
 // ===================================================
 // 🔥 MUTATION: Usar Template (incrementa usage_count)
-// ✅ CORREÇÃO: Salva thumbnail no cache IndexedDB
+// ✅ CORREÇÃO: Copia thumbnail do cache do template para o prompt
 // ===================================================
 export function useTemplateUsageMutation() {
   const queryClient = useQueryClient();
@@ -250,37 +250,65 @@ export function useTemplateUsageMutation() {
       console.log("🎯 onSuccess - Prompt criado:", prompt);
 
       // ============================================================
-      // 🆕 CORREÇÃO CRÍTICA: Salvar thumbnail no cache
+      // 🆕 CORREÇÃO CRÍTICA: Copiar thumbnail do template para prompt
       // ============================================================
+
+      // PASSO 1: Verificar se backend enviou thumb_url
       if (prompt?.thumb_url && prompt?.id) {
-        console.log(`💾 [MUTATION] Salvando thumbnail no cache:`);
+        console.log(`💾 [BACKEND] Salvando thumb_url no cache:`);
         console.log(`   - Prompt ID: ${prompt.id}`);
         console.log(
           `   - Thumbnail URL: ${prompt.thumb_url.substring(0, 60)}...`
         );
 
         try {
-          // ✅ Salva no IndexedDB (persiste entre sessões)
           thumbnailCache.set(prompt.id, prompt.thumb_url);
-
-          console.log(`✅ Thumbnail salva com sucesso no cache!`);
-
-          // ✅ Verifica se salvou
-          const verificacao = thumbnailCache.get(prompt.id);
-          if (verificacao) {
-            console.log(`✅ Verificação: thumbnail recuperada do cache`);
-          } else {
-            console.warn(
-              `⚠️ Verificação falhou: thumbnail não encontrada no cache`
-            );
-          }
+          console.log(`✅ Thumbnail do backend salva com sucesso!`);
         } catch (error) {
-          console.error(`❌ Erro ao salvar thumbnail no cache:`, error);
+          console.error(`❌ Erro ao salvar thumbnail do backend:`, error);
+        }
+      }
+      // PASSO 2: Se backend não enviou, copiar do cache do template
+      else if (prompt?.video_url && prompt?.id && templateId) {
+        console.log(`🔄 [CACHE COPY] Backend não enviou thumb_url`);
+        console.log(
+          `   - Buscando thumbnail do template ${templateId} no cache...`
+        );
+
+        // Busca thumbnail do template no cache
+        const templateThumbnail = thumbnailCache.get(templateId);
+
+        if (templateThumbnail) {
+          console.log(`✅ Thumbnail encontrada no cache do template!`);
+          console.log(`   - Copiando para prompt ID: ${prompt.id}`);
+          console.log(
+            `   - Thumbnail URL: ${templateThumbnail.substring(0, 60)}...`
+          );
+
+          try {
+            // Copia thumbnail do template para o prompt
+            thumbnailCache.set(prompt.id, templateThumbnail);
+            console.log(`✅ Thumbnail copiada com sucesso!`);
+
+            // Verifica se salvou
+            const verificacao = thumbnailCache.get(prompt.id);
+            if (verificacao) {
+              console.log(`✅ Verificação: thumbnail recuperada do cache`);
+            } else {
+              console.warn(`⚠️ Verificação falhou: thumbnail não encontrada`);
+            }
+          } catch (error) {
+            console.error(`❌ Erro ao copiar thumbnail:`, error);
+          }
+        } else {
+          console.warn(`⚠️ Template ${templateId} não tem thumbnail no cache`);
+          console.log(`   - Frontend gerará thumbnail sob demanda`);
         }
       } else {
-        console.warn("⚠️ Prompt não tem thumb_url:", {
+        console.warn("⚠️ Prompt não tem vídeo ou dados incompletos:", {
           prompt_id: prompt?.id,
           thumb_url: prompt?.thumb_url,
+          video_url: prompt?.video_url,
         });
       }
 
