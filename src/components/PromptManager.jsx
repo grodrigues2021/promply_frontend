@@ -812,35 +812,56 @@ const resetPromptForm = useCallback(() => {
     }
   }, [isPromptDialogOpen]);
 
-  useEffect(() => {
+useEffect(() => {
+  // ===================================================
+  // 🛑 BLOQUEIOS OBRIGATÓRIOS
+  // ===================================================
   if (!isPromptDialogOpen) return;
   if (!isDraftEnabled.current) return;
   if (isSaving) return;
-  if (isEditMode || editingPrompt) return;
   if (isResettingForm.current) return;
   if (isRestoringDraft.current) return;
+  if (isEditMode || editingPrompt) return;
 
-  const hasValidDraft =
-    promptForm.title?.trim() &&
-    promptForm.content?.trim();
+  // ===================================================
+  // 🧠 DETECÇÃO DE CONTEÚDO REAL
+  // ===================================================
+  const hasText =
+    !!promptForm.title?.trim() ||
+    !!promptForm.content?.trim() ||
+    !!promptForm.description?.trim() ||
+    !!promptForm.tags?.trim();
 
-  if (!hasValidDraft) return;
+  const hasMedia =
+    promptForm.imageFile instanceof File ||
+    promptForm.videoFile instanceof File ||
+    !!promptForm.image_url ||
+    !!promptForm.video_url ||
+    !!promptForm.youtube_url;
+
+  // ❌ NUNCA salvar rascunho vazio
+  if (!hasText && !hasMedia) return;
+
+  // ===================================================
+  // 💾 SALVA RASCUNHO MULTIMÍDIA
+  // ===================================================
+  const draftPayload = {
+    title: promptForm.title || "",
+    content: promptForm.content || "",
+    description: promptForm.description || "",
+    tags: promptForm.tags || "",
+    category_id: promptForm.category_id,
+    platform: promptForm.platform,
+    is_favorite: promptForm.is_favorite,
+    image_url: promptForm.image_url || "",
+    video_url: promptForm.video_url || "",
+    youtube_url: promptForm.youtube_url || "",
+    selectedMedia: promptForm.selectedMedia,
+  };
 
   localStorage.setItem(
     DRAFT_STORAGE_KEY,
-    JSON.stringify({
-      title: promptForm.title,
-      content: promptForm.content,
-      description: promptForm.description,
-      tags: promptForm.tags,
-      category_id: promptForm.category_id,
-      platform: promptForm.platform,
-      is_favorite: promptForm.is_favorite,
-      image_url: promptForm.image_url,
-      video_url: promptForm.video_url,
-      youtube_url: promptForm.youtube_url,
-      selectedMedia: promptForm.selectedMedia,
-    })
+    JSON.stringify(draftPayload)
   );
 }, [
   promptForm,
@@ -849,6 +870,7 @@ const resetPromptForm = useCallback(() => {
   isEditMode,
   editingPrompt,
 ]);
+
 
 
   useEffect(() => {
