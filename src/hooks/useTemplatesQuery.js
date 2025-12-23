@@ -1,10 +1,11 @@
 // ==========================================
 // src/hooks/useTemplatesQuery.js
-// ✅ CACHE PARA TEMPLATES
+// ✅ CACHE PARA TEMPLATES COM CORREÇÃO DE THUMBNAILS
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "../lib/api";
+import thumbnailCache from "../lib/thumbnailCache";
 
 // ===================================================
 // 🔵 HOOK: Buscar Templates
@@ -67,7 +68,7 @@ export function useUpdateTemplateMutation() {
 
   return useMutation({
     mutationFn: async ({ id, formData }) => {
-      console.log("📝 Atualizando template:", id);
+      console.log("🔄 Atualizando template:", id);
 
       const { data } = await api.put(`/templates/${id}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -224,24 +225,70 @@ export function useToggleFavoriteTemplateMutation() {
 }
 
 // ===================================================
-// 📥 MUTATION: Usar Template (incrementa usage_count)
+// 🔥 MUTATION: Usar Template (incrementa usage_count)
+// ✅ CORREÇÃO: Salva thumbnail no cache IndexedDB
 // ===================================================
 export function useTemplateUsageMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ templateId, payload }) => {
+      console.log("🔥 Usando template:", templateId);
+
       const { data } = await api.post(`/templates/${templateId}/use`, payload);
 
       if (!data.success) {
         throw new Error(data.error || "Erro ao usar template");
       }
 
+      console.log("✅ Backend retornou prompt:", data.data);
+
       return { templateId, prompt: data.data };
     },
 
     onSuccess: ({ templateId, prompt }) => {
-      // Incrementar usage_count no cache
+      console.log("🎯 onSuccess - Prompt criado:", prompt);
+
+      // ============================================================
+      // 🆕 CORREÇÃO CRÍTICA: Salvar thumbnail no cache
+      // ============================================================
+      if (prompt?.thumb_url && prompt?.id) {
+        console.log(`💾 [MUTATION] Salvando thumbnail no cache:`);
+        console.log(`   - Prompt ID: ${prompt.id}`);
+        console.log(
+          `   - Thumbnail URL: ${prompt.thumb_url.substring(0, 60)}...`
+        );
+
+        try {
+          // ✅ Salva no IndexedDB (persiste entre sessões)
+          thumbnailCache.set(prompt.id, prompt.thumb_url);
+
+          console.log(`✅ Thumbnail salva com sucesso no cache!`);
+
+          // ✅ Verifica se salvou
+          const verificacao = thumbnailCache.get(prompt.id);
+          if (verificacao) {
+            console.log(`✅ Verificação: thumbnail recuperada do cache`);
+          } else {
+            console.warn(
+              `⚠️ Verificação falhou: thumbnail não encontrada no cache`
+            );
+          }
+        } catch (error) {
+          console.error(`❌ Erro ao salvar thumbnail no cache:`, error);
+        }
+      } else {
+        console.warn("⚠️ Prompt não tem thumb_url:", {
+          prompt_id: prompt?.id,
+          thumb_url: prompt?.thumb_url,
+        });
+      }
+
+      // ============================================================
+      // 📊 Atualizar contadores no cache
+      // ============================================================
+
+      // Incrementar usage_count do template
       queryClient.setQueryData(["templates"], (old) => {
         return (
           old?.map((t) =>
