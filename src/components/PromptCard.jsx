@@ -778,7 +778,7 @@ const PromptCard = React.memo(({
                 {/* Mensagem */}
                 <div className="bg-white/95 dark:bg-slate-800/95 px-6 py-3 rounded-full shadow-2xl">
                   <p className="text-sm font-bold text-slate-800 dark:text-white">
-                    {isUploadingMedia ? "⏳ Criando prompt.." : "⏳ Criando prompt..."}
+                    {isUploadingMedia ? "⏳ Criando card.." : "⏳ Criando  card..."}
                   </p>
                 </div>
               </div>
