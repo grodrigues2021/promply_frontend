@@ -58,7 +58,7 @@ const customScrollbarStyles = `
   }
 `;
 
-// ⚡ ESTILOS GLASSMORPHISM ULTRA OTIMIZADOS (ZERO LENTIDÃO)
+// ⚡ ESTILOS GLASSMORPHISM ULTRA OTIMIZADOS (BOTÃO AZUL)
 const glassmorphismStyles = `
   @keyframes fastFadeIn {
     from { opacity: 0; }
@@ -142,18 +142,18 @@ const glassmorphismStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(239, 68, 68, 0.95);
+    background: rgba(59, 130, 246, 0.95);
     border: 2px solid rgba(255, 255, 255, 0.4);
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.12s ease;
-    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
+    box-shadow: 0 3px 10px rgba(59, 130, 246, 0.35);
   }
 
   .close-button-glass:hover {
-    background: rgb(220, 38, 38);
+    background: rgb(37, 99, 235);
     transform: scale(1.08) rotate(90deg);
-    box-shadow: 0 5px 15px rgba(239, 68, 68, 0.5);
+    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.5);
   }
 
   .close-button-glass:active {
@@ -161,18 +161,18 @@ const glassmorphismStyles = `
   }
 
   .dark .close-button-glass {
-    background: rgba(239, 68, 68, 1);
+    background: rgba(59, 130, 246, 1);
     border: 2px solid rgba(255, 255, 255, 0.3);
     box-shadow: 
-      0 3px 10px rgba(239, 68, 68, 0.4),
-      0 0 12px rgba(239, 68, 68, 0.2);
+      0 3px 10px rgba(59, 130, 246, 0.4),
+      0 0 12px rgba(59, 130, 246, 0.2);
   }
 
   .dark .close-button-glass:hover {
-    background: rgb(220, 38, 38);
+    background: rgb(37, 99, 235);
     box-shadow: 
-      0 5px 15px rgba(239, 68, 68, 0.6),
-      0 0 20px rgba(239, 68, 68, 0.35);
+      0 5px 15px rgba(59, 130, 246, 0.6),
+      0 0 20px rgba(59, 130, 246, 0.35);
   }
 `;
 
