@@ -58,6 +58,86 @@ const customScrollbarStyles = `
   }
 `;
 
+// ✨ ESTILOS GLASSMORPHISM
+const glassmorphismStyles = `
+  @keyframes modalGlassEnter {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .modal-glass-container {
+    animation: modalGlassEnter 0.3s ease-out;
+    background: rgba(255, 255, 255, 0.65) !important;
+    backdrop-filter: blur(50px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(50px) saturate(200%) !important;
+    border: 4px solid rgba(139, 92, 246, 0.6) !important;
+    border-radius: 30px !important;
+    box-shadow: 
+      0 0 0 1px rgba(139, 92, 246, 0.4),
+      0 0 120px 20px rgba(139, 92, 246, 0.7),
+      0 10px 40px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .dark .modal-glass-container {
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(50px) saturate(200%) !important;
+    -webkit-backdrop-filter: blur(50px) saturate(200%) !important;
+    border: 4px solid rgba(139, 92, 246, 0.7) !important;
+    box-shadow: 
+      0 0 0 1px rgba(139, 92, 246, 0.5),
+      0 0 140px 25px rgba(139, 92, 246, 0.8),
+      0 10px 40px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .glass-section {
+    background: rgba(255, 255, 255, 0.5) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.8) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .dark .glass-section {
+    background: rgba(30, 41, 59, 0.4) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border: 1px solid rgba(148, 163, 184, 0.3) !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .glass-input {
+    background: rgba(255, 255, 255, 0.8) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(203, 213, 225, 0.6) !important;
+  }
+
+  .dark .glass-input {
+    background: rgba(15, 23, 42, 0.5) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(148, 163, 184, 0.4) !important;
+  }
+
+  .glass-content-bg {
+    background: rgba(248, 250, 252, 0.3) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+  }
+
+  .dark .glass-content-bg {
+    background: rgba(15, 23, 42, 0.3) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+  }
+`;
+
 export default function PromptModal({
   isOpen,
   onOpenChange,
@@ -94,14 +174,14 @@ export default function PromptModal({
   return (
     <>
       <style>{customScrollbarStyles}</style>
+      <style>{glassmorphismStyles}</style>
       
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent 
-          className="custom-scrollbar max-w-7xl w-full max-h-[90vh] overflow-y-auto p-0 bg-white dark:bg-slate-900 shadow-2xl rounded-2xl border-0"
-          style={{ border: 'none', outline: 'none' }}
+          className="modal-glass-container custom-scrollbar max-w-7xl w-full max-h-[90vh] overflow-y-auto p-0"
         >          
           {/* HEADER COM GRADIENTE */}
-          <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 p-6 rounded-t-2xl overflow-hidden">
+          <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 p-6 rounded-t-[26px] overflow-hidden">
             <div className="absolute inset-0 opacity-30" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='grid' width='40' height='40' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 40 0 L 0 0 0 40' fill='none' stroke='white' stroke-opacity='0.1' stroke-width='1'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grid)'/%3E%3C/svg%3E")`
             }}></div>
@@ -116,10 +196,10 @@ export default function PromptModal({
             </DialogHeader>
           </div>
 
-          <div className="p-8 space-y-6 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900">
+          <div className="glass-content-bg p-8 space-y-6">
 
             {/* ========== TOPO - INFORMAÇÕES BÁSICAS (largura total) ========== */}
-            <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-blue-500">
+            <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-blue-500">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                   <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -148,7 +228,7 @@ export default function PromptModal({
                       }
                     }}
                     placeholder="Ex: Gerador de ideias criativas..."
-                    className={`transition-all duration-200 ${
+                    className={`glass-input transition-all duration-200 ${
                       formErrors.title 
                         ? "border-red-500 focus:ring-red-500" 
                         : "focus:ring-blue-500 focus:border-blue-500"
@@ -171,7 +251,7 @@ export default function PromptModal({
                     onChange={(e) => setPromptForm((prev) => ({ ...prev, description: e.target.value }))}
                     placeholder="Adicione uma breve descrição..."
                     rows={2}
-                    className="focus:ring-blue-500 focus:border-blue-500"
+                    className="glass-input focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
 
@@ -193,7 +273,7 @@ export default function PromptModal({
                     }}
                     rows={5}
                     placeholder="Descreva o prompt em detalhes..."
-                    className={`custom-scrollbar-inner transition-all duration-200 font-mono text-sm ${
+                    className={`glass-input custom-scrollbar-inner transition-all duration-200 font-mono text-sm ${
                       formErrors.content 
                         ? "border-red-500 focus:ring-red-500" 
                         : "focus:ring-blue-500 focus:border-blue-500"
@@ -216,9 +296,9 @@ export default function PromptModal({
                     value={promptForm.tags}
                     onChange={(e) => setPromptForm((prev) => ({ ...prev, tags: e.target.value }))}
                     placeholder="Ex: marketing, criativo, redes sociais"
-                    className="focus:ring-blue-500 focus:border-blue-500"
+                    className="glass-input focus:ring-blue-500 focus:border-blue-500"
                   />
-                  <p className="text-xs text-slate-500">Separe as tags com vírgula</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Separe as tags com vírgula</p>
                 </div>
               </div>
             </section>
@@ -227,7 +307,7 @@ export default function PromptModal({
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* COLUNA ESQUERDA - ARQUIVOS EXTRAS */}
-              <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-purple-500 h-fit">
+              <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-purple-500 h-fit">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                     <Folder className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -285,7 +365,6 @@ export default function PromptModal({
                               <button
                                   type="button"
                                   onClick={() => {
-                                    // ✅ VALIDAÇÃO: Garante que temos um prompt válido
                                     const currentPromptId = editingPrompt?.id || promptForm?.id;
                                     
                                     if (!currentPromptId) {
@@ -382,7 +461,7 @@ export default function PromptModal({
               </section>
 
               {/* COLUNA DIREITA - MÍDIA */}
-              <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-green-500 h-fit">
+              <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-green-500 h-fit">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                     <ImageIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -515,7 +594,7 @@ export default function PromptModal({
                       placeholder="https://www.youtube.com/watch?v=..."
                       value={promptForm.youtube_url}
                       onChange={(e) => setPromptForm((prev) => ({ ...prev, youtube_url: e.target.value }))}
-                      className="border-red-300 focus:ring-red-500 focus:border-red-500"
+                      className="glass-input border-red-300 focus:ring-red-500 focus:border-red-500"
                     />
                     {promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url) ? (
                       <img
@@ -535,7 +614,7 @@ export default function PromptModal({
             </div>
 
             {/* ========== BAIXO - DETALHES DO PROMPT (largura total) ========== */}
-            <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-yellow-500">
+            <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-yellow-500">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
                   <Zap className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
@@ -556,7 +635,7 @@ export default function PromptModal({
                     value={promptForm.category_id}
                     onValueChange={(value) => setPromptForm((prev) => ({ ...prev, category_id: value }))}
                   >
-                    <SelectTrigger className="focus:ring-yellow-500">
+                    <SelectTrigger className="glass-input focus:ring-yellow-500">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -579,7 +658,7 @@ export default function PromptModal({
                     value={promptForm.platform}
                     onValueChange={(value) => setPromptForm((prev) => ({ ...prev, platform: value }))}
                   >
-                    <SelectTrigger className="focus:ring-yellow-500">
+                    <SelectTrigger className="glass-input focus:ring-yellow-500">
                       <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
@@ -614,7 +693,7 @@ export default function PromptModal({
             </section>
 
             {/* BOTÕES DE AÇÃO - FIXOS */}
-            <div className="flex justify-end gap-3 pt-6 sticky bottom-0 bg-gradient-to-br from-slate-50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-850 dark:to-slate-900 pb-2 -mb-8 -mx-8 px-8">
+            <div className="flex justify-end gap-3 pt-6 sticky bottom-0 glass-content-bg pb-2 -mb-8 -mx-8 px-8">
               <Button
                 type="button"
                 variant="outline"
@@ -622,7 +701,7 @@ export default function PromptModal({
                   resetPromptForm();
                   onOpenChange(false);
                 }}
-                className="px-8 py-2 border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold rounded-xl"
+                className="glass-input px-8 py-2 border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold rounded-xl"
               >
                 Cancelar
               </Button>
