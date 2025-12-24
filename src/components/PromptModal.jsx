@@ -58,56 +58,35 @@ const customScrollbarStyles = `
   }
 `;
 
-// ✨ ESTILOS GLASSMORPHISM MELHORADOS
-// ✨ ESTILOS GLASSMORPHISM OTIMIZADOS (MUITO MAIS RÁPIDO)
+// ⚡ ESTILOS GLASSMORPHISM ULTRA OTIMIZADOS (ZERO LENTIDÃO)
 const glassmorphismStyles = `
-  @keyframes modalGlassEnter {
-    from {
-      opacity: 0;
-      transform: scale(0.98) translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-
-  @keyframes closeButtonPulse {
-    0%, 100% {
-      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-    }
-    50% {
-      box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
-    }
+  @keyframes fastFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .modal-glass-container {
-    animation: modalGlassEnter 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-    background: rgba(255, 255, 255, 0.75) !important;
-    backdrop-filter: blur(25px) saturate(150%) !important;
-    -webkit-backdrop-filter: blur(25px) saturate(150%) !important;
+    animation: fastFadeIn 0.1s ease-out;
+    background: rgba(255, 255, 255, 0.95) !important;
     border: 4px solid rgba(139, 92, 246, 0.6) !important;
     border-radius: 30px !important;
     box-shadow: 
       0 0 0 1px rgba(139, 92, 246, 0.4),
-      0 0 100px 15px rgba(139, 92, 246, 0.6),
-      0 10px 30px rgba(0, 0, 0, 0.25) !important;
+      0 0 80px 12px rgba(139, 92, 246, 0.5),
+      0 20px 40px rgba(0, 0, 0, 0.2) !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
     max-height: 90vh !important;
-    will-change: transform, opacity;
   }
 
   .dark .modal-glass-container {
-    background: rgba(15, 23, 42, 0.7) !important;
-    backdrop-filter: blur(25px) saturate(150%) !important;
-    -webkit-backdrop-filter: blur(25px) saturate(150%) !important;
+    background: rgba(15, 23, 42, 0.98) !important;
     border: 4px solid rgba(139, 92, 246, 0.7) !important;
     box-shadow: 
       0 0 0 1px rgba(139, 92, 246, 0.5),
-      0 0 120px 20px rgba(139, 92, 246, 0.7),
-      0 10px 30px rgba(0, 0, 0, 0.4) !important;
+      0 0 100px 15px rgba(139, 92, 246, 0.6),
+      0 20px 40px rgba(0, 0, 0, 0.4) !important;
   }
 
   .glass-header {
@@ -123,46 +102,34 @@ const glassmorphismStyles = `
   }
 
   .glass-section {
-    background: rgba(255, 255, 255, 0.6) !important;
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.8) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
+    background: rgba(255, 255, 255, 0.8) !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
   }
 
   .dark .glass-section {
-    background: rgba(30, 41, 59, 0.5) !important;
-    backdrop-filter: blur(15px) !important;
-    -webkit-backdrop-filter: blur(15px) !important;
+    background: rgba(30, 41, 59, 0.7) !important;
     border: 1px solid rgba(148, 163, 184, 0.3) !important;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
   }
 
   .glass-input {
-    background: rgba(255, 255, 255, 0.85) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    border: 1px solid rgba(203, 213, 225, 0.6) !important;
-    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(203, 213, 225, 0.7) !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 
   .dark .glass-input {
-    background: rgba(15, 23, 42, 0.6) !important;
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-    border: 1px solid rgba(148, 163, 184, 0.4) !important;
+    background: rgba(15, 23, 42, 0.8) !important;
+    border: 1px solid rgba(148, 163, 184, 0.5) !important;
   }
 
   .glass-content-bg {
-    background: rgba(248, 250, 252, 0.4) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: rgba(248, 250, 252, 0.6) !important;
   }
 
   .dark .glass-content-bg {
-    background: rgba(15, 23, 42, 0.4) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: rgba(15, 23, 42, 0.5) !important;
   }
 
   .close-button-glass {
@@ -175,41 +142,37 @@ const glassmorphismStyles = `
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(239, 68, 68, 0.9);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(239, 68, 68, 0.95);
+    border: 2px solid rgba(255, 255, 255, 0.4);
     border-radius: 12px;
     cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
-    will-change: transform;
+    transition: all 0.12s ease;
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.35);
   }
 
   .close-button-glass:hover {
-    background: rgba(220, 38, 38, 1);
-    transform: scale(1.1) rotate(90deg);
-    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.6);
+    background: rgb(220, 38, 38);
+    transform: scale(1.08) rotate(90deg);
+    box-shadow: 0 5px 15px rgba(239, 68, 68, 0.5);
   }
 
   .close-button-glass:active {
-    transform: scale(0.95) rotate(90deg);
-    transition: all 0.1s ease;
+    transform: scale(0.96) rotate(90deg);
   }
 
   .dark .close-button-glass {
-    background: rgba(239, 68, 68, 0.95);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(239, 68, 68, 1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
     box-shadow: 
-      0 4px 12px rgba(239, 68, 68, 0.5),
-      0 0 15px rgba(239, 68, 68, 0.25);
+      0 3px 10px rgba(239, 68, 68, 0.4),
+      0 0 12px rgba(239, 68, 68, 0.2);
   }
 
   .dark .close-button-glass:hover {
-    background: rgba(220, 38, 38, 1);
+    background: rgb(220, 38, 38);
     box-shadow: 
-      0 6px 18px rgba(239, 68, 68, 0.7),
-      0 0 25px rgba(239, 68, 68, 0.4);
+      0 5px 15px rgba(239, 68, 68, 0.6),
+      0 0 20px rgba(239, 68, 68, 0.35);
   }
 `;
 
