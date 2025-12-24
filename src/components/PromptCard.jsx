@@ -725,30 +725,6 @@ const PromptCard = React.memo(({
                 </Button>
               )}
             </div>
-
-            {/* ✅ INDICADOR DE UPLOAD */}
-            {isUploadingMedia && (
-              <div className="px-3 py-2 bg-orange-50 dark:bg-orange-900/20 rounded-md border border-orange-200 dark:border-orange-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  <p className="text-xs text-orange-600 dark:text-orange-400 font-medium">
-                    🎬 Enviando mídia... Aguarde antes de editar
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* ✅ INDICADOR DE CRIAÇÃO OTIMISTA */}
-            {isOptimistic && !isUploadingMedia && (
-              <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-md border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                    ⏳ Criando prompt...
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Botões do modo Chat */}
@@ -792,6 +768,21 @@ const PromptCard = React.memo(({
         {/* MÍDIA */}
         {mediaInfo.hasMedia && (
           <div className={cn(mediaVariants({ layout: "horizontal" }), "relative")}>
+            
+            {/* 🎯 OVERLAY DE LOADING - SOBRE O THUMBNAIL */}
+            {(isUploadingMedia || isOptimistic) && (
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-3 rounded-xl">
+                {/* Círculo Animado */}
+                <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                
+                {/* Mensagem */}
+                <div className="bg-white/95 dark:bg-slate-800/95 px-6 py-3 rounded-full shadow-2xl">
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">
+                    {isUploadingMedia ? "🎬 Enviando mídia..." : "⏳ Criando prompt..."}
+                  </p>
+                </div>
+              </div>
+            )}
             
             {/* ✅ BADGE "YOUTUBE" no canto superior direito */}
             {mediaInfo.hasYouTubeVideo && (
