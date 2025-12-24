@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 import { X, Upload, ImageIcon, Video, Youtube } from "lucide-react";
 
@@ -44,20 +45,100 @@ function extractYouTubeId(url) {
     }
 }
 
-function isValidHttpUrl(str) {
-    try {
-        let url = new URL(str);
-        return url.protocol === "http:" || url.protocol === "https:";
-    } catch (_) {
-        return false;
-    }
-}
-
 function detectFileType(file) {
     if (!file) return null;
     if (file.type.startsWith("image/")) return "image";
     if (file.type.startsWith("video/")) return "video";
     return null;
+}
+
+// ============================================================
+// 🆕 FUNÇÃO PARA GERAR THUMBNAIL DO VÍDEO
+// ============================================================
+async function generateVideoThumbnail(videoFile) {
+    return new Promise((resolve, reject) => {
+        console.log("🎬 Gerando thumbnail do vídeo...");
+        
+        const video = document.createElement('video');
+        const objectUrl = URL.createObjectURL(videoFile);
+        
+        video.src = objectUrl;
+        video.crossOrigin = 'anonymous';
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = 'metadata';
+        
+        // Timeout de 10 segundos
+        const timeout = setTimeout(() => {
+            cleanup();
+            reject(new Error('Timeout ao gerar thumbnail'));
+        }, 10000);
+        
+        const cleanup = () => {
+            clearTimeout(timeout);
+            URL.revokeObjectURL(objectUrl);
+            video.remove();
+        };
+        
+        video.addEventListener('loadedmetadata', () => {
+            // Vai para 1 segundo do vídeo (ou 10% da duração)
+            const seekTime = Math.min(1, video.duration * 0.1);
+            video.currentTime = seekTime;
+        });
+        
+        video.addEventListener('seeked', () => {
+            try {
+                const canvas = document.createElement('canvas');
+                
+                // Mantém aspect ratio, max 1280x720
+                const maxWidth = 1280;
+                const maxHeight = 720;
+                let width = video.videoWidth;
+                let height = video.videoHeight;
+                
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                
+                if (height > maxHeight) {
+                    width = (maxHeight / height) * width;
+                    height = maxHeight;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, width, height);
+                
+                // Converte para Blob JPEG (qualidade 85%)
+                canvas.toBlob(
+                    (blob) => {
+                        cleanup();
+                        if (blob) {
+                            console.log(`✅ Thumbnail gerada: ${width}x${height}, ${(blob.size / 1024).toFixed(2)} KB`);
+                            resolve(blob);
+                        } else {
+                            reject(new Error('Falha ao converter canvas para blob'));
+                        }
+                    },
+                    'image/jpeg',
+                    0.85
+                );
+            } catch (error) {
+                cleanup();
+                reject(error);
+            }
+        });
+        
+        video.addEventListener('error', (e) => {
+            cleanup();
+            reject(new Error('Erro ao carregar vídeo: ' + e.message));
+        });
+        
+        video.load();
+    });
 }
 
 // ============================================================
@@ -92,15 +173,17 @@ export default function TemplateModal({
 
     const [imageFile, setImageFile] = useState(null);
     const [videoFile, setVideoFile] = useState(null);
+    const [thumbnailFile, setThumbnailFile] = useState(null); // 🆕 Thumbnail gerada
 
     const [preview, setPreview] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isGeneratingThumbnail, setIsGeneratingThumbnail] = useState(false); // 🆕
     const [existingFiles, setExistingFiles] = useState([]);
 
     const isEdit = !!template?.id;
 
     // ============================================================
-    // 🟡 RESET - Ao abrir modal (✅ COM CORREÇÃO)
+    // 🟡 RESET - Ao abrir modal
     // ============================================================
     useEffect(() => {
         if (!isOpen) return;
@@ -143,13 +226,14 @@ export default function TemplateModal({
 
         setImageFile(null);
         setVideoFile(null);
+        setThumbnailFile(null); // 🆕
         setPreview(null);
 
-        // 🔵 ARQUIVOS EXTRAS (✅ CORREÇÃO PRINCIPAL)
+        // 🔵 ARQUIVOS EXTRAS
         if (template?.id) {
             console.log("   🔎 Carregando arquivos extras existentes...");
             loadExistingFiles(template.id);
-            setExtraFiles([]); // ✅ CORREÇÃO: Limpa arquivos novos ao editar
+            setExtraFiles([]);
         } else {
             console.log("   🔎 Zerando arquivos extras (novo template)");
             setExistingFiles([]);
@@ -207,9 +291,49 @@ export default function TemplateModal({
     };
 
     // ============================================================
+    // 🆕 HANDLE VIDEO SELECT - COM GERAÇÃO AUTOMÁTICA DE THUMBNAIL
+    // ============================================================
+    const handleVideoSelect = useCallback(async (file) => {
+        console.log(`📹 Vídeo selecionado: ${file.name}`);
+        
+        setVideoFile(file);
+        setVideoUrl(null);
+        setImageFile(null);
+        setImageUrl(null);
+        setYoutubeUrl("");
+        
+        // 🎨 GERA THUMBNAIL AUTOMATICAMENTE
+        setIsGeneratingThumbnail(true);
+        
+        try {
+            const thumbnailBlob = await generateVideoThumbnail(file);
+            
+            if (thumbnailBlob) {
+                // Converte Blob para File
+                const thumbnailFileObj = new File(
+                    [thumbnailBlob],
+                    'thumbnail.jpg',
+                    { type: 'image/jpeg' }
+                );
+                
+                setThumbnailFile(thumbnailFileObj);
+                toast.success('✅ Vídeo e thumbnail prontos!');
+                console.log("✅ Thumbnail gerada e armazenada");
+            } else {
+                toast.warning('⚠️ Não foi possível gerar thumbnail');
+            }
+        } catch (error) {
+            console.error("❌ Erro ao gerar thumbnail:", error);
+            toast.error('❌ Erro ao gerar thumbnail, mas vídeo foi adicionado');
+        } finally {
+            setIsGeneratingThumbnail(false);
+        }
+    }, []);
+
+    // ============================================================
     // 🔵 HANDLE FILE SELECT (Imagem/Vídeo principal)
     // ============================================================
-    const handleFileSelect = useCallback((event) => {
+    const handleFileSelect = useCallback(async (event) => {
         const file = event.target.files?.[0];
         if (!file) return;
 
@@ -222,21 +346,30 @@ export default function TemplateModal({
             setVideoFile(null);
             setVideoUrl(null);
             setYoutubeUrl("");
+            setThumbnailFile(null);
         }
 
         if (type === "video") {
-            setVideoFile(file);
-            setVideoUrl(null);
-            setImageFile(null);
-            setImageUrl(null);
-            setYoutubeUrl("");
+            await handleVideoSelect(file);
         }
-    }, []);
+    }, [handleVideoSelect]);
 
     // ============================================================
     // 🟦 RENDER PREVIEW
     // ============================================================
     const renderPreview = () => {
+        // 🆕 Mostra loading enquanto gera thumbnail
+        if (isGeneratingThumbnail) {
+            return (
+                <div className="w-full h-48 flex flex-col items-center justify-center bg-purple-50 rounded-lg border-2 border-purple-200">
+                    <div className="w-12 h-12 border-4 border-purple-300 border-t-purple-600 rounded-full animate-spin mb-3"></div>
+                    <p className="text-sm text-purple-600 font-medium">
+                        Gerando thumbnail do vídeo...
+                    </p>
+                </div>
+            );
+        }
+
         if (!preview) {
             return (
                 <div className="w-full h-48 flex items-center justify-center bg-muted rounded-lg border">
@@ -256,12 +389,21 @@ export default function TemplateModal({
                         src={preview.src}
                         poster={preview.poster || undefined}
                     />
+                    
+                    {/* 🆕 Badge indicando que thumbnail foi gerada */}
+                    {thumbnailFile && (
+                        <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-semibold">
+                            ✅ Thumbnail gerada
+                        </div>
+                    )}
+                    
                     <button
                         type="button"
                         className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-full hover:bg-black/70"
                         onClick={() => {
                             setVideoFile(null);
                             setVideoUrl(null);
+                            setThumbnailFile(null); // 🆕 Limpa thumbnail
                             setPreview(null);
                         }}
                     >
@@ -325,18 +467,18 @@ export default function TemplateModal({
     };
 
     // ============================================================
-    // 🟦 HANDLE SAVE - VERSÃO FINAL E CORRIGIDA
+    // 🟦 HANDLE SAVE - VERSÃO FINAL COM THUMBNAIL
     // ============================================================
     const handleSave = async () => {
         console.log("💾 [TemplateModal] handleSave INICIADO");
 
         if (!title.trim()) {
-            alert("Título é obrigatório.");
+            toast.error("Título é obrigatório");
             return;
         }
 
         if (!content.trim()) {
-            alert("Conteúdo é obrigatório.");
+            toast.error("Conteúdo é obrigatório");
             return;
         }
 
@@ -352,7 +494,7 @@ export default function TemplateModal({
                 .filter(Boolean);
 
             // ============================================================
-            // 🟢 CATEGORY_ID (FONTE ÚNICA DA VERDADE)
+            // 🟢 CATEGORY_ID
             // ============================================================
             const categoryId =
                 selectedCategories.length > 0
@@ -360,94 +502,71 @@ export default function TemplateModal({
                     : null;
 
             // ============================================================
-            // 🔍 DETECÇÃO DE MÍDIA
+            // 📦 FORMDATA (SEMPRE USADO AGORA)
             // ============================================================
-            const hasNewMedia = imageFile || videoFile;
-            const hasYouTube = extractYouTubeId(youtubeUrl);
-            const hasExtraFiles = extraFiles && extraFiles.length > 0;
+            const formData = new FormData();
 
-            const mustUseFormData = hasNewMedia || hasYouTube || hasExtraFiles;
+            formData.append("title", title);
+            formData.append("description", description);
+            formData.append("content", content);
+            formData.append("tags", JSON.stringify(tagsArray));
+            formData.append("platform", platform || "");
+            formData.append(
+                "category_id",
+                categoryId !== null ? String(categoryId) : ""
+            );
 
-            let payload;
+            // 🖼️ IMAGEM
+            if (imageFile) {
+                formData.append("image", imageFile);
+                console.log("📎 Anexando imagem");
+            }
 
-            // ============================================================
-            // 📦 FORMDATA (UPLOAD)
-            // ============================================================
-            if (mustUseFormData) {
-                payload = new FormData();
-
-                payload.append("title", title);
-                payload.append("description", description);
-                payload.append("content", content);
-                payload.append("tags", JSON.stringify(tagsArray));
-                payload.append("platform", platform || "");
-
-                // ✅ CATEGORIA – CAMPO CORRETO
-                payload.append(
-                    "category_id",
-                    categoryId !== null ? String(categoryId) : ""
-                );
-
-                // 🖼️ IMAGEM
-                if (imageFile) {
-                    payload.append("image", imageFile);
-                }
-
-                // 🎬 VÍDEO
-                if (videoFile) {
-                    payload.append("video", videoFile);
-                }
-
-                // ▶️ YOUTUBE
-                if (hasYouTube) {
-                    payload.append("youtube_url", youtubeUrl);
-
-                    const ytId = extractYouTubeId(youtubeUrl);
-                    if (ytId) {
-                        payload.append(
-                            "thumb_url",
-                            `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
-                        );
-                    }
-                }
-
-                // 📎 ARQUIVOS EXTRAS
-                if (hasExtraFiles) {
-                    extraFiles.forEach(file => {
-                        payload.append("extra_files", file);
-                    });
+            // 🎬 VÍDEO + THUMBNAIL
+            if (videoFile) {
+                formData.append("video", videoFile);
+                console.log("📎 Anexando vídeo");
+                
+                // 🆕 ENVIA THUMBNAIL GERADA
+                if (thumbnailFile) {
+                    formData.append("thumbnail", thumbnailFile);
+                    console.log("📎 Anexando thumbnail gerada");
+                } else {
+                    console.warn("⚠️ Vídeo sem thumbnail!");
                 }
             }
 
-            // ============================================================
-            // 📦 JSON (SEM UPLOAD)
-            // ============================================================
-            else {
-                payload = {
-                    title,
-                    description,
-                    content,
-                    tags: tagsArray,
-                    platform: platform || null,
-                    category_id: categoryId,
-                    youtube_url: youtubeUrl || null,
-                    thumb_url: thumbUrl || null,
-                    image_url: imageUrl || null,
-                    video_url: videoUrl || null,
-                };
+            // ▶️ YOUTUBE
+            const ytId = extractYouTubeId(youtubeUrl);
+            if (ytId) {
+                formData.append("youtube_url", youtubeUrl);
+                formData.append(
+                    "thumb_url",
+                    `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+                );
+                console.log("📎 Anexando YouTube URL");
+            }
+
+            // 📎 ARQUIVOS EXTRAS
+            if (extraFiles && extraFiles.length > 0) {
+                extraFiles.forEach(file => {
+                    formData.append("extra_files", file);
+                });
+                console.log(`📎 Anexando ${extraFiles.length} arquivos extras`);
             }
 
             // ============================================================
             // 🚀 SALVAR
             // ============================================================
-            await onSave(payload, template?.id || null);
+            console.log("🚀 Enviando FormData para backend...");
+            await onSave(formData, template?.id || null);
 
             setIsSaving(false);
             onClose();
 
         } catch (err) {
             console.error("❌ Erro ao salvar template:", err);
-            alert("Erro ao salvar template.");
+            toast.error("Erro ao salvar template");
             setIsSaving(false);
         }
     };
@@ -462,9 +581,11 @@ export default function TemplateModal({
             console.log(`🗑️ Removendo arquivo ID ${fileId}...`);
             await api.delete(`/templates/files/${fileId}`);
             setExistingFiles((prev) => prev.filter((f) => f.id !== fileId));
+            toast.success("Arquivo removido");
             console.log("   ✅ Arquivo removido com sucesso");
         } catch (error) {
             console.error("   ❌ Erro ao remover arquivo:", error);
+            toast.error("Erro ao remover arquivo");
         }
     };
 
@@ -480,6 +601,11 @@ export default function TemplateModal({
                     </DialogTitle>
                     <DialogDescription>
                         Preencha os campos abaixo para criar ou editar o template.
+                        {videoFile && !thumbnailFile && (
+                            <span className="block mt-2 text-yellow-600 font-medium">
+                                ⚠️ Thumbnail não gerada para este vídeo
+                            </span>
+                        )}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -501,19 +627,29 @@ export default function TemplateModal({
                                     accept="image/*"
                                     className="hidden"
                                     onChange={handleFileSelect}
+                                    disabled={isGeneratingThumbnail}
                                 />
                             </label>
 
                             <label className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg cursor-pointer hover:opacity-90 transition-opacity shadow-md">
                                 <Video className="w-5 h-5" />
-                                <span className="font-medium">Upload Vídeo</span>
+                                <span className="font-medium">
+                                    {isGeneratingThumbnail ? "Processando..." : "Upload Vídeo"}
+                                </span>
                                 <input
                                     type="file"
                                     accept="video/*"
                                     className="hidden"
                                     onChange={handleFileSelect}
+                                    disabled={isGeneratingThumbnail}
                                 />
                             </label>
+                            
+                            {isGeneratingThumbnail && (
+                                <p className="text-xs text-purple-600 text-center font-medium">
+                                    🎬 Gerando thumbnail automaticamente...
+                                </p>
+                            )}
                         </div>
 
                         {/* ===== ARQUIVOS EXTRAS (PNG/JPG) ===== */}
@@ -634,6 +770,7 @@ export default function TemplateModal({
                                     setYoutubeUrl(e.target.value);
                                     setImageFile(null);
                                     setVideoFile(null);
+                                    setThumbnailFile(null);
                                 }}
                                 className="border-gray-300"
                             />
@@ -790,7 +927,7 @@ export default function TemplateModal({
                     <Button
                         variant="outline"
                         onClick={onClose}
-                        disabled={isSaving}
+                        disabled={isSaving || isGeneratingThumbnail}
                         className="px-6"
                     >
                         Cancelar
@@ -798,11 +935,13 @@ export default function TemplateModal({
 
                     <Button
                         onClick={handleSave}
-                        disabled={isSaving}
+                        disabled={isSaving || isGeneratingThumbnail}
                         className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:opacity-90 px-6"
                     >
                         {isSaving
                             ? "Salvando..."
+                            : isGeneratingThumbnail
+                            ? "Processando vídeo..."
                             : isEdit
                             ? "Salvar Alterações"
                             : "Criar Template"}
