@@ -59,15 +59,16 @@ const customScrollbarStyles = `
 `;
 
 // ✨ ESTILOS GLASSMORPHISM MELHORADOS
+// ✨ ESTILOS GLASSMORPHISM OTIMIZADOS (MUITO MAIS RÁPIDO)
 const glassmorphismStyles = `
   @keyframes modalGlassEnter {
     from {
       opacity: 0;
-      transform: scale(0.95);
+      transform: scale(0.98) translateY(-10px);
     }
     to {
       opacity: 1;
-      transform: scale(1);
+      transform: scale(1) translateY(0);
     }
   }
 
@@ -81,31 +82,32 @@ const glassmorphismStyles = `
   }
 
   .modal-glass-container {
-    animation: modalGlassEnter 0.3s ease-out;
-    background: rgba(255, 255, 255, 0.65) !important;
-    backdrop-filter: blur(50px) saturate(200%) !important;
-    -webkit-backdrop-filter: blur(50px) saturate(200%) !important;
+    animation: modalGlassEnter 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(25px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(25px) saturate(150%) !important;
     border: 4px solid rgba(139, 92, 246, 0.6) !important;
     border-radius: 30px !important;
     box-shadow: 
       0 0 0 1px rgba(139, 92, 246, 0.4),
-      0 0 120px 20px rgba(139, 92, 246, 0.7),
-      0 10px 40px rgba(0, 0, 0, 0.3) !important;
+      0 0 100px 15px rgba(139, 92, 246, 0.6),
+      0 10px 30px rgba(0, 0, 0, 0.25) !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
     max-height: 90vh !important;
+    will-change: transform, opacity;
   }
 
   .dark .modal-glass-container {
-    background: rgba(15, 23, 42, 0.6) !important;
-    backdrop-filter: blur(50px) saturate(200%) !important;
-    -webkit-backdrop-filter: blur(50px) saturate(200%) !important;
+    background: rgba(15, 23, 42, 0.7) !important;
+    backdrop-filter: blur(25px) saturate(150%) !important;
+    -webkit-backdrop-filter: blur(25px) saturate(150%) !important;
     border: 4px solid rgba(139, 92, 246, 0.7) !important;
     box-shadow: 
       0 0 0 1px rgba(139, 92, 246, 0.5),
-      0 0 140px 25px rgba(139, 92, 246, 0.8),
-      0 10px 40px rgba(0, 0, 0, 0.5) !important;
+      0 0 120px 20px rgba(139, 92, 246, 0.7),
+      0 10px 30px rgba(0, 0, 0, 0.4) !important;
   }
 
   .glass-header {
@@ -121,45 +123,46 @@ const glassmorphismStyles = `
   }
 
   .glass-section {
-    background: rgba(255, 255, 255, 0.5) !important;
-    backdrop-filter: blur(25px) !important;
-    -webkit-backdrop-filter: blur(25px) !important;
+    background: rgba(255, 255, 255, 0.6) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
     border: 1px solid rgba(255, 255, 255, 0.8) !important;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08) !important;
   }
 
   .dark .glass-section {
-    background: rgba(30, 41, 59, 0.4) !important;
-    backdrop-filter: blur(25px) !important;
-    -webkit-backdrop-filter: blur(25px) !important;
+    background: rgba(30, 41, 59, 0.5) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
     border: 1px solid rgba(148, 163, 184, 0.3) !important;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25) !important;
   }
 
   .glass-input {
-    background: rgba(255, 255, 255, 0.8) !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
     border: 1px solid rgba(203, 213, 225, 0.6) !important;
+    transition: all 0.2s ease;
   }
 
   .dark .glass-input {
-    background: rgba(15, 23, 42, 0.5) !important;
-    backdrop-filter: blur(10px) !important;
-    -webkit-backdrop-filter: blur(10px) !important;
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
     border: 1px solid rgba(148, 163, 184, 0.4) !important;
   }
 
   .glass-content-bg {
-    background: rgba(248, 250, 252, 0.3) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
+    background: rgba(248, 250, 252, 0.4) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
   }
 
   .dark .glass-content-bg {
-    background: rgba(15, 23, 42, 0.3) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
+    background: rgba(15, 23, 42, 0.4) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
   }
 
   .close-button-glass {
@@ -173,24 +176,25 @@ const glassmorphismStyles = `
     align-items: center;
     justify-content: center;
     background: rgba(239, 68, 68, 0.9);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 12px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    will-change: transform;
   }
 
   .close-button-glass:hover {
     background: rgba(220, 38, 38, 1);
     transform: scale(1.1) rotate(90deg);
-    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
-    animation: closeButtonPulse 1.5s infinite;
+    box-shadow: 0 6px 18px rgba(239, 68, 68, 0.6);
   }
 
   .close-button-glass:active {
     transform: scale(0.95) rotate(90deg);
+    transition: all 0.1s ease;
   }
 
   .dark .close-button-glass {
@@ -198,14 +202,14 @@ const glassmorphismStyles = `
     border: 2px solid rgba(255, 255, 255, 0.2);
     box-shadow: 
       0 4px 12px rgba(239, 68, 68, 0.5),
-      0 0 20px rgba(239, 68, 68, 0.3);
+      0 0 15px rgba(239, 68, 68, 0.25);
   }
 
   .dark .close-button-glass:hover {
     background: rgba(220, 38, 38, 1);
     box-shadow: 
-      0 6px 20px rgba(239, 68, 68, 0.7),
-      0 0 30px rgba(239, 68, 68, 0.5);
+      0 6px 18px rgba(239, 68, 68, 0.7),
+      0 0 25px rgba(239, 68, 68, 0.4);
   }
 `;
 
