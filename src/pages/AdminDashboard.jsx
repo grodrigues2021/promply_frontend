@@ -1,5 +1,6 @@
 // src/pages/AdminDashboard.jsx
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, FileText, Activity, TrendingUp, 
@@ -24,6 +25,7 @@ const MetricCard = ({ title, value, subtitle, icon: Icon }) => (
 );
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,19 +34,46 @@ export default function AdminDashboard() {
     const fetchMetrics = async () => {
       try {
         const res = await fetch('/api/admin/metrics', {
-          credentials: 'include'
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
         });
         
+        // Verifica se a resposta é JSON
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Response is not JSON:', contentType);
+          throw new Error('Você precisa estar autenticado para acessar esta página');
+        }
+        
         if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            throw new Error('Acesso negado. Faça login novamente.');
+          }
           throw new Error(`Erro ${res.status}: ${res.statusText}`);
         }
         
         const data = await res.json();
+        
+        // Verifica se recebeu dados válidos
+        if (!data.success) {
+          throw new Error(data.error || 'Erro ao buscar métricas');
+        }
+        
         setMetrics(data);
         setError(null);
       } catch (error) {
         console.error('Error fetching metrics:', error);
         setError(error.message);
+        
+        // Se for erro de autenticação, redireciona para login após 3 segundos
+        if (error.message.includes('autenticado') || error.message.includes('Acesso negado')) {
+          setTimeout(() => {
+            navigate('/login');
+          }, 3000);
+        }
       } finally {
         setLoading(false);
       }
@@ -54,7 +83,7 @@ export default function AdminDashboard() {
     // Atualizar a cada 5 minutos
     const interval = setInterval(fetchMetrics, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [navigate]);
 
   if (loading) {
     return (
@@ -70,10 +99,19 @@ export default function AdminDashboard() {
       <div className="p-6">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <div>
+          <div className="flex-1">
             <h3 className="text-red-800 font-semibold">Erro ao carregar métricas</h3>
             <p className="text-red-600 text-sm mt-1">{error}</p>
+            {error.includes('autenticado') && (
+              <p className="text-red-500 text-xs mt-2">Redirecionando para login...</p>
+            )}
           </div>
+          <button
+            onClick={() => navigate('/')}
+            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded text-sm"
+          >
+            Voltar
+          </button>
         </div>
       </div>
     );
