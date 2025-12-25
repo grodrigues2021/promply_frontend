@@ -181,13 +181,13 @@ export default function AdminDashboard() {
             title="Usuários com Prompts"
             value={metrics.engagement.users_with_prompts}
             icon={Users}
-            subtitle={`${Math.round((metrics.engagement.users_with_prompts / Math.max(metrics.users.total, 1)) * 100)}% do total`}
+            subtitle={`${metrics.engagement.activation_rate}% do total`}
           />
           <MetricCard
             title="Prompts com Mídia"
             value={metrics.storage.prompts_with_media}
             icon={Database}
-            subtitle="imagens ou vídeos"
+            subtitle={`${metrics.storage.media_usage_rate}% dos prompts`}
           />
         </div>
       </section>
@@ -225,27 +225,6 @@ export default function AdminDashboard() {
                     </div>
                   );
                 })}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
-
-      {/* Top Categorias */}
-      {metrics.top_categories && metrics.top_categories.length > 0 && (
-        <section>
-          <Card>
-            <CardHeader>
-              <CardTitle>Top 5 Categorias</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {metrics.top_categories.map((cat, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="font-medium">{cat.name}</span>
-                    <span className="text-gray-600">{cat.count} prompts</span>
-                  </div>
-                ))}
               </div>
             </CardContent>
           </Card>
