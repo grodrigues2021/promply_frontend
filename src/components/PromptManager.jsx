@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptManager.jsx
-// ✅ VERSÃO CORRIGIDA - Draft System Fixed v2
+// ✅ VERSÃO CORRIGIDA - Draft System Fixed v2 + Admin Dashboard
 // ==========================================
 
 import { toast } from "sonner";
@@ -47,9 +47,11 @@ import {
   Plus,
   Download,
   ChevronDown,
+  BarChart3, // ✅ NOVO: Ícone do Admin Dashboard
 } from "lucide-react";
 import PromplyLogo from "../assets/promply-logo.svg";
 import { useAuth } from "../hooks/useAuth";
+import { useNavigate } from "react-router-dom"; // ✅ NOVO: Hook de navegação
 import TemplatesPage from "./TemplatesPage.jsx";
 import PromptCard from "./PromptCard";
 import PromptGrid from "./PromptGrid";
@@ -124,6 +126,7 @@ export default function PromptManager({
   isPopupMode = false,
 }) {
   const { user, logout, isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate(); // ✅ NOVO: Hook de navegação
   const queryClient = useQueryClient();
   const [ChatComponent, setChatComponent] = useState(null);
 
@@ -551,7 +554,7 @@ export default function PromptManager({
   }, []);
 
   // ===================================================
-  // 📄 RESET FORMS
+  // 🔄 RESET FORMS
   // ===================================================
 
   const resetPromptForm = useCallback(() => {
@@ -1090,7 +1093,7 @@ export default function PromptManager({
       }
 
       // =========================================================
-      // 🔒 PASSO 1: CRIA CÓPIAS DOS ARQUIVOS **ANTES** DE FECHAR O MODAL
+      // 🔐 PASSO 1: CRIA CÓPIAS DOS ARQUIVOS **ANTES** DE FECHAR O MODAL
       // =========================================================
       const promptId = realPrompt.id;
 
@@ -1392,6 +1395,17 @@ export default function PromptManager({
                 </Button>
 
                 <div className="hidden sm:flex items-center gap-3">
+                  {/* ✅ NOVO: Botão Admin Dashboard */}
+                  <Button
+                    onClick={() => navigate('/admin/dashboard')}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+                    size="sm"
+                    title="Dashboard Administrativo"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span className="hidden lg:inline">Admin</span>
+                  </Button>
+
                   <Button
                     onClick={openChatFromTopButton}
                     className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
