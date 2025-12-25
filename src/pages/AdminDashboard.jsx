@@ -33,7 +33,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await fetch('/api/admin/metrics', {
+        // ✅ CORREÇÃO: Usar variável de ambiente existente (já tem /api)
+        const API_URL = import.meta.env.VITE_API_URL || 'https://api.promply.app/api';
+        const res = await fetch(`${API_URL}/admin/metrics`, {
           credentials: 'include',
           headers: {
             'Accept': 'application/json',
@@ -108,7 +110,7 @@ export default function AdminDashboard() {
           </div>
           <button
             onClick={() => navigate('/')}
-            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded text-sm"
+            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded text-sm transition-colors"
           >
             Voltar
           </button>
