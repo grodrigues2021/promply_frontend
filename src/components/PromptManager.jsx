@@ -1395,16 +1395,18 @@ export default function PromptManager({
                 </Button>
 
                 <div className="hidden sm:flex items-center gap-3">
-                  {/* ✅ NOVO: Botão Admin Dashboard */}
-                  <Button
-                    onClick={() => navigate('/admin/dashboard')}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
-                    size="sm"
-                    title="Dashboard Administrativo"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                    <span className="hidden lg:inline">Admin</span>
-                  </Button>
+                  {/* ✅ BOTÃO ADMIN - SÓ APARECE PARA ADMINISTRADORES */}
+                  {user?.is_admin && (
+                    <Button
+                      onClick={() => navigate('/admin/dashboard')}
+                      className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700"
+                      size="sm"
+                      title="Dashboard Administrativo"
+                    >
+                      <BarChart3 className="w-4 h-4" />
+                      <span className="hidden lg:inline">Admin</span>
+                    </Button>
+                  )}
 
                   <Button
                     onClick={openChatFromTopButton}
