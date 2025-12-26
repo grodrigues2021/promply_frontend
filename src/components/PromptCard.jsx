@@ -912,29 +912,17 @@ const PromptCard = React.memo(({
           </div>
         )}
 
-  {/* ✅ PLACEHOLDER COM SVG DO PROMPLY */}
+  {/* ✅ PLACEHOLDER - GRADIENTE OCUPANDO TODO O ESPAÇO */}
 {!mediaInfo.hasMedia && (
   <div className={cn(
     mediaVariants({ layout: "horizontal" }),
-    "relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-purple-500 via-purple-600 to-pink-500"
+    "flex items-center justify-center bg-gradient-to-br from-purple-500 via-purple-600 to-pink-500"
   )}>
-    {/* Pattern de fundo decorativo */}
-    <div 
-      className="absolute inset-0 opacity-10"
-      style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30Z' fill='white' fill-opacity='0.1'/%3E%3C/svg%3E")`,
-        backgroundSize: '30px 30px'
-      }}
+    <img 
+      src={PromplyDefaultSvg} 
+      alt="Promply Logo" 
+      className="w-32 h-32 drop-shadow-2xl"
     />
-    
-    {/* Logo do Promply - SEM TEXTO EXTRA */}
-    <div className="relative flex items-center justify-center z-10">
-      <img 
-        src={PromplyDefaultSvg} 
-        alt="Promply Logo" 
-        className="w-24 h-24 drop-shadow-2xl filter brightness-110"
-      />
-    </div>
   </div>
 )}
       </div>
