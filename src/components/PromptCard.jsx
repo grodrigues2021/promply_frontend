@@ -1,4 +1,4 @@
-// src/components/PromptCard.jsx - VERSÃO COM LOGS DE DEBUG
+// src/components/PromptCard.jsx - VERSÃO FINAL COM CORREÇÃO ANTI-DEFORMAÇÃO
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
@@ -280,7 +280,7 @@ const PromptCard = React.memo(({
   const isBlocked = isOptimistic || isUploadingMedia;
 
   // =====================================================
-  // 🖼️ MEDIA INFO NORMALIZADO - VERSÃO DO BACKUP
+  // 🖼️ MEDIA INFO NORMALIZADO - VERSÃO COM CORREÇÃO ANTI-DEFORMAÇÃO
   // =====================================================
   const stableThumbnailRef = useRef(null);
 
@@ -289,7 +289,7 @@ const PromptCard = React.memo(({
     stableThumbnailRef.current = null;
   }, [prompt._clientId]);
 
-  // ✅ RESTAURADO DO BACKUP - SEM cachedThumbnail e promptId nas dependências
+  // ✅ CORREÇÃO ANTI-DEFORMAÇÃO: Mantém blob URL até refresh (F5)
   const mediaInfo = useMemo(() => {
     const thumbUrl = prompt.thumb_url || "";
     const imageUrl = prompt.image_url || "";
@@ -310,23 +310,31 @@ const PromptCard = React.memo(({
       thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : "";
     }
 
-    // VÍDEO LOCAL
+    // VÍDEO LOCAL - COM CORREÇÃO ANTI-DEFORMAÇÃO
     else if (videoUrl) {
       hasLocalVideo = true;
       finalVideoUrl = resolveMediaUrl(videoUrl);
 
       if (thumbUrl) {
-        if (
-          stableThumbnailRef.current &&
-          (prompt._uploadingMedia || thumbUrl.startsWith("blob:"))
-        ) {
+        // 🔒 PRIORIDADE 1: Se JÁ tem blob no ref, NUNCA troca!
+        if (stableThumbnailRef.current?.startsWith("blob:")) {
           thumbnailUrl = stableThumbnailRef.current;
-        } else {
-          thumbnailUrl = resolveMediaUrlWithCache(
-            thumbUrl,
-            prompt._uploadingMedia ? null : prompt.updated_at
-          );
-          stableThumbnailRef.current = thumbnailUrl;
+          console.log('🔒 Mantendo blob URL (ignorando backend):', stableThumbnailRef.current.substring(0, 50));
+        }
+        // 💾 PRIORIDADE 2: Se thumb_url é blob, salva no ref
+        else if (thumbUrl.startsWith("blob:")) {
+          thumbnailUrl = thumbUrl;
+          stableThumbnailRef.current = thumbUrl;
+          console.log('💾 Salvando blob URL no ref:', thumbUrl.substring(0, 50));
+        }
+        // 🌐 PRIORIDADE 3: Usa HTTPS apenas se ref está vazio (refresh)
+        else {
+          thumbnailUrl = resolveMediaUrlWithCache(thumbUrl, prompt.updated_at);
+          // Não sobrescreve ref se já tinha blob
+          if (!stableThumbnailRef.current) {
+            stableThumbnailRef.current = thumbnailUrl;
+          }
+          console.log('🌐 Usando HTTPS (página foi recarregada)');
         }
       }
     }
@@ -364,6 +372,7 @@ const PromptCard = React.memo(({
     prompt.video_url,
     prompt.youtube_url,
     prompt._uploadingMedia,
+    prompt.updated_at,
   ]);
 
   const tagsArray = useMemo(() => {
