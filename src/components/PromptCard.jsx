@@ -1,4 +1,4 @@
-// src/components/PromptCard.jsx - VERSÃO CORRIGIDA (RESTAURADO DO BACKUP)
+// src/components/PromptCard.jsx - VERSÃO COM LOGS DE DEBUG
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
@@ -364,8 +364,6 @@ const PromptCard = React.memo(({
     prompt.video_url,
     prompt.youtube_url,
     prompt._uploadingMedia,
-    // ✅ REMOVIDO: cachedThumbnail
-    // ✅ REMOVIDO: promptId
   ]);
 
   const tagsArray = useMemo(() => {
@@ -447,6 +445,26 @@ const PromptCard = React.memo(({
       videoId: null,
     });
   };
+
+  // 🔍 DEBUG LOG #1: Monitora mudanças na URL da thumbnail
+  useEffect(() => {
+    if (mediaInfo.hasLocalVideo && mediaInfo.thumbnailUrl) {
+      console.log('🔄 thumbnailUrl ATUALIZADA:', {
+        promptId: prompt.id,
+        title: prompt.title,
+        url: mediaInfo.thumbnailUrl,
+        urlLength: mediaInfo.thumbnailUrl.length,
+        isBlob: mediaInfo.thumbnailUrl.startsWith('blob:'),
+        isHttp: mediaInfo.thumbnailUrl.startsWith('http'),
+        hasTimestamp: mediaInfo.thumbnailUrl.includes('?t='),
+        stableRef: stableThumbnailRef.current,
+        _uploadingMedia: prompt._uploadingMedia,
+        updated_at: prompt.updated_at,
+        renderCount: (window.renderCounts = (window.renderCounts || {}))[prompt.id] = ((window.renderCounts || {})[prompt.id] || 0) + 1,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [mediaInfo.thumbnailUrl, mediaInfo.hasLocalVideo, prompt.id, prompt.title, prompt._uploadingMedia, prompt.updated_at]);
 
   return (
     <>
@@ -780,7 +798,7 @@ const PromptCard = React.memo(({
               </button>
             )}
 
-            {/* ✅ VÍDEO LOCAL - RESTAURADO DO BACKUP */}
+            {/* ✅ VÍDEO LOCAL - COM LOGS DE DEBUG */}
             {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
               <button
                 type="button"
@@ -796,7 +814,31 @@ const PromptCard = React.memo(({
                     alt={prompt.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
+                    
+                  
+                    onLoad={(e) => {
+                      console.log('🖼️ Thumbnail CARREGADA:', {
+                        promptId: prompt.id,
+                        title: prompt.title,
+                        src: e.target.src,
+                        srcLength: e.target.src.length,
+                        naturalWidth: e.target.naturalWidth,
+                        naturalHeight: e.target.naturalHeight,
+                        aspectRatio: (e.target.naturalWidth / e.target.naturalHeight).toFixed(2),
+                        displayWidth: e.target.width,
+                        displayHeight: e.target.height,
+                        containerAspect: (e.target.width / e.target.height).toFixed(2),
+                        timestamp: new Date().toISOString()
+                      });
+                    }}
+                    
                     onError={(e) => {
+                      console.error('❌ ERRO ao carregar thumbnail:', {
+                        promptId: prompt.id,
+                        title: prompt.title,
+                        src: e.target.src,
+                        timestamp: new Date().toISOString()
+                      });
                       e.target.style.display = 'none';
                       e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
                     }}
