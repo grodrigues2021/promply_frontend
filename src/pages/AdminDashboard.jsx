@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, FileText, Activity, TrendingUp, 
-  Calendar, Database, Loader2, AlertCircle 
+  Calendar, Database, Loader2, AlertCircle, Shield 
 } from 'lucide-react';
 
 const MetricCard = ({ title, value, subtitle, icon: Icon }) => (
@@ -33,7 +33,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        // ✅ CORREÇÃO: Usar variável de ambiente existente (já tem /api)
         const API_URL = import.meta.env.VITE_API_URL || 'https://api.promply.app/api';
         const res = await fetch(`${API_URL}/admin/metrics`, {
           credentials: 'include',
@@ -43,7 +42,6 @@ export default function AdminDashboard() {
           }
         });
         
-        // Verifica se a resposta é JSON
         const contentType = res.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           console.error('Response is not JSON:', contentType);
@@ -51,15 +49,18 @@ export default function AdminDashboard() {
         }
         
         if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            throw new Error('Acesso negado. Faça login novamente.');
+          // ✅ NOVO: Mensagens específicas para cada tipo de erro
+          if (res.status === 401) {
+            throw new Error('Você precisa estar autenticado. Redirecionando para login...');
+          }
+          if (res.status === 403) {
+            throw new Error('Acesso negado. Apenas administradores podem acessar este painel.');
           }
           throw new Error(`Erro ${res.status}: ${res.statusText}`);
         }
         
         const data = await res.json();
         
-        // Verifica se recebeu dados válidos
         if (!data.success) {
           throw new Error(data.error || 'Erro ao buscar métricas');
         }
@@ -70,8 +71,14 @@ export default function AdminDashboard() {
         console.error('Error fetching metrics:', error);
         setError(error.message);
         
-        // Se for erro de autenticação, redireciona para login após 3 segundos
-        if (error.message.includes('autenticado') || error.message.includes('Acesso negado')) {
+        // ✅ NOVO: Redirecionar para home se for erro 403 (não é admin)
+        if (error.message.includes('Acesso negado') || error.message.includes('administradores')) {
+          setTimeout(() => {
+            navigate('/');
+          }, 3000);
+        }
+        // Redirecionar para login se for erro 401 (não autenticado)
+        else if (error.message.includes('autenticado') || error.message.includes('login')) {
           setTimeout(() => {
             navigate('/login');
           }, 3000);
@@ -82,7 +89,6 @@ export default function AdminDashboard() {
     };
 
     fetchMetrics();
-    // Atualizar a cada 5 minutos
     const interval = setInterval(fetchMetrics, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [navigate]);
@@ -99,18 +105,53 @@ export default function AdminDashboard() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+        <div className={`${
+          error.includes('Acesso negado') || error.includes('administradores')
+            ? 'bg-orange-50 border-orange-200'
+            : 'bg-red-50 border-red-200'
+        } border rounded-lg p-4 flex items-start gap-3`}>
+          <AlertCircle className={`h-5 w-5 ${
+            error.includes('Acesso negado') || error.includes('administradores')
+              ? 'text-orange-600'
+              : 'text-red-600'
+          } flex-shrink-0 mt-0.5`} />
           <div className="flex-1">
-            <h3 className="text-red-800 font-semibold">Erro ao carregar métricas</h3>
-            <p className="text-red-600 text-sm mt-1">{error}</p>
-            {error.includes('autenticado') && (
-              <p className="text-red-500 text-xs mt-2">Redirecionando para login...</p>
-            )}
+            <h3 className={`${
+              error.includes('Acesso negado') || error.includes('administradores')
+                ? 'text-orange-800'
+                : 'text-red-800'
+            } font-semibold flex items-center gap-2`}>
+              {error.includes('Acesso negado') || error.includes('administradores') ? (
+                <>
+                  <Shield className="h-4 w-4" />
+                  Acesso Restrito
+                </>
+              ) : (
+                'Erro ao carregar métricas'
+              )}
+            </h3>
+            <p className={`${
+              error.includes('Acesso negado') || error.includes('administradores')
+                ? 'text-orange-600'
+                : 'text-red-600'
+            } text-sm mt-1`}>
+              {error}
+            </p>
+            <p className={`${
+              error.includes('Acesso negado') || error.includes('administradores')
+                ? 'text-orange-500'
+                : 'text-red-500'
+            } text-xs mt-2`}>
+              Redirecionando em 3 segundos...
+            </p>
           </div>
           <button
             onClick={() => navigate('/')}
-            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-800 rounded text-sm transition-colors"
+            className={`px-3 py-1 ${
+              error.includes('Acesso negado') || error.includes('administradores')
+                ? 'bg-orange-100 hover:bg-orange-200 text-orange-800'
+                : 'bg-red-100 hover:bg-red-200 text-red-800'
+            } rounded text-sm transition-colors`}
           >
             Voltar
           </button>
@@ -123,10 +164,16 @@ export default function AdminDashboard() {
 
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
-      {/* Header */}
+      {/* Header com badge de Admin */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrativo</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrativo</h1>
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full flex items-center gap-1">
+              <Shield className="h-3 w-3" />
+              ADMIN
+            </span>
+          </div>
           <p className="text-gray-500 text-sm mt-1">
             Visão geral do Promply
           </p>
