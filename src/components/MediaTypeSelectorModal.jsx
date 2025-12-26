@@ -1,31 +1,21 @@
 // ==========================================
 // src/components/MediaTypeSelectorModal.jsx
-// ✅ VERSÃO MELHORADA - Modal rápido de seleção
+// ✅ VERSÃO FINAL - Apenas 3 opções (sem "none")
 // ==========================================
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Card, CardContent } from './ui/card';
-import { Image as ImageIcon, Video, Youtube, Type, X } from 'lucide-react';
+import { Image as ImageIcon, Video, Youtube, X } from 'lucide-react';
 
 /**
  * MediaTypeSelectorModal - Modal rápido para escolha de tipo de capa
  * 
- * Abre ao clicar no botão "Seletor de Capa"
- * Fecha automaticamente após seleção
- * Dispara inputs automaticamente no PromptModal
+ * APENAS 3 OPÇÕES: Imagem, Vídeo, YouTube
+ * Se não selecionar nada = media_type: 'none' (placeholder)
  */
 const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none' }) => {
   const mediaTypes = [
-    {
-      id: 'none',
-      icon: Type,
-      title: 'Sem Capa',
-      description: 'Apenas texto, sem mídia',
-      detail: 'Exibe o placeholder padrão do Promply',
-      color: 'from-gray-500 to-gray-600',
-      bgHover: 'hover:bg-gray-50 dark:hover:bg-gray-800',
-    },
     {
       id: 'image',
       icon: ImageIcon,
@@ -57,7 +47,7 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
 
   const handleSelect = (typeId) => {
     onSelect(typeId);
-    onClose(); // Fecha automaticamente após seleção
+    onClose();
   };
 
   return (
@@ -71,7 +61,6 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
             Selecione como o seu prompt será exibido visualmente
           </p>
           
-          {/* Botão de fechar */}
           <button
             onClick={onClose}
             className="absolute top-0 right-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -81,7 +70,7 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
           </button>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-4 mt-6">
+        <div className="grid grid-cols-3 gap-4 mt-6">
           {mediaTypes.map((type) => {
             const Icon = type.icon;
             const isSelected = currentType === type.id;
@@ -101,7 +90,6 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
               >
                 <CardContent className="p-5">
                   <div className="flex flex-col items-center text-center space-y-3">
-                    {/* Ícone */}
                     <div className={`
                       p-4 rounded-xl bg-gradient-to-br ${type.color}
                       flex items-center justify-center
@@ -112,7 +100,6 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
                       <Icon className="w-10 h-10 text-white" strokeWidth={2.5} />
                     </div>
 
-                    {/* Título e descrição */}
                     <div className="space-y-1">
                       <h4 className="font-bold text-lg text-gray-900 dark:text-white flex items-center justify-center gap-2">
                         {type.title}
@@ -130,11 +117,10 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
                       </p>
                     </div>
 
-                    {/* Indicador visual de selecionado */}
                     {isSelected && (
                       <div className="w-full pt-2 border-t border-purple-200 dark:border-purple-700">
                         <p className="text-xs font-semibold text-purple-600 dark:text-purple-400">
-                          ✨ Tipo selecionado
+                          ✨ Selecionado
                         </p>
                       </div>
                     )}
@@ -145,7 +131,6 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
           })}
         </div>
 
-        {/* Aviso importante */}
         <div className="mt-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-4">
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0 mt-0.5">
@@ -157,21 +142,16 @@ const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none
               </h5>
               <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
                 O tipo de capa <strong>não pode ser alterado</strong> após criar o prompt. 
-                Escolha com atenção antes de continuar.
+                Você poderá editar a capa escolhida, mas não mudar de tipo.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Dica */}
         <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
           <p className="text-xs text-blue-800 dark:text-blue-300 text-center">
-            💡 <strong>Dica:</strong> {
-              currentType === 'none' ? 'Escolha "Sem Capa" para prompts focados em texto' :
-              currentType === 'image' ? 'Imagens chamam mais atenção nos cards' :
-              currentType === 'video' ? 'Vídeos MP4 são processados automaticamente' :
-              'Links do YouTube extraem thumbnail automaticamente'
-            }
+            💡 <strong>Dica:</strong> Se não quiser capa, basta fechar este modal e salvar. 
+            O card usará o placeholder padrão do Promply.
           </p>
         </div>
       </DialogContent>
