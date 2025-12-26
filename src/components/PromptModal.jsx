@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptModal.jsx
-// ✅ VERSÃO ATUALIZADA - Com botão seletor de capa
+// ✅ VERSÃO FINAL - Com edição de capa
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -383,25 +383,6 @@ export default function PromptModal({
           <div className="glass-content-wrapper custom-scrollbar">
             <div className="glass-content-bg p-8 space-y-6">
 
-              {/* ✅ Indicador do tipo selecionado */}
-              {currentMediaType !== 'none' && (
-                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-                  <p className="text-sm text-purple-900 dark:text-purple-300">
-                    <strong>Tipo de capa:</strong> {
-                      currentMediaType === 'image' ? '🖼️ Imagem' :
-                      currentMediaType === 'video' ? '🎥 Vídeo MP4' :
-                      currentMediaType === 'youtube' ? '📺 YouTube' :
-                      '📝 Sem capa'
-                    }
-                    {editingPrompt && (
-                      <span className="ml-2 text-xs text-purple-600 dark:text-purple-400">
-                        (não pode ser alterado)
-                      </span>
-                    )}
-                  </p>
-                </div>
-              )}
-
               {/* ========== TOPO - INFORMAÇÕES BÁSICAS ========== */}
               <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-blue-500">
                 <div className="flex items-center gap-3 mb-4">
@@ -661,16 +642,22 @@ export default function PromptModal({
                     </h3>
                   </div>
 
-                  {/* ✅ BOTÃO SELETOR DE CAPA */}
+                  {/* ✅ BOTÃO SELETOR - Só aparece se ainda não tem tipo */}
                   {!editingPrompt && currentMediaType === 'none' && (
-                    <Button
-                      type="button"
-                      onClick={() => setShowMediaSelector(true)}
-                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold py-6 text-lg shadow-lg hover:shadow-xl transition-all"
-                    >
-                      <Layers className="w-6 h-6 mr-3" />
-                      📎 Seletor de Capa
-                    </Button>
+                    <div className="space-y-3">
+                      <Button
+                        type="button"
+                        onClick={() => setShowMediaSelector(true)}
+                        className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+                      >
+                        <Layers className="w-6 h-6 mr-3" />
+                        📎 Adicionar Capa
+                      </Button>
+                      
+                      <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                        Opcional: Adicione uma capa visual ao card ou deixe em branco para usar o placeholder
+                      </p>
+                    </div>
                   )}
 
                   {/* Inputs ocultos */}
@@ -690,142 +677,153 @@ export default function PromptModal({
                     className="hidden"
                   />
 
-                  {/* Preview de Imagem */}
-                  {promptForm.selectedMedia === "image" && (
-                    <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
-                      {promptForm.image_url ? (
-                        <div className="relative group">
-                          <img
-                            src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
-                            alt="Preview"
-                            className="w-full rounded-xl shadow-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={removeImage}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-slate-500">
-                          <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Nenhuma imagem selecionada</p>
-                        </div>
-                      )}
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => imageInputRef.current?.click()}
-                        className="w-full border-blue-300 hover:bg-blue-100 dark:hover:bg-slate-600"
-                      >
-                        <ImagePlus className="w-4 h-4 mr-2" />
-                        {promptForm.image_url ? 'Alterar Imagem' : 'Selecionar Imagem'}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Preview de Vídeo */}
-                  {promptForm.selectedMedia === "video" && (
-                    <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
-                      {promptForm.videoFile ? (
-                        <div className="relative group">
-                          <video controls src={safeCreateObjectURL(promptForm.videoFile)} className="w-full rounded-xl shadow-lg" />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPromptForm((prev) => ({
-                                ...prev,
-                                videoFile: null,
-                                video_url: "",
-                                image_url: "",
-                              }));
-                              setThumbnailBlob(null);
-                            }}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : promptForm.video_url ? (
-                        <div className="relative group">
-                          <video
-                            controls
-                            src={promptForm.video_url.startsWith("http") ? promptForm.video_url : `${apiBaseUrl}${promptForm.video_url}`}
-                            className="w-full rounded-xl shadow-lg"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPromptForm((prev) => ({
-                                ...prev,
-                                video_url: "",
-                                videoFile: null,
-                              }));
-                            }}
-                            className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-slate-500">
-                          <Video className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Nenhum vídeo selecionado</p>
-                        </div>
-                      )}
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => videoInputRef.current?.click()}
-                        className="w-full border-purple-300 hover:bg-purple-100 dark:hover:bg-slate-600"
-                      >
-                        <Video className="w-4 h-4 mr-2" />
-                        {promptForm.videoFile || promptForm.video_url ? 'Alterar Vídeo' : 'Selecionar Vídeo'}
-                      </Button>
-
-                      {thumbnailBlob && (
-                        <p className="text-xs text-green-600 text-center">
-                          ✅ Thumbnail gerado ({Math.round(thumbnailBlob.size / 1024)}KB)
+                  {/* ✅ EDIÇÃO DE MÍDIA - Aparece quando já tem tipo definido */}
+                  {currentMediaType !== 'none' && (
+                    <div className="space-y-4">
+                      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+                        <p className="text-sm text-purple-900 dark:text-purple-300">
+                          <strong>Tipo de capa:</strong> {
+                            currentMediaType === 'image' ? '🖼️ Imagem' :
+                            currentMediaType === 'video' ? '🎥 Vídeo MP4' :
+                            '📺 YouTube'
+                          }
+                          {editingPrompt && (
+                            <span className="ml-2 text-xs text-purple-600 dark:text-purple-400">
+                              (pode editar a capa, mas não mudar o tipo)
+                            </span>
+                          )}
                         </p>
-                      )}
-                    </div>
-                  )}
+                      </div>
 
-                  {/* Preview de YouTube */}
-                  {promptForm.selectedMedia === "youtube" && (
-                    <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
-                      <Input
-                        type="text"
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        value={promptForm.youtube_url}
-                        onChange={(e) => setPromptForm((prev) => ({ ...prev, youtube_url: e.target.value }))}
-                        className="glass-input border-red-300 focus:ring-red-500 focus:border-red-500"
-                      />
-                      {promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url) ? (
-                        <img
-                          src={getYouTubeThumbnail(promptForm.youtube_url)}
-                          alt="YouTube Thumbnail"
-                          className="w-full rounded-xl shadow-lg"
-                        />
-                      ) : (
-                        <div className="text-center py-8 text-slate-500">
-                          <Youtube className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                          <p className="text-sm font-medium">Cole um link válido do YouTube</p>
+                      {/* Preview de Imagem */}
+                      {promptForm.selectedMedia === "image" && (
+                        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
+                          {promptForm.image_url ? (
+                            <div className="relative group">
+                              <img
+                                src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
+                                alt="Preview"
+                                className="w-full rounded-xl shadow-lg"
+                              />
+                              <button
+                                type="button"
+                                onClick={removeImage}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-slate-500">
+                              <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                              <p className="text-sm font-medium">Nenhuma imagem selecionada</p>
+                            </div>
+                          )}
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => imageInputRef.current?.click()}
+                            className="w-full border-blue-300 hover:bg-blue-100 dark:hover:bg-slate-600"
+                          >
+                            <ImagePlus className="w-4 h-4 mr-2" />
+                            {promptForm.image_url ? 'Alterar Imagem' : 'Selecionar Imagem'}
+                          </Button>
                         </div>
                       )}
-                    </div>
-                  )}
 
-                  {/* Tipo "none" */}
-                  {currentMediaType === 'none' && !editingPrompt && (
-                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-                        📝 Clique no botão acima para adicionar uma capa ao card
-                      </p>
+                      {/* Preview de Vídeo */}
+                      {promptForm.selectedMedia === "video" && (
+                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
+                          {promptForm.videoFile ? (
+                            <div className="relative group">
+                              <video controls src={safeCreateObjectURL(promptForm.videoFile)} className="w-full rounded-xl shadow-lg" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPromptForm((prev) => ({
+                                    ...prev,
+                                    videoFile: null,
+                                    video_url: "",
+                                    image_url: "",
+                                  }));
+                                  setThumbnailBlob(null);
+                                }}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : promptForm.video_url ? (
+                            <div className="relative group">
+                              <video
+                                controls
+                                src={promptForm.video_url.startsWith("http") ? promptForm.video_url : `${apiBaseUrl}${promptForm.video_url}`}
+                                className="w-full rounded-xl shadow-lg"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPromptForm((prev) => ({
+                                    ...prev,
+                                    video_url: "",
+                                    videoFile: null,
+                                  }));
+                                }}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="text-center py-8 text-slate-500">
+                              <Video className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                              <p className="text-sm font-medium">Nenhum vídeo selecionado</p>
+                            </div>
+                          )}
+
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => videoInputRef.current?.click()}
+                            className="w-full border-purple-300 hover:bg-purple-100 dark:hover:bg-slate-600"
+                          >
+                            <Video className="w-4 h-4 mr-2" />
+                            {promptForm.videoFile || promptForm.video_url ? 'Alterar Vídeo' : 'Selecionar Vídeo'}
+                          </Button>
+
+                          {thumbnailBlob && (
+                            <p className="text-xs text-green-600 text-center">
+                              ✅ Thumbnail gerado ({Math.round(thumbnailBlob.size / 1024)}KB)
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Preview de YouTube */}
+                      {promptForm.selectedMedia === "youtube" && (
+                        <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
+                          <Input
+                            type="text"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value={promptForm.youtube_url}
+                            onChange={(e) => setPromptForm((prev) => ({ ...prev, youtube_url: e.target.value }))}
+                            className="glass-input border-red-300 focus:ring-red-500 focus:border-red-500"
+                          />
+                          {promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url) ? (
+                            <img
+                              src={getYouTubeThumbnail(promptForm.youtube_url)}
+                              alt="YouTube Thumbnail"
+                              className="w-full rounded-xl shadow-lg"
+                            />
+                          ) : (
+                            <div className="text-center py-8 text-slate-500">
+                              <Youtube className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                              <p className="text-sm font-medium">Cole um link válido do YouTube</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </section>

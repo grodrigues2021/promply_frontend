@@ -1,176 +1,156 @@
-import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { ImageIcon, VideoIcon, TypeIcon, YoutubeIcon } from 'lucide-react';
+// ==========================================
+// src/components/MediaTypeSelectorModal.jsx
+// ✅ VERSÃO FINAL - Apenas 3 opções
+// ==========================================
 
-/**
- * MediaTypeSelector - Componente para seleção do tipo de capa do prompt
- * 
- * Permite escolher entre:
- * - none: Apenas texto (usa placeholder do Promply)
- * - image: Imagem como capa
- * - video: Vídeo MP4 (disponível no preview)
- * - youtube: Link do YouTube (com thumbnail)
- */
-const MediaTypeSelector = ({ onSelect, selectedType }) => {
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Card, CardContent } from './ui/card';
+import { Image as ImageIcon, Video, Youtube, X } from 'lucide-react';
+
+const MediaTypeSelectorModal = ({ isOpen, onClose, onSelect, currentType = 'none' }) => {
   const mediaTypes = [
-    {
-      id: 'none',
-      icon: TypeIcon,
-      title: 'Sem Capa',
-      description: 'Apenas texto, sem mídia',
-      detail: 'Exibe o placeholder padrão do Promply',
-      color: 'from-gray-500 to-gray-600',
-      bgColor: 'hover:bg-gray-50',
-    },
     {
       id: 'image',
       icon: ImageIcon,
       title: 'Imagem',
-      description: 'Adicionar foto como capa',
-      detail: 'Formatos: JPG, PNG, GIF, WebP',
+      description: 'Foto como capa',
+      detail: 'JPG, PNG, GIF, WebP',
       color: 'from-blue-500 to-blue-600',
-      bgColor: 'hover:bg-blue-50',
+      bgHover: 'hover:bg-blue-50 dark:hover:bg-blue-900/20',
     },
     {
       id: 'video',
-      icon: VideoIcon,
+      icon: Video,
       title: 'Vídeo MP4',
-      description: 'Upload de vídeo (máx 5MB)',
-      detail: 'Preview disponível no card',
+      description: 'Upload de vídeo',
+      detail: 'Máximo 20MB',
       color: 'from-purple-500 to-purple-600',
-      bgColor: 'hover:bg-purple-50',
+      bgHover: 'hover:bg-purple-50 dark:hover:bg-purple-900/20',
     },
     {
       id: 'youtube',
-      icon: YoutubeIcon,
+      icon: Youtube,
       title: 'YouTube',
-      description: 'Link de vídeo do YouTube',
+      description: 'Link do vídeo',
       detail: 'Thumbnail extraído automaticamente',
       color: 'from-red-500 to-red-600',
-      bgColor: 'hover:bg-red-50',
+      bgHover: 'hover:bg-red-50 dark:hover:bg-red-900/20',
     },
   ];
 
+  const handleSelect = (typeId) => {
+    onSelect(typeId);
+    onClose();
+  };
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="text-center space-y-2">
-        <h3 className="text-2xl font-bold text-gray-900">
-          Escolha o tipo de capa para o card
-        </h3>
-        <p className="text-gray-600">
-          Selecione como o seu prompt será exibido visualmente
-        </p>
-      </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl border-2 border-purple-200 dark:border-purple-800 shadow-2xl">
+        <DialogHeader className="relative">
+          <DialogTitle className="text-2xl font-bold text-gray-900 dark:text-white pr-10">
+            📎 Escolha o tipo de capa
+          </DialogTitle>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+            Selecione como o seu prompt será exibido visualmente
+          </p>
+          
+          <button
+            onClick={onClose}
+            className="absolute top-0 right-0 p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+            aria-label="Fechar"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </DialogHeader>
 
-      {/* Grid de Opções */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {mediaTypes.map((type) => {
-          const Icon = type.icon;
-          const isSelected = selectedType === type.id;
+        <div className="grid grid-cols-3 gap-4 mt-6">
+          {mediaTypes.map((type) => {
+            const Icon = type.icon;
+            const isSelected = currentType === type.id;
 
-          return (
-            <Card
-              key={type.id}
-              className={`
-                cursor-pointer transition-all duration-200
-                ${isSelected 
-                  ? 'ring-2 ring-offset-2 ring-purple-500 shadow-lg scale-105' 
-                  : 'hover:shadow-md'
-                }
-                ${type.bgColor}
-              `}
-              onClick={() => onSelect(type.id)}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
-                  {/* Ícone */}
-                  <div className={`
-                    p-3 rounded-lg bg-gradient-to-br ${type.color}
-                    flex items-center justify-center
-                  `}>
-                    <Icon className="w-8 h-8 text-white" />
-                  </div>
-
-                  {/* Conteúdo */}
-                  <div className="flex-1 space-y-1">
-                    <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                      {type.title}
-                      {isSelected && (
-                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500 text-white text-xs">
-                          ✓
-                        </span>
-                      )}
-                    </h4>
-                    <p className="text-sm text-gray-600">
-                      {type.description}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      {type.detail}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Preview do Card */}
-                {isSelected && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <p className="text-xs text-gray-500 mb-2">Preview do card:</p>
-                    <div className="bg-white rounded-lg border border-gray-200 p-3 shadow-sm">
-                      <div className="space-y-2">
-                        {/* Simulação da capa */}
-                        <div className={`
-                          w-full h-32 rounded-md flex items-center justify-center
-                          ${type.id === 'none' 
-                            ? 'bg-gradient-to-br from-purple-500 to-pink-500' 
-                            : 'bg-gray-100 border-2 border-dashed border-gray-300'
-                          }
-                        `}>
-                          {type.id === 'none' ? (
-                            <div className="text-white text-center">
-                              <div className="text-2xl font-bold mb-1">💬</div>
-                              <div className="text-xs">Promply</div>
-                            </div>
-                          ) : (
-                            <Icon className="w-12 h-12 text-gray-400" />
-                          )}
-                        </div>
-                        
-                        {/* Simulação do título */}
-                        <div className="space-y-1">
-                          <div className="h-3 bg-gray-300 rounded w-3/4"></div>
-                          <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                        </div>
-                      </div>
+            return (
+              <Card
+                key={type.id}
+                className={`
+                  cursor-pointer transition-all duration-200
+                  ${isSelected 
+                    ? 'ring-2 ring-offset-2 ring-purple-500 shadow-lg scale-105' 
+                    : 'hover:shadow-md hover:scale-102'
+                  }
+                  ${type.bgHover}
+                `}
+                onClick={() => handleSelect(type.id)}
+              >
+                <CardContent className="p-5">
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    <div className={`
+                      p-4 rounded-xl bg-gradient-to-br ${type.color}
+                      flex items-center justify-center
+                      shadow-lg
+                      ${isSelected ? 'scale-110' : ''}
+                      transition-transform duration-200
+                    `}>
+                      <Icon className="w-10 h-10 text-white" strokeWidth={2.5} />
                     </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
 
-      {/* Informação Adicional */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <h4 className="text-sm font-semibold text-blue-900 mb-1">
-              ℹ️ Importante
-            </h4>
-            <p className="text-sm text-blue-800">
-              O tipo de capa <strong>não pode ser alterado</strong> após criar o prompt. 
-              Escolha com atenção antes de continuar.
-            </p>
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-lg text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                        {type.title}
+                        {isSelected && (
+                          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-500 text-white text-xs animate-pulse">
+                            ✓
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                        {type.description}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">
+                        {type.detail}
+                      </p>
+                    </div>
+
+                    {isSelected && (
+                      <div className="w-full pt-2 border-t border-purple-200 dark:border-purple-700">
+                        <p className="text-xs font-semibold text-purple-600 dark:text-purple-400">
+                          ✨ Selecionado
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-800 rounded-xl p-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0 mt-0.5">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <div className="flex-1">
+              <h5 className="text-sm font-bold text-amber-900 dark:text-amber-300 mb-1">
+                Importante
+              </h5>
+              <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
+                O tipo de capa <strong>não pode ser alterado</strong> após criar o prompt. 
+                Você poderá editar a capa escolhida, mas não mudar de tipo.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="mt-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <p className="text-xs text-blue-800 dark:text-blue-300 text-center">
+            💡 <strong>Dica:</strong> Se não quiser capa, basta fechar este modal e salvar. 
+            O card usará o placeholder padrão do Promply.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
-export default MediaTypeSelector;
+export default MediaTypeSelectorModal;
