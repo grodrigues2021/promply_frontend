@@ -1,4 +1,9 @@
-import { useState, useEffect } from "react";
+// ==========================================
+// src/components/PromptModal.jsx
+// ✅ VERSÃO ATUALIZADA - Com botão seletor de capa
+// ==========================================
+
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,8 +16,24 @@ import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Label } from "./ui/label";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "./ui/select";
-import { X, Trash2, Download, Plus, Image as ImageIcon, Video, Youtube, FileText, Tag as TagIcon, Folder, Zap, Sparkles, ArrowLeft, TypeIcon } from "lucide-react";
-import { Card, CardContent } from "./ui/card";
+import { 
+  X, 
+  Trash2, 
+  Download, 
+  Plus, 
+  Image as ImageIcon, 
+  Video, 
+  Youtube, 
+  FileText, 
+  Tag as TagIcon, 
+  Folder, 
+  Zap, 
+  Sparkles,
+  ImagePlus,
+  Layers
+} from "lucide-react";
+import { toast } from "sonner";
+import MediaTypeSelectorModal from "./MediaTypeSelectorModal";
 
 // ✅ SCROLLBAR CUSTOMIZADA
 const customScrollbarStyles = `
@@ -59,7 +80,7 @@ const customScrollbarStyles = `
   }
 `;
 
-// ⚡ ESTILOS GLASSMORPHISM ULTRA OTIMIZADOS (BOTÃO AZUL)
+// ⚡ ESTILOS GLASSMORPHISM ULTRA OTIMIZADOS
 const glassmorphismStyles = `
   @keyframes fastFadeIn {
     from { opacity: 0; }
@@ -177,6 +198,19 @@ const glassmorphismStyles = `
   }
 `;
 
+const safeCreateObjectURL = (file) => {
+  try {
+    if (file instanceof File || file instanceof Blob) {
+      return URL.createObjectURL(file);
+    }
+    console.warn("⚠️ safeCreateObjectURL: não é File/Blob válido");
+    return "";
+  } catch (error) {
+    console.error("❌ Erro ao criar objectURL:", error);
+    return "";
+  }
+};
+
 export default function PromptModal({
   isOpen,
   onOpenChange,
@@ -203,69 +237,49 @@ export default function PromptModal({
   savePrompt,
   resetPromptForm,
 }) {
-
   const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
-  // ✅ NOVO: Estados para controle de steps e media_type
-  const [step, setStep] = useState(1); // 1 = seleção tipo, 2 = formulário
-  const [mediaType, setMediaType] = useState('none');
+  // ✅ Estados para modal seletor e thumbnail
+  const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [thumbnailBlob, setThumbnailBlob] = useState(null);
+  
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
-  // ✅ NOVO: Resetar ao abrir/fechar
+  // ✅ Reset ao fechar
   useEffect(() => {
-    if (isOpen && !editingPrompt) {
-      // Criar novo: volta para seleção de tipo
-      setStep(1);
-      setMediaType('none');
-    } else if (isOpen && editingPrompt) {
-      // Editar existente: pula seleção, já tem tipo definido
-      setStep(2);
-      setMediaType(editingPrompt.media_type || 'none');
-      
-      // Mapear media_type para selectedMedia
-      if (editingPrompt.media_type === 'image' || editingPrompt.image_url) {
-        setPromptForm(prev => ({ ...prev, selectedMedia: 'image' }));
-      } else if (editingPrompt.media_type === 'video' || editingPrompt.video_url) {
-        setPromptForm(prev => ({ ...prev, selectedMedia: 'video' }));
-      } else if (editingPrompt.media_type === 'youtube' || editingPrompt.youtube_url) {
-        setPromptForm(prev => ({ ...prev, selectedMedia: 'youtube' }));
-      } else {
-        setPromptForm(prev => ({ ...prev, selectedMedia: 'none' }));
-      }
+    if (!isOpen) {
+      setThumbnailBlob(null);
     }
-  }, [isOpen, editingPrompt]);
+  }, [isOpen]);
 
-  // ✅ NOVO: Handler de seleção de tipo
-  const handleTypeSelect = (type) => {
-    setMediaType(type);
-    setPromptForm(prev => ({ ...prev, selectedMedia: type }));
-  };
-
-  const handleNextStep = () => {
-    if (step === 1) {
-      setStep(2);
+  // ✅ Handler de seleção de tipo do modal
+  const handleMediaTypeSelect = (type) => {
+    setPromptForm((prev) => ({ 
+      ...prev, 
+      selectedMedia: type,
+      media_type: type 
+    }));
+    setShowMediaSelector(false);
+    
+    // Disparar inputs automaticamente
+    if (type === 'image') {
+      setTimeout(() => imageInputRef.current?.click(), 100);
+    } else if (type === 'video') {
+      setTimeout(() => videoInputRef.current?.click(), 100);
     }
   };
 
-  const handleBackStep = () => {
-    if (step === 2 && !editingPrompt) {
-      setStep(1);
-    }
-  };
-
-  const handleMediaTypeClick = (type) => {
-    setPromptForm((prev) => ({ ...prev, selectedMedia: type }));
-  };
-
-  // ✅ NOVO: Handler de upload de vídeo com thumbnail
+  // ✅ Handler de upload de vídeo com thumbnail
   const handleVideoUploadWithThumbnail = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validar tamanho (5MB)
-    const MAX_SIZE = 5 * 1024 * 1024;
+    // Validar tamanho (20MB)
+    const MAX_SIZE = 20 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      alert('O vídeo deve ter no máximo 5MB');
+      toast.error('O vídeo deve ter no máximo 20MB');
+      e.target.value = '';
       return;
     }
 
@@ -274,10 +288,12 @@ export default function PromptModal({
 
     // Gerar thumbnail no frontend
     try {
-      const videoUrl = URL.createObjectURL(file);
+      const videoUrl = safeCreateObjectURL(file);
       const video = document.createElement('video');
       video.src = videoUrl;
       video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
       
       await new Promise((resolve) => {
         video.onloadeddata = resolve;
@@ -297,182 +313,30 @@ export default function PromptModal({
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
       canvas.toBlob((blob) => {
-        setThumbnailBlob(blob);
-        console.log('✅ Thumbnail gerado no frontend:', blob.size, 'bytes');
+        if (blob) {
+          setThumbnailBlob(blob);
+          console.log('✅ Thumbnail gerado:', blob.size, 'bytes');
+        }
       }, 'image/jpeg', 0.85);
 
+      URL.revokeObjectURL(videoUrl);
     } catch (error) {
       console.error('Erro ao gerar thumbnail:', error);
     }
   };
 
-  // ✅ NOVO: Wrapper do savePrompt que adiciona media_type
-  const handleSaveWithMediaType = async () => {
-    // Adicionar media_type ao promptForm antes de salvar
+  // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
+  const handleSaveWithThumbnail = async () => {
     const updatedForm = {
       ...promptForm,
-      media_type: mediaType,
-      thumbnailBlob: thumbnailBlob // Para enviar junto
+      thumbnailBlob: thumbnailBlob
     };
     
-    // Chamar a função original passando o formulário atualizado
     await savePrompt(updatedForm);
   };
 
-  // ✅ NOVO: Componente de seleção de tipo
-  const MediaTypeSelector = () => {
-    const mediaTypes = [
-      {
-        id: 'none',
-        icon: TypeIcon,
-        title: 'Sem Capa',
-        description: 'Apenas texto, sem mídia',
-        detail: 'Exibe o placeholder padrão do Promply',
-        color: 'from-gray-500 to-gray-600',
-        bgColor: 'hover:bg-gray-50',
-      },
-      {
-        id: 'image',
-        icon: ImageIcon,
-        title: 'Imagem',
-        description: 'Adicionar foto como capa',
-        detail: 'Formatos: JPG, PNG, GIF, WebP',
-        color: 'from-blue-500 to-blue-600',
-        bgColor: 'hover:bg-blue-50',
-      },
-      {
-        id: 'video',
-        icon: Video,
-        title: 'Vídeo MP4',
-        description: 'Upload de vídeo (máx 5MB)',
-        detail: 'Preview disponível no card',
-        color: 'from-purple-500 to-purple-600',
-        bgColor: 'hover:bg-purple-50',
-      },
-      {
-        id: 'youtube',
-        icon: Youtube,
-        title: 'YouTube',
-        description: 'Link de vídeo do YouTube',
-        detail: 'Thumbnail extraído automaticamente',
-        color: 'from-red-500 to-red-600',
-        bgColor: 'hover:bg-red-50',
-      },
-    ];
-
-    return (
-      <div className="space-y-6 p-6">
-        <div className="text-center space-y-2">
-          <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Escolha o tipo de capa para o card
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400">
-            Selecione como o seu prompt será exibido visualmente
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {mediaTypes.map((type) => {
-            const Icon = type.icon;
-            const isSelected = mediaType === type.id;
-
-            return (
-              <Card
-                key={type.id}
-                className={`
-                  cursor-pointer transition-all duration-200
-                  ${isSelected 
-                    ? 'ring-2 ring-offset-2 ring-purple-500 shadow-lg scale-105' 
-                    : 'hover:shadow-md'
-                  }
-                  ${type.bgColor}
-                `}
-                onClick={() => handleTypeSelect(type.id)}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-start space-x-4">
-                    <div className={`
-                      p-3 rounded-lg bg-gradient-to-br ${type.color}
-                      flex items-center justify-center
-                    `}>
-                      <Icon className="w-8 h-8 text-white" />
-                    </div>
-
-                    <div className="flex-1 space-y-1">
-                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                        {type.title}
-                        {isSelected && (
-                          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500 text-white text-xs">
-                            ✓
-                          </span>
-                        )}
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {type.description}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                        {type.detail}
-                      </p>
-                    </div>
-                  </div>
-
-                  {isSelected && (
-                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mb-2">Preview do card:</p>
-                      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 shadow-sm">
-                        <div className="space-y-2">
-                          <div className={`
-                            w-full h-32 rounded-md flex items-center justify-center
-                            ${type.id === 'none' 
-                              ? 'bg-gradient-to-br from-purple-500 to-pink-500' 
-                              : 'bg-gray-100 dark:bg-gray-700 border-2 border-dashed border-gray-300 dark:border-gray-600'
-                            }
-                          `}>
-                            {type.id === 'none' ? (
-                              <div className="text-white text-center">
-                                <div className="text-2xl font-bold mb-1">💬</div>
-                                <div className="text-xs">Promply</div>
-                              </div>
-                            ) : (
-                              <Icon className="w-12 h-12 text-gray-400" />
-                            )}
-                          </div>
-                          
-                          <div className="space-y-1">
-                            <div className="h-3 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
-                            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0">
-              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-1">
-                ℹ️ Importante
-              </h4>
-              <p className="text-sm text-blue-800 dark:text-blue-400">
-                O tipo de capa <strong>não pode ser alterado</strong> após criar o prompt. 
-                Escolha com atenção antes de continuar.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // ✅ Determinar tipo atual de mídia
+  const currentMediaType = promptForm.media_type || promptForm.selectedMedia || 'none';
 
   return (
     <>
@@ -482,12 +346,10 @@ export default function PromptModal({
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="modal-glass-container max-w-7xl w-full p-0">
           
-          {/* ✨ BOTÃO DE FECHAR MELHORADO */}
+          {/* ✨ BOTÃO DE FECHAR */}
           <button
             onClick={() => {
               resetPromptForm();
-              setStep(1);
-              setMediaType('none');
               setThumbnailBlob(null);
               onOpenChange(false);
             }}
@@ -505,25 +367,13 @@ export default function PromptModal({
               }}></div>
               <DialogHeader className="relative z-10 pr-12">
                 <DialogTitle className="text-3xl font-bold text-white flex items-center gap-3">
-                  {step === 2 && !editingPrompt && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleBackStep}
-                      className="mr-2 hover:bg-white/20"
-                    >
-                      <ArrowLeft className="w-5 h-5 text-white" />
-                    </Button>
-                  )}
                   <Sparkles className="w-7 h-7" />
-                  {editingPrompt ? "Editar Prompt" : step === 1 ? "Escolha o Tipo" : "Novo Prompt"}
+                  {editingPrompt ? "Editar Prompt" : "Novo Prompt"}
                 </DialogTitle>
                 <DialogDescription className="text-blue-100 text-base mt-1">
                   {editingPrompt 
                     ? "Atualize os detalhes do seu prompt" 
-                    : step === 1 
-                      ? "Selecione o tipo de capa para o card"
-                      : "Crie um novo prompt personalizado"}
+                    : "Crie um novo prompt personalizado"}
                 </DialogDescription>
               </DialogHeader>
             </div>
@@ -531,48 +381,28 @@ export default function PromptModal({
 
           {/* ✨ CONTEÚDO SCROLLÁVEL */}
           <div className="glass-content-wrapper custom-scrollbar">
-            
-            {/* STEP 1: Seleção de Tipo (só para criação) */}
-            {step === 1 && !editingPrompt && (
-              <div className="space-y-6">
-                <MediaTypeSelector />
-                
-                <div className="flex justify-end px-6 pb-6">
-                  <Button
-                    onClick={handleNextStep}
-                    disabled={!mediaType}
-                    className="px-8 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold"
-                  >
-                    Continuar
-                  </Button>
+            <div className="glass-content-bg p-8 space-y-6">
+
+              {/* ✅ Indicador do tipo selecionado */}
+              {currentMediaType !== 'none' && (
+                <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
+                  <p className="text-sm text-purple-900 dark:text-purple-300">
+                    <strong>Tipo de capa:</strong> {
+                      currentMediaType === 'image' ? '🖼️ Imagem' :
+                      currentMediaType === 'video' ? '🎥 Vídeo MP4' :
+                      currentMediaType === 'youtube' ? '📺 YouTube' :
+                      '📝 Sem capa'
+                    }
+                    {editingPrompt && (
+                      <span className="ml-2 text-xs text-purple-600 dark:text-purple-400">
+                        (não pode ser alterado)
+                      </span>
+                    )}
+                  </p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* STEP 2: Formulário */}
-            {step === 2 && (
-              <div className="glass-content-bg p-8 space-y-6">
-
-                {/* ✅ Indicador do tipo selecionado */}
-                {mediaType && (
-                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-                    <p className="text-sm text-purple-900 dark:text-purple-300">
-                      <strong>Tipo de capa:</strong> {
-                        mediaType === 'none' ? '📝 Sem capa (apenas texto)' :
-                        mediaType === 'image' ? '🖼️ Imagem' :
-                        mediaType === 'video' ? '🎥 Vídeo MP4' :
-                        '📺 YouTube'
-                      }
-                      {editingPrompt && (
-                        <span className="ml-2 text-xs text-purple-600 dark:text-purple-400">
-                          (não pode ser alterado)
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                )}
-
-              {/* ========== TOPO - INFORMAÇÕES BÁSICAS (largura total) ========== */}
+              {/* ========== TOPO - INFORMAÇÕES BÁSICAS ========== */}
               <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-blue-500">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -672,7 +502,7 @@ export default function PromptModal({
                 </div>
               </section>
 
-              {/* ========== MEIO - GRID 2 COLUNAS (Arquivos + Mídia) ========== */}
+              {/* ========== MEIO - GRID 2 COLUNAS ========== */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                 {/* COLUNA ESQUERDA - ARQUIVOS EXTRAS */}
@@ -731,22 +561,22 @@ export default function PromptModal({
                                 </button>
 
                                 <button
-                                    type="button"
-                                    onClick={() => {
-                                      const currentPromptId = editingPrompt?.id || promptForm?.id;
-                                      
-                                      if (!currentPromptId) {
-                                        console.error("❌ Não foi possível determinar o ID do prompt");
-                                        alert("Erro: Não foi possível identificar o prompt. Por favor, feche e reabra o modal de edição.");
-                                        return;
-                                      }
-                                      
-                                      removeAttachment(file.id, currentPromptId);
-                                    }}
-                                    className="text-red-600 hover:text-red-700 text-xs font-semibold"
-                                  >
-                                    Remover
-                                  </button>
+                                  type="button"
+                                  onClick={() => {
+                                    const currentPromptId = editingPrompt?.id || promptForm?.id;
+                                    
+                                    if (!currentPromptId) {
+                                      console.error("❌ Não foi possível determinar o ID do prompt");
+                                      toast.error("Erro: Não foi possível identificar o prompt. Por favor, feche e reabra o modal de edição.");
+                                      return;
+                                    }
+                                    
+                                    removeAttachment(file.id, currentPromptId);
+                                  }}
+                                  className="text-red-600 hover:text-red-700 text-xs font-semibold"
+                                >
+                                  Remover
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -831,30 +661,34 @@ export default function PromptModal({
                     </h3>
                   </div>
 
-                  {/* Botões de seleção */}
-                  {mediaType !== 'none' && (
-                    <div className="flex flex-wrap gap-2 md:flex-nowrap">
-                      {[
-                        { type: "image", icon: ImageIcon, label: "Imagem", gradient: "from-blue-500 to-cyan-500" },
-                        { type: "video", icon: Video, label: "Vídeo", gradient: "from-purple-500 to-pink-500" },
-                        { type: "youtube", icon: Youtube, label: "YouTube", gradient: "from-red-500 to-orange-500" },
-                      ].map(({ type, icon: Icon, label, gradient }) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => handleMediaTypeClick(type)}
-                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold transition-all ${
-                            promptForm.selectedMedia === type
-                              ? `bg-gradient-to-r ${gradient} text-white shadow-lg scale-105`
-                              : "bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-                          }`}
-                        >
-                          <Icon className="w-4 h-4" />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
+                  {/* ✅ BOTÃO SELETOR DE CAPA */}
+                  {!editingPrompt && currentMediaType === 'none' && (
+                    <Button
+                      type="button"
+                      onClick={() => setShowMediaSelector(true)}
+                      className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+                    >
+                      <Layers className="w-6 h-6 mr-3" />
+                      📎 Seletor de Capa
+                    </Button>
                   )}
+
+                  {/* Inputs ocultos */}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/ogg"
+                    onChange={handleVideoUploadWithThumbnail}
+                    className="hidden"
+                  />
 
                   {/* Preview de Imagem */}
                   {promptForm.selectedMedia === "image" && (
@@ -881,12 +715,15 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-gradient-to-r file:from-blue-600 file:to-cyan-600 file:text-white hover:file:from-blue-700 hover:file:to-cyan-700 file:cursor-pointer file:shadow-md"
-                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => imageInputRef.current?.click()}
+                        className="w-full border-blue-300 hover:bg-blue-100 dark:hover:bg-slate-600"
+                      >
+                        <ImagePlus className="w-4 h-4 mr-2" />
+                        {promptForm.image_url ? 'Alterar Imagem' : 'Selecionar Imagem'}
+                      </Button>
                     </div>
                   )}
 
@@ -895,7 +732,7 @@ export default function PromptModal({
                     <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
                       {promptForm.videoFile ? (
                         <div className="relative group">
-                          <video controls src={URL.createObjectURL(promptForm.videoFile)} className="w-full rounded-xl shadow-lg" />
+                          <video controls src={safeCreateObjectURL(promptForm.videoFile)} className="w-full rounded-xl shadow-lg" />
                           <button
                             type="button"
                             onClick={() => {
@@ -940,14 +777,18 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      <input
-                        type="file"
-                        accept="video/mp4,video/webm,video/ogg"
-                        onChange={handleVideoUploadWithThumbnail}
-                        className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:font-semibold file:bg-gradient-to-r file:from-purple-600 file:to-pink-600 file:text-white hover:file:from-purple-700 hover:file:to-pink-700 file:cursor-pointer file:shadow-md"
-                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => videoInputRef.current?.click()}
+                        className="w-full border-purple-300 hover:bg-purple-100 dark:hover:bg-slate-600"
+                      >
+                        <Video className="w-4 h-4 mr-2" />
+                        {promptForm.videoFile || promptForm.video_url ? 'Alterar Vídeo' : 'Selecionar Vídeo'}
+                      </Button>
+
                       {thumbnailBlob && (
-                        <p className="text-xs text-green-600">
+                        <p className="text-xs text-green-600 text-center">
                           ✅ Thumbnail gerado ({Math.round(thumbnailBlob.size / 1024)}KB)
                         </p>
                       )}
@@ -980,18 +821,17 @@ export default function PromptModal({
                   )}
 
                   {/* Tipo "none" */}
-                  {promptForm.selectedMedia === "none" && (
+                  {currentMediaType === 'none' && !editingPrompt && (
                     <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        📝 Este prompt usará apenas texto, sem capa visual.
-                        O card exibirá o placeholder padrão do Promply.
+                      <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                        📝 Clique no botão acima para adicionar uma capa ao card
                       </p>
                     </div>
                   )}
                 </section>
               </div>
 
-              {/* ========== BAIXO - DETALHES DO PROMPT (largura total) ========== */}
+              {/* ========== BAIXO - DETALHES DO PROMPT ========== */}
               <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-yellow-500">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
@@ -1073,8 +913,6 @@ export default function PromptModal({
                   variant="outline"
                   onClick={() => {
                     resetPromptForm();
-                    setStep(1);
-                    setMediaType('none');
                     setThumbnailBlob(null);
                     onOpenChange(false);
                   }}
@@ -1086,7 +924,7 @@ export default function PromptModal({
                   type="button"
                   disabled={isSaving}
                   onClick={async () => {
-                    if (!isSaving) await handleSaveWithMediaType();
+                    if (!isSaving) await handleSaveWithThumbnail();
                   }}
                   className={`px-8 py-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold shadow-lg rounded-xl ${
                     isSaving ? "opacity-50 cursor-not-allowed" : "hover:shadow-xl"
@@ -1096,12 +934,17 @@ export default function PromptModal({
                 </Button>
               </div>
             </div>
-            )}
-
           </div>
 
         </DialogContent>
       </Dialog>
+
+      {/* ✅ MODAL SELETOR DE TIPO */}
+      <MediaTypeSelectorModal
+        isOpen={showMediaSelector}
+        onClose={() => setShowMediaSelector(false)}
+        onSelect={handleMediaTypeSelect}
+      />
     </>
   );
 }
