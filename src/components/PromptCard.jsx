@@ -22,10 +22,9 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
-import thumbnailCache from "../lib/thumbnailCache";
+import PromplyDefaultSvg from "@/media/placeholders/promply-default.svg";
 
-// ✅ IMPORT DO PLACEHOLDER SVG
-import PromplyDefaultSvg from "../media/placeholders/promply-default.svg";
+
 
 const cardVariants = cva(
   "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
