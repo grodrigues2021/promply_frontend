@@ -912,16 +912,13 @@ const PromptCard = React.memo(({
           </div>
         )}
 
-  {/* ✅ PLACEHOLDER - GRADIENTE OCUPANDO TODO O ESPAÇO */}
+{/* ✅ SVG OCUPA TODO O THUMBNAIL */}
 {!mediaInfo.hasMedia && (
-  <div className={cn(
-    mediaVariants({ layout: "horizontal" }),
-    "flex items-center justify-center bg-gradient-to-br from-purple-500 via-purple-600 to-pink-500"
-  )}>
+  <div className={cn(mediaVariants({ layout: "horizontal" }))}>
     <img 
       src={PromplyDefaultSvg} 
       alt="Promply Logo" 
-      className="w-32 h-32 drop-shadow-2xl"
+      className="w-full h-full object-cover"
     />
   </div>
 )}
