@@ -270,60 +270,73 @@ export default function PromptModal({
     }
   };
 
-  // ✅ Handler de upload de vídeo com thumbnail
-  const handleVideoUploadWithThumbnail = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+ // ==========================================
+// CORREÇÃO: handleVideoUploadWithThumbnail
+// Localizar linha ~270 e SUBSTITUIR por:
+// ==========================================
 
-    // Validar tamanho (20MB)
-    const MAX_SIZE = 20 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      toast.error('O vídeo deve ter no máximo 20MB');
-      e.target.value = '';
-      return;
-    }
+const handleVideoUploadWithThumbnail = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-    // Usar a função original
-    handleVideoUpload(e);
+  // Validar tamanho (20MB)
+  const MAX_SIZE = 20 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    toast.error('O vídeo deve ter no máximo 20MB');
+    e.target.value = '';
+    return;
+  }
 
-    // Gerar thumbnail no frontend
-    try {
-      const videoUrl = safeCreateObjectURL(file);
-      const video = document.createElement('video');
-      video.src = videoUrl;
-      video.crossOrigin = 'anonymous';
-      video.muted = true;
-      video.playsInline = true;
-      
-      await new Promise((resolve) => {
-        video.onloadeddata = resolve;
-      });
+  // Usar a função original
+  handleVideoUpload(e);
 
-      video.currentTime = Math.min(1.0, video.duration * 0.1);
-      
-      await new Promise((resolve) => {
-        video.onseeked = resolve;
-      });
+  // Gerar thumbnail no frontend
+  try {
+    const videoUrl = safeCreateObjectURL(file);
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    video.crossOrigin = 'anonymous';
+    video.muted = true;
+    video.playsInline = true;
+    
+    await new Promise((resolve) => {
+      video.onloadeddata = resolve;
+    });
 
-      const canvas = document.createElement('canvas');
-      canvas.width = 1280;
-      canvas.height = 720;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
-      canvas.toBlob((blob) => {
-        if (blob) {
-          setThumbnailBlob(blob);
-          console.log('✅ Thumbnail gerado:', blob.size, 'bytes');
-        }
-      }, 'image/jpeg', 0.85);
+    video.currentTime = Math.min(1.0, video.duration * 0.1);
+    
+    await new Promise((resolve) => {
+      video.onseeked = resolve;
+    });
 
-      URL.revokeObjectURL(videoUrl);
-    } catch (error) {
-      console.error('Erro ao gerar thumbnail:', error);
-    }
-  };
+    const canvas = document.createElement('canvas');
+    
+    // ✅ CORREÇÃO: Usar dimensões REAIS do vídeo
+    canvas.width = video.videoWidth;   // ← Dinâmico
+    canvas.height = video.videoHeight; // ← Dinâmico
+    
+    console.log('📐 Dimensões do vídeo:', {
+      width: video.videoWidth,
+      height: video.videoHeight,
+      aspect: (video.videoWidth / video.videoHeight).toFixed(2)
+    });
+    
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    canvas.toBlob((blob) => {
+      if (blob) {
+        setThumbnailBlob(blob);
+        console.log('✅ Thumbnail gerado:', blob.size, 'bytes');
+        console.log('✅ Dimensões corretas:', canvas.width, 'x', canvas.height);
+      }
+    }, 'image/jpeg', 0.85);
+
+    URL.revokeObjectURL(videoUrl);
+  } catch (error) {
+    console.error('Erro ao gerar thumbnail:', error);
+  }
+};
 
   // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
  // Localizar a função handleSaveWithThumbnail (linha ~222)
