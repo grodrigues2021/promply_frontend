@@ -165,26 +165,48 @@ export default function AdminDashboard() {
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       {/* Header com badge de Admin */}
-      <div className="flex justify-between items-center">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrativo</h1>
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full flex items-center gap-1">
-              <Shield className="h-3 w-3" />
-              ADMIN
-            </span>
-          </div>
-          <p className="text-gray-500 text-sm mt-1">
-            Visão geral do Promply
-          </p>
-        </div>
-        <div className="text-right text-sm text-gray-500">
-          <div>Atualizado às {new Date(metrics.timestamp).toLocaleTimeString('pt-BR')}</div>
-          <div className="text-xs text-gray-400">
-            {new Date(metrics.timestamp).toLocaleDateString('pt-BR')}
-          </div>
-        </div>
-      </div>
+ {/* Header com badge de Admin */}
+<div className="flex justify-between items-center">
+  <div>
+    <div className="flex items-center gap-3">
+      {/* ✅ BOTÃO VOLTAR ADICIONADO */}
+      <button
+        onClick={() => navigate('/')}
+        className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+        title="Voltar para o Promply"
+      >
+        <svg 
+          className="w-6 h-6 text-gray-600" 
+          fill="none" 
+          stroke="currentColor" 
+          viewBox="0 0 24 24"
+        >
+          <path 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            strokeWidth={2} 
+            d="M10 19l-7-7m0 0l7-7m-7 7h18" 
+          />
+        </svg>
+      </button>
+      
+      <h1 className="text-3xl font-bold text-gray-900">Dashboard Administrativo</h1>
+      <span className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full flex items-center gap-1">
+        <Shield className="h-3 w-3" />
+        ADMIN
+      </span>
+    </div>
+    <p className="text-gray-500 text-sm mt-1 ml-14">
+      Visão geral do Promply
+    </p>
+  </div>
+  <div className="text-right text-sm text-gray-500">
+    <div>Atualizado às {new Date(metrics.timestamp).toLocaleTimeString('pt-BR')}</div>
+    <div className="text-xs text-gray-400">
+      {new Date(metrics.timestamp).toLocaleDateString('pt-BR')}
+    </div>
+  </div>
+</div>
 
       {/* Seção: Usuários */}
       <section>
