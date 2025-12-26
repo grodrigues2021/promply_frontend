@@ -845,48 +845,48 @@ const PromptCard = React.memo(({
             )}
 
             {/* VÍDEO LOCAL - Apenas thumbnail clicável */}
-            {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
-              <button
-                type="button"
-                onClick={() => {
-                  const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
-                  openModal("video", finalVideoUrl);
-                }}
-                className="relative w-full h-full group/media overflow-hidden"
-              >
-                {mediaInfo.thumbnailUrl ? (
-                  <img
-                    src={mediaInfo.thumbnailUrl}
-                    alt={prompt.title}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-                    loading="lazy"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
-                
-                <div className={cn(
-                  "fallback-icon flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200",
-                  mediaInfo.thumbnailUrl && "hidden"
-                )}>
-                  <Play className="h-16 w-16 text-purple-400" />
-                </div>
+{mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
+  <button
+    type="button"
+    onClick={() => {
+      const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
+      openModal("video", finalVideoUrl);
+    }}
+    className="relative w-full h-full group/media overflow-hidden bg-black"
+  >
+    {mediaInfo.thumbnailUrl ? (
+      <img
+        src={mediaInfo.thumbnailUrl}
+        alt={prompt.title}
+        className="w-full h-full object-contain transition-transform duration-300 group-hover/media:scale-105"
+        loading="lazy"
+        onError={(e) => {
+          e.target.style.display = 'none';
+          e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
+        }}
+      />
+    ) : null}
+    
+    <div className={cn(
+      "fallback-icon flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200",
+      mediaInfo.thumbnailUrl && "hidden"
+    )}>
+      <Play className="h-16 w-16 text-purple-400" />
+    </div>
 
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-                    <Play className="h-8 w-8 text-purple-600 fill-current" />
-                  </div>
-                </div>
+    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+      <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+        <Play className="h-8 w-8 text-purple-600 fill-current" />
+      </div>
+    </div>
 
-                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-                    Clique para assistir
-                  </span>
-                </div>
-              </button>
-            )}
+    <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+      <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+        Clique para assistir
+      </span>
+    </div>
+  </button>
+)}
 
             {/* IMAGEM - Apenas thumbnail clicável */}
             {!mediaInfo.hasVideo && mediaInfo.hasImage && (
