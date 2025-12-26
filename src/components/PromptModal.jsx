@@ -336,11 +336,8 @@ export default function PromptModal({
 
   // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
   const handleSaveWithThumbnail = async () => {
-    // ✅ CORREÇÃO: Garantir que media_type seja definido
-    const finalMediaType = 
-      promptForm.media_type || 
-      promptForm.selectedMedia || 
-      'none';
+    // ✅ Garantir que media_type seja definido baseado no tipo atual
+    const finalMediaType = currentMediaType !== 'none' ? currentMediaType : 'none';
     
     const updatedForm = {
       ...promptForm,
@@ -348,6 +345,8 @@ export default function PromptModal({
       selectedMedia: finalMediaType,
       thumbnailBlob: thumbnailBlob
     };
+    
+    console.log('💾 Salvando com media_type:', finalMediaType);
     
     await savePrompt(updatedForm);
   };
@@ -363,14 +362,57 @@ export default function PromptModal({
         video_url: '',
         youtube_url: '',
         videoFile: null,
+        imageFile: null,
       }));
       setThumbnailBlob(null);
-      toast.success('Capa removida! Salve o prompt para confirmar.');
+      toast.success('🗑️ Capa removida! Salve o prompt para confirmar.');
     }
   };
 
-  // ✅ Determinar tipo atual de mídia
-  const currentMediaType = promptForm.media_type || promptForm.selectedMedia || 'none';
+  // ✅ Determinar tipo atual de mídia com INFERÊNCIA ROBUSTA
+  const currentMediaType = (() => {
+    // 1. Primeiro tenta usar o campo explícito
+    if (promptForm.media_type && promptForm.media_type !== 'none') {
+      return promptForm.media_type;
+    }
+    
+    if (promptForm.selectedMedia && promptForm.selectedMedia !== 'none') {
+      return promptForm.selectedMedia;
+    }
+    
+    // 2. Inferir baseado nos campos de URL (fallback)
+    if (promptForm.youtube_url?.trim()) {
+      return 'youtube';
+    }
+    
+    if (promptForm.video_url?.trim() || promptForm.videoFile) {
+      return 'video';
+    }
+    
+    if (promptForm.image_url?.trim() || promptForm.imageFile) {
+      return 'image';
+    }
+    
+    return 'none';
+  })();
+
+  // 🔍 DEBUG - Logs detalhados ao abrir o modal
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔍 DEBUG PromptModal ABERTO:', {
+        editingPrompt: !!editingPrompt,
+        isEditMode,
+        currentMediaType,
+        'promptForm.media_type': promptForm.media_type,
+        'promptForm.selectedMedia': promptForm.selectedMedia,
+        'promptForm.image_url': promptForm.image_url?.substring(0, 50),
+        'promptForm.video_url': promptForm.video_url?.substring(0, 50),
+        'promptForm.youtube_url': promptForm.youtube_url?.substring(0, 50),
+        'promptForm.videoFile': !!promptForm.videoFile,
+        'promptForm.imageFile': !!promptForm.imageFile,
+      });
+    }
+  }, [isOpen, editingPrompt, isEditMode, currentMediaType, promptForm]);
 
   return (
     <>
@@ -676,7 +718,7 @@ export default function PromptModal({
                     </h3>
                   </div>
 
-                  {/* ✅ CORREÇÃO 1: Botão aparece tanto na criação quanto na edição */}
+                  {/* ✅ REGRA 1 e 2: Criação OU Edição SEM mídia → Mostra botão seletor */}
                   {currentMediaType === 'none' && (
                     <div className="space-y-3">
                       <Button
@@ -688,10 +730,9 @@ export default function PromptModal({
                         📎 Adicionar Capa
                       </Button>
                       
-                      {/* ✅ CORREÇÃO 2: Mensagem contextual diferente para criação vs edição */}
                       <p className="text-xs text-center text-gray-500 dark:text-gray-400">
                         {editingPrompt 
-                          ? "Este prompt não possui capa. Clique acima para adicionar uma imagem, vídeo ou link do YouTube." 
+                          ? "📸 Este prompt não possui capa. Clique acima para adicionar uma imagem, vídeo ou link do YouTube." 
                           : "Opcional: Adicione uma capa visual ao card ou deixe em branco para usar o placeholder"}
                       </p>
                     </div>
@@ -714,31 +755,31 @@ export default function PromptModal({
                     className="hidden"
                   />
 
-                  {/* ✅ EDIÇÃO DE MÍDIA - Aparece quando já tem tipo definido */}
+                  {/* ✅ REGRA 3: Edição COM mídia → Interface de edição (SEM modal seletor) */}
                   {currentMediaType !== 'none' && (
                     <div className="space-y-4">
-                      {/* ✅ CORREÇÃO 3: Info do tipo atual com mensagem contextual */}
+                      {/* Info do tipo atual */}
                       <div className="bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-4">
-                        <p className="text-sm text-purple-900 dark:text-purple-300 mb-2">
-                          <strong>📸 Tipo de capa atual:</strong> {
+                        <p className="text-sm text-purple-900 dark:text-purple-300 font-semibold mb-2">
+                          📸 Tipo de capa atual: {
                             currentMediaType === 'image' ? '🖼️ Imagem' :
                             currentMediaType === 'video' ? '🎥 Vídeo MP4' :
                             '📺 YouTube'
                           }
                         </p>
                         {editingPrompt && (
-                          <p className="text-xs text-purple-600 dark:text-purple-400">
-                            ✏️ Você pode trocar a {
-                              currentMediaType === 'image' ? 'imagem' :
-                              currentMediaType === 'video' ? 'vídeo' :
+                          <p className="text-xs text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 rounded-lg p-2">
+                            ✏️ <strong>Regra de edição:</strong> Você pode trocar a {
+                              currentMediaType === 'image' ? 'imagem por outra imagem' :
+                              currentMediaType === 'video' ? 'vídeo por outro vídeo' :
                               'URL do YouTube'
-                            }, mas não pode mudar o tipo de mídia (ex: de vídeo para imagem).
+                            }, mas não pode mudar o tipo de mídia (ex: de vídeo para imagem). Para mudar o tipo, remova a capa e adicione uma nova.
                           </p>
                         )}
                       </div>
 
                       {/* Preview de Imagem */}
-                      {promptForm.selectedMedia === "image" && (
+                      {currentMediaType === "image" && (
                         <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
                           {promptForm.image_url ? (
                             <div className="relative group">
@@ -769,13 +810,13 @@ export default function PromptModal({
                             className="w-full border-blue-300 hover:bg-blue-100 dark:hover:bg-slate-600"
                           >
                             <ImagePlus className="w-4 h-4 mr-2" />
-                            {promptForm.image_url ? 'Alterar Imagem' : 'Selecionar Imagem'}
+                            {promptForm.image_url ? '🔄 Alterar Imagem' : 'Selecionar Imagem'}
                           </Button>
                         </div>
                       )}
 
                       {/* Preview de Vídeo */}
-                      {promptForm.selectedMedia === "video" && (
+                      {currentMediaType === "video" && (
                         <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
                           {promptForm.videoFile ? (
                             <div className="relative group">
@@ -831,7 +872,7 @@ export default function PromptModal({
                             className="w-full border-purple-300 hover:bg-purple-100 dark:hover:bg-slate-600"
                           >
                             <Video className="w-4 h-4 mr-2" />
-                            {promptForm.videoFile || promptForm.video_url ? 'Alterar Vídeo' : 'Selecionar Vídeo'}
+                            {promptForm.videoFile || promptForm.video_url ? '🔄 Alterar Vídeo' : 'Selecionar Vídeo'}
                           </Button>
 
                           {thumbnailBlob && (
@@ -843,7 +884,7 @@ export default function PromptModal({
                       )}
 
                       {/* Preview de YouTube */}
-                      {promptForm.selectedMedia === "youtube" && (
+                      {currentMediaType === "youtube" && (
                         <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
                           <Input
                             type="text"
@@ -867,15 +908,15 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      {/* ✅ CORREÇÃO 4: Botão "Remover Capa" */}
+                      {/* ✅ Botão "Remover Capa" */}
                       <Button
                         type="button"
                         variant="destructive"
                         onClick={handleRemoveCover}
                         className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold"
                       >
-                        <X className="w-3 h-3 mr-1" />
-                        Remover Capa
+                        <X className="w-4 h-4 mr-2" />
+                        🗑️ Remover Capa
                       </Button>
                     </div>
                   )}
