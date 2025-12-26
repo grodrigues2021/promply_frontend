@@ -22,10 +22,10 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
-import thumbnailCache from "../lib/thumbnailCache"; // ✅ ADICIONAR IMPORT
+import thumbnailCache from "../lib/thumbnailCache";
 
-
-
+// ✅ IMPORT DO PLACEHOLDER SVG
+import PromplyDefaultSvg from "../media/placeholders/promply-default.svg";
 
 const cardVariants = cva(
   "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
@@ -427,7 +427,7 @@ const PromptCard = React.memo(({
     prompt.video_url,
     prompt.youtube_url,
     prompt._uploadingMedia,
-    cachedThumbnail, // ✅ ADICIONAR DEPENDÊNCIA
+    cachedThumbnail,
     promptId,
   ]);
 
@@ -913,15 +913,31 @@ const PromptCard = React.memo(({
           </div>
         )}
 
-        {/* Placeholder se não tem mídia */}
+        {/* ✅ PLACEHOLDER COM SVG DO PROMPLY */}
         {!mediaInfo.hasMedia && (
           <div className={cn(
             mediaVariants({ layout: "horizontal" }),
-            "flex items-center justify-center"
+            "relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-purple-500 via-purple-600 to-pink-500"
           )}>
-            <div className="text-center text-slate-400">
-              <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-40" />
-              <p className="text-xs">Sem mídia</p>
+            {/* Pattern de fundo decorativo */}
+            <div 
+              className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 30L30 60L0 30Z' fill='white' fill-opacity='0.1'/%3E%3C/svg%3E")`,
+                backgroundSize: '30px 30px'
+              }}
+            />
+            
+            {/* Logo do Promply */}
+            <div className="relative text-center z-10">
+              <img 
+                src={PromplyDefaultSvg} 
+                alt="Promply" 
+                className="w-20 h-20 mx-auto mb-3 drop-shadow-2xl filter brightness-110"
+              />
+              <p className="text-white text-sm font-bold drop-shadow-md tracking-wide">
+                PROMPLY
+              </p>
             </div>
           </div>
         )}
