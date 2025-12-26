@@ -1,5 +1,5 @@
-// src/components/PromptCard.jsx - VERSÃO CORRIGIDA E OTIMIZADA
-import React, { useMemo, useState, useEffect, useRef, } from "react";
+// src/components/PromptCard.jsx - VERSÃO CORRIGIDA (RESTAURADO DO BACKUP)
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
 import { toast } from "sonner";
@@ -16,15 +16,12 @@ import {
   X,
   Youtube,
   Download,
-  Upload,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
 import PromplyDefaultSvg from "@/media/placeholders/promply-default.svg";
-
-
 
 const cardVariants = cva(
   "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
@@ -255,53 +252,7 @@ const PromptCard = React.memo(({
   onShare,
   isInChat
 }) => {
-  // ========================================
-  // 🆕 CORREÇÃO: State para thumbnail do cache
-  // ========================================
-  const promptId = prompt?.id;
-  
-  const [cachedThumbnail, setCachedThumbnail] = useState(
-    thumbnailCache.get(promptId)
-  );
-
-  // 🆕 Escuta mudanças no cache
-  useEffect(() => {
-    if (!promptId) return;
-
-    // Verifica cache imediatamente
-    const thumb = thumbnailCache.get(promptId);
-    if (thumb && thumb !== cachedThumbnail) {
-      console.log(`🔄 PromptCard: Cache atualizado para ID ${promptId}`);
-      setCachedThumbnail(thumb);
-    }
-
-    // Continua verificando (para thumbnails geradas depois)
-    const interval = setInterval(() => {
-      const newThumb = thumbnailCache.get(promptId);
-      if (newThumb && newThumb !== cachedThumbnail) {
-        console.log(`🔄 PromptCard: Nova thumbnail para ID ${promptId}`);
-        setCachedThumbnail(newThumb);
-        clearInterval(interval); // Para de verificar depois que encontrar
-      }
-    }, 500);
-
-    return () => clearInterval(interval);
-  }, [promptId, cachedThumbnail]);
-
-  // 🔍 DEBUG: Log do estado da thumbnail
-  useEffect(() => {
-    console.log('🎴 PromptCard renderizado:', {
-      id: promptId,
-      title: prompt?.title,
-      thumb_url: prompt?.thumb_url,
-      video_url: prompt?.video_url,
-      cachedThumbnail: cachedThumbnail ? 'SIM ✅' : 'NÃO ❌',
-    });
-  }, [promptId, prompt?.thumb_url, prompt?.video_url, cachedThumbnail]);
-
-  // ========================================
-  // Estados originais
-  // ========================================
+  // Estados
   const [attachments, setAttachments] = useState([]);
   const [loadingAttachments, setLoadingAttachments] = useState(true);
 
@@ -329,17 +280,16 @@ const PromptCard = React.memo(({
   const isBlocked = isOptimistic || isUploadingMedia;
 
   // =====================================================
-  // 🖼️ MEDIA INFO NORMALIZADO (ANTI-INCONSISTÊNCIA)
+  // 🖼️ MEDIA INFO NORMALIZADO - VERSÃO DO BACKUP
   // =====================================================
   const stableThumbnailRef = useRef(null);
 
-  // -----------------------------------------------------
   // 🔄 RESET DO REF QUANDO O PROMPT MUDA
-  // -----------------------------------------------------
   useEffect(() => {
     stableThumbnailRef.current = null;
   }, [prompt._clientId]);
 
+  // ✅ RESTAURADO DO BACKUP - SEM cachedThumbnail e promptId nas dependências
   const mediaInfo = useMemo(() => {
     const thumbUrl = prompt.thumb_url || "";
     const imageUrl = prompt.image_url || "";
@@ -353,29 +303,19 @@ const PromptCard = React.memo(({
     let videoId = null;
     let finalVideoUrl = "";
 
-    // -------------------------------------------------
-    // 🎬 YOUTUBE
-    // -------------------------------------------------
+    // YOUTUBE
     if (youtubeUrl) {
       hasYouTubeVideo = true;
       videoId = extractYouTubeId(youtubeUrl);
       thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : "";
     }
 
-    // -------------------------------------------------
-    // 🎥 VÍDEO LOCAL
-    // -------------------------------------------------
+    // VÍDEO LOCAL
     else if (videoUrl) {
       hasLocalVideo = true;
       finalVideoUrl = resolveMediaUrl(videoUrl);
 
-      // ✅ PRIORIDADE 1: Thumbnail do cache (copiada do template)
-      if (cachedThumbnail) {
-        thumbnailUrl = cachedThumbnail;
-        console.log(`✅ PromptCard usando thumbnail do cache: ${promptId}`);
-      }
-      // ✅ PRIORIDADE 2: Thumbnail do banco de dados
-      else if (thumbUrl) {
+      if (thumbUrl) {
         if (
           stableThumbnailRef.current &&
           (prompt._uploadingMedia || thumbUrl.startsWith("blob:"))
@@ -391,9 +331,7 @@ const PromptCard = React.memo(({
       }
     }
 
-    // -------------------------------------------------
-    // 🖼️ IMAGEM
-    // -------------------------------------------------
+    // IMAGEM
     else if (imageUrl) {
       hasImage = true;
 
@@ -426,8 +364,8 @@ const PromptCard = React.memo(({
     prompt.video_url,
     prompt.youtube_url,
     prompt._uploadingMedia,
-    cachedThumbnail,
-    promptId,
+    // ✅ REMOVIDO: cachedThumbnail
+    // ✅ REMOVIDO: promptId
   ]);
 
   const tagsArray = useMemo(() => {
@@ -771,13 +709,11 @@ const PromptCard = React.memo(({
             {/* 🎯 OVERLAY DE LOADING - SOBRE O THUMBNAIL */}
             {(isUploadingMedia || isOptimistic) && (
               <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-3 rounded-xl">
-                {/* Círculo Animado */}
                 <div className="w-16 h-16 border-4 border-white/30 border-t-white rounded-full animate-spin" />
                 
-                {/* Mensagem */}
                 <div className="bg-white/95 dark:bg-slate-800/95 px-6 py-3 rounded-full shadow-2xl">
                   <p className="text-sm font-bold text-slate-800 dark:text-white">
-                    {isUploadingMedia ? "⏳ Criando card.." : "⏳ Criando  card..."}
+                    {isUploadingMedia ? "⏳ Criando card.." : "⏳ Criando card..."}
                   </p>
                 </div>
               </div>
@@ -844,49 +780,49 @@ const PromptCard = React.memo(({
               </button>
             )}
 
-{/* VÍDEO LOCAL - Apenas thumbnail clicável */}
-{mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
-  <button
-    type="button"
-    onClick={() => {
-      const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
-      openModal("video", finalVideoUrl);
-    }}
-    className="relative w-full h-full group/media overflow-hidden"
-  >
-    {mediaInfo.thumbnailUrl ? (
-      <img
-        src={mediaInfo.thumbnailUrl}
-        alt={prompt.title}
-        className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-        loading="lazy"
-        onError={(e) => {
-          e.target.style.display = 'none';
-          e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
-        }}
-      />
-    ) : null}
-    
-    <div className={cn(
-      "fallback-icon flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200",
-      mediaInfo.thumbnailUrl && "hidden"
-    )}>
-      <Play className="h-16 w-16 text-purple-400" />
-    </div>
+            {/* ✅ VÍDEO LOCAL - RESTAURADO DO BACKUP */}
+            {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
+              <button
+                type="button"
+                onClick={() => {
+                  const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
+                  openModal("video", finalVideoUrl);
+                }}
+                className="relative w-full h-full group/media overflow-hidden"
+              >
+                {mediaInfo.thumbnailUrl ? (
+                  <img
+                    src={mediaInfo.thumbnailUrl}
+                    alt={prompt.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
+                    loading="lazy"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.parentElement.querySelector('.fallback-icon')?.classList.remove('hidden');
+                    }}
+                  />
+                ) : null}
+                
+                <div className={cn(
+                  "fallback-icon flex items-center justify-center w-full h-full bg-gradient-to-br from-purple-100 to-purple-200",
+                  mediaInfo.thumbnailUrl && "hidden"
+                )}>
+                  <Play className="h-16 w-16 text-purple-400" />
+                </div>
 
-    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-      <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
-        <Play className="h-8 w-8 text-purple-600 fill-current" />
-      </div>
-    </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/20 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                  <div className="bg-white/95 p-4 rounded-full shadow-2xl transform scale-90 group-hover/media:scale-100 transition-transform duration-300">
+                    <Play className="h-8 w-8 text-purple-600 fill-current" />
+                  </div>
+                </div>
 
-    <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
-      <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
-        Clique para assistir
-      </span>
-    </div>
-  </button>
-)}
+                <div className="absolute bottom-3 left-0 right-0 text-center opacity-0 group-hover/media:opacity-100 transition-opacity duration-300">
+                  <span className="bg-black/70 text-white text-xs px-3 py-1.5 rounded-full">
+                    Clique para assistir
+                  </span>
+                </div>
+              </button>
+            )}
 
             {/* IMAGEM - Apenas thumbnail clicável */}
             {!mediaInfo.hasVideo && mediaInfo.hasImage && (
@@ -912,16 +848,16 @@ const PromptCard = React.memo(({
           </div>
         )}
 
-{/* ✅ SVG OCUPA TODO O THUMBNAIL */}
-{!mediaInfo.hasMedia && (
-  <div className={cn(mediaVariants({ layout: "horizontal" }))}>
-    <img 
-      src={PromplyDefaultSvg} 
-      alt="Promply Logo" 
-      className="w-full h-full object-cover"
-    />
-  </div>
-)}
+        {/* ✅ PLACEHOLDER COM SVG DO PROMPLY */}
+        {!mediaInfo.hasMedia && (
+          <div className={cn(mediaVariants({ layout: "horizontal" }))}>
+            <img 
+              src={PromplyDefaultSvg} 
+              alt="Promply Logo" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
       </div>
 
       {/* MODAL ÚNICO PARA TODAS AS MÍDIAS */}
