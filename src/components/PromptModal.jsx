@@ -326,14 +326,25 @@ export default function PromptModal({
   };
 
   // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
-  const handleSaveWithThumbnail = async () => {
-    const updatedForm = {
-      ...promptForm,
-      thumbnailBlob: thumbnailBlob
-    };
-    
-    await savePrompt(updatedForm);
+ // Localizar a função handleSaveWithThumbnail (linha ~222)
+// SUBSTITUIR por:
+
+const handleSaveWithThumbnail = async () => {
+  // ✅ CORREÇÃO: Garantir que media_type seja definido
+  const finalMediaType = 
+    promptForm.media_type || 
+    promptForm.selectedMedia || 
+    'none';
+  
+  const updatedForm = {
+    ...promptForm,
+    media_type: finalMediaType,
+    selectedMedia: finalMediaType,
+    thumbnailBlob: thumbnailBlob
   };
+  
+  await savePrompt(updatedForm);
+};
 
   // ✅ Determinar tipo atual de mídia
   const currentMediaType = promptForm.media_type || promptForm.selectedMedia || 'none';
