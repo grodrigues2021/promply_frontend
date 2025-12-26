@@ -852,13 +852,13 @@ const PromptCard = React.memo(({
       const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
       openModal("video", finalVideoUrl);
     }}
-    className="relative w-full h-full group/media overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900"
+    className="relative w-full h-full group/media overflow-hidden"
   >
     {mediaInfo.thumbnailUrl ? (
       <img
         src={mediaInfo.thumbnailUrl}
         alt={prompt.title}
-        className="absolute inset-0 w-full h-full object-cover"
+        className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
         loading="lazy"
         onError={(e) => {
           e.target.style.display = 'none';
