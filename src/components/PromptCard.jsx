@@ -844,7 +844,7 @@ const PromptCard = React.memo(({
               </button>
             )}
 
-            {/* VÍDEO LOCAL - Apenas thumbnail clicável */}
+{/* VÍDEO LOCAL - Apenas thumbnail clicável */}
 {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
   <button
     type="button"
@@ -852,13 +852,13 @@ const PromptCard = React.memo(({
       const finalVideoUrl = resolveMediaUrl(mediaInfo.videoUrl);
       openModal("video", finalVideoUrl);
     }}
-    className="relative w-full h-full group/media overflow-hidden bg-black"
+    className="relative w-full h-full group/media overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900"
   >
     {mediaInfo.thumbnailUrl ? (
       <img
         src={mediaInfo.thumbnailUrl}
         alt={prompt.title}
-        className="w-full h-full object-contain transition-transform duration-300 group-hover/media:scale-105"
+        className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
         onError={(e) => {
           e.target.style.display = 'none';
