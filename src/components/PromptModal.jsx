@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptModal.jsx
-// ✅ VERSÃO FINAL - Com edição de capa
+// ✅ VERSÃO FINAL CORRIGIDA - Com edição de capa
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -270,94 +270,104 @@ export default function PromptModal({
     }
   };
 
- // ==========================================
-// CORREÇÃO: handleVideoUploadWithThumbnail
-// Localizar linha ~270 e SUBSTITUIR por:
-// ==========================================
+  // ✅ Upload de vídeo com geração de thumbnail
+  const handleVideoUploadWithThumbnail = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-const handleVideoUploadWithThumbnail = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
+    // Validar tamanho (20MB)
+    const MAX_SIZE = 20 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      toast.error('O vídeo deve ter no máximo 20MB');
+      e.target.value = '';
+      return;
+    }
 
-  // Validar tamanho (20MB)
-  const MAX_SIZE = 20 * 1024 * 1024;
-  if (file.size > MAX_SIZE) {
-    toast.error('O vídeo deve ter no máximo 20MB');
-    e.target.value = '';
-    return;
-  }
+    // Usar a função original
+    handleVideoUpload(e);
 
-  // Usar a função original
-  handleVideoUpload(e);
+    // Gerar thumbnail no frontend
+    try {
+      const videoUrl = safeCreateObjectURL(file);
+      const video = document.createElement('video');
+      video.src = videoUrl;
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      video.playsInline = true;
+      
+      await new Promise((resolve) => {
+        video.onloadeddata = resolve;
+      });
 
-  // Gerar thumbnail no frontend
-  try {
-    const videoUrl = safeCreateObjectURL(file);
-    const video = document.createElement('video');
-    video.src = videoUrl;
-    video.crossOrigin = 'anonymous';
-    video.muted = true;
-    video.playsInline = true;
-    
-    await new Promise((resolve) => {
-      video.onloadeddata = resolve;
-    });
+      video.currentTime = Math.min(1.0, video.duration * 0.1);
+      
+      await new Promise((resolve) => {
+        video.onseeked = resolve;
+      });
 
-    video.currentTime = Math.min(1.0, video.duration * 0.1);
-    
-    await new Promise((resolve) => {
-      video.onseeked = resolve;
-    });
+      const canvas = document.createElement('canvas');
+      
+      // ✅ CORREÇÃO: Usar dimensões REAIS do vídeo
+      canvas.width = video.videoWidth;   // ← Dinâmico
+      canvas.height = video.videoHeight; // ← Dinâmico
+      
+      console.log('📐 Dimensões do vídeo:', {
+        width: video.videoWidth,
+        height: video.videoHeight,
+        aspect: (video.videoWidth / video.videoHeight).toFixed(2)
+      });
+      
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      canvas.toBlob((blob) => {
+        if (blob) {
+          setThumbnailBlob(blob);
+          console.log('✅ Thumbnail gerado:', blob.size, 'bytes');
+          console.log('✅ Dimensões corretas:', canvas.width, 'x', canvas.height);
+        }
+      }, 'image/jpeg', 0.85);
 
-    const canvas = document.createElement('canvas');
-    
-    // ✅ CORREÇÃO: Usar dimensões REAIS do vídeo
-    canvas.width = video.videoWidth;   // ← Dinâmico
-    canvas.height = video.videoHeight; // ← Dinâmico
-    
-    console.log('📐 Dimensões do vídeo:', {
-      width: video.videoWidth,
-      height: video.videoHeight,
-      aspect: (video.videoWidth / video.videoHeight).toFixed(2)
-    });
-    
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    canvas.toBlob((blob) => {
-      if (blob) {
-        setThumbnailBlob(blob);
-        console.log('✅ Thumbnail gerado:', blob.size, 'bytes');
-        console.log('✅ Dimensões corretas:', canvas.width, 'x', canvas.height);
-      }
-    }, 'image/jpeg', 0.85);
-
-    URL.revokeObjectURL(videoUrl);
-  } catch (error) {
-    console.error('Erro ao gerar thumbnail:', error);
-  }
-};
+      URL.revokeObjectURL(videoUrl);
+    } catch (error) {
+      console.error('Erro ao gerar thumbnail:', error);
+    }
+  };
 
   // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
- // Localizar a função handleSaveWithThumbnail (linha ~222)
-// SUBSTITUIR por:
-
-const handleSaveWithThumbnail = async () => {
-  // ✅ CORREÇÃO: Garantir que media_type seja definido
-  const finalMediaType = 
-    promptForm.media_type || 
-    promptForm.selectedMedia || 
-    'none';
-  
-  const updatedForm = {
-    ...promptForm,
-    media_type: finalMediaType,
-    selectedMedia: finalMediaType,
-    thumbnailBlob: thumbnailBlob
+  const handleSaveWithThumbnail = async () => {
+    // ✅ CORREÇÃO: Garantir que media_type seja definido
+    const finalMediaType = 
+      promptForm.media_type || 
+      promptForm.selectedMedia || 
+      'none';
+    
+    const updatedForm = {
+      ...promptForm,
+      media_type: finalMediaType,
+      selectedMedia: finalMediaType,
+      thumbnailBlob: thumbnailBlob
+    };
+    
+    await savePrompt(updatedForm);
   };
-  
-  await savePrompt(updatedForm);
-};
+
+  // ✅ Handler para remover capa completamente
+  const handleRemoveCover = () => {
+    if (confirm('Tem certeza que deseja remover a capa deste prompt?')) {
+      setPromptForm((prev) => ({
+        ...prev,
+        selectedMedia: 'none',
+        media_type: 'none',
+        image_url: '',
+        video_url: '',
+        youtube_url: '',
+        videoFile: null,
+      }));
+      setThumbnailBlob(null);
+      toast.success('Capa removida! Salve o prompt para confirmar.');
+    }
+  };
 
   // ✅ Determinar tipo atual de mídia
   const currentMediaType = promptForm.media_type || promptForm.selectedMedia || 'none';
@@ -666,8 +676,8 @@ const handleSaveWithThumbnail = async () => {
                     </h3>
                   </div>
 
-                  {/* ✅ BOTÃO SELETOR - Só aparece se ainda não tem tipo */}
-                  {!editingPrompt && currentMediaType === 'none' && (
+                  {/* ✅ CORREÇÃO 1: Botão aparece tanto na criação quanto na edição */}
+                  {currentMediaType === 'none' && (
                     <div className="space-y-3">
                       <Button
                         type="button"
@@ -678,8 +688,11 @@ const handleSaveWithThumbnail = async () => {
                         📎 Adicionar Capa
                       </Button>
                       
+                      {/* ✅ CORREÇÃO 2: Mensagem contextual diferente para criação vs edição */}
                       <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                        Opcional: Adicione uma capa visual ao card ou deixe em branco para usar o placeholder
+                        {editingPrompt 
+                          ? "Este prompt não possui capa. Clique acima para adicionar uma imagem, vídeo ou link do YouTube." 
+                          : "Opcional: Adicione uma capa visual ao card ou deixe em branco para usar o placeholder"}
                       </p>
                     </div>
                   )}
@@ -704,19 +717,24 @@ const handleSaveWithThumbnail = async () => {
                   {/* ✅ EDIÇÃO DE MÍDIA - Aparece quando já tem tipo definido */}
                   {currentMediaType !== 'none' && (
                     <div className="space-y-4">
-                      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-3">
-                        <p className="text-sm text-purple-900 dark:text-purple-300">
-                          <strong>Tipo de capa:</strong> {
+                      {/* ✅ CORREÇÃO 3: Info do tipo atual com mensagem contextual */}
+                      <div className="bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-4">
+                        <p className="text-sm text-purple-900 dark:text-purple-300 mb-2">
+                          <strong>📸 Tipo de capa atual:</strong> {
                             currentMediaType === 'image' ? '🖼️ Imagem' :
                             currentMediaType === 'video' ? '🎥 Vídeo MP4' :
                             '📺 YouTube'
                           }
-                          {editingPrompt && (
-                            <span className="ml-2 text-xs text-purple-600 dark:text-purple-400">
-                              (pode editar a capa, mas não mudar o tipo)
-                            </span>
-                          )}
                         </p>
+                        {editingPrompt && (
+                          <p className="text-xs text-purple-600 dark:text-purple-400">
+                            ✏️ Você pode trocar a {
+                              currentMediaType === 'image' ? 'imagem' :
+                              currentMediaType === 'video' ? 'vídeo' :
+                              'URL do YouTube'
+                            }, mas não pode mudar o tipo de mídia (ex: de vídeo para imagem).
+                          </p>
+                        )}
                       </div>
 
                       {/* Preview de Imagem */}
@@ -848,6 +866,17 @@ const handleSaveWithThumbnail = async () => {
                           )}
                         </div>
                       )}
+
+                      {/* ✅ CORREÇÃO 4: Botão "Remover Capa" */}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        onClick={handleRemoveCover}
+                        className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold"
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Remover Capa
+                      </Button>
                     </div>
                   )}
                 </section>
