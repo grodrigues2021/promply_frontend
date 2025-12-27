@@ -1026,9 +1026,9 @@ export default function PromptManager({
         formToSave.videoFile instanceof File &&
         !formToSave.youtube_url;
 
+      // ✅ CÓDIGO CORRIGIDO:
       const needsMediaUpload = 
-        !formToSave.youtube_url && 
-        (hasImage || hasVideo || extraFiles.length > 0);
+      hasImage || hasVideo || extraFiles.length > 0;
 
       const imageFileToUpload = formToSave.imageFile;
       const videoFileToUpload = formToSave.videoFile;
