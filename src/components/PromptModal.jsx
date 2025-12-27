@@ -1,6 +1,7 @@
 // ==========================================
 // src/components/PromptModal.jsx
 // ✅ VERSÃO FINAL CORRIGIDA - Remoção de capa 100% funcional
+// ✅ Grid responsivo: Empilhado mobile, lado a lado desktop
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -521,7 +522,7 @@ export default function PromptModal({
       
       // ✅ PASSO 1: Limpar estado do form de forma EXPLÍCITA
       setPromptForm((prev) => {
-        console.log('📝 Limpando estado:', {
+        console.log('🔍 Limpando estado:', {
           tipoAtual: currentMediaType,
           tinha_imagem: !!prev.image_url || !!prev.imageFile,
           tinha_video: !!prev.video_url || !!prev.videoFile,
@@ -748,7 +749,7 @@ export default function PromptModal({
                     {attachments.length > 0 && (
                       <div className="space-y-3">
                         <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                          📎 Arquivos anexados ({attachments.length})
+                          🔎 Arquivos anexados ({attachments.length})
                         </Label>
                         <div className="custom-scrollbar-inner space-y-2 max-h-48 overflow-y-auto">
                           {attachments.map((file) => (
@@ -898,8 +899,8 @@ export default function PromptModal({
                           : "Opcional: Escolha o tipo de capa para o card"}
                       </p>
                       
-                      {/* Grid de 3 botões */}
-                      <div className="grid grid-cols-1 gap-3">
+                      {/* Grid de 3 botões - Responsivo: Empilhado no mobile, lado a lado no desktop */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {/* Botão Imagem */}
                         <Button
                           type="button"
@@ -1181,7 +1182,7 @@ export default function PromptModal({
                         <SelectItem value="nanobanana">🌙 Nano Banana</SelectItem>
                         <SelectItem value="gemini">✨ Gemini</SelectItem>
                         <SelectItem value="veo3">🎥 VEO3</SelectItem>
-                        <SelectItem value="manus">🔒 Manus</SelectItem>
+                        <SelectItem value="manus">🔐 Manus</SelectItem>
                         <SelectItem value="claude">🧠 Claude</SelectItem>
                       </SelectContent>
                     </Select>
