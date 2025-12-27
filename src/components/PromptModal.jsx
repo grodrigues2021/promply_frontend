@@ -252,6 +252,7 @@ export default function PromptModal({
 
   // 🔥 NOVO: Força recalculo quando mídia é removida
   const [forceMediaRefresh, setForceMediaRefresh] = useState(0);
+  const [isRemovingCover, setIsRemovingCover] = useState(false);
 
   // ✅ Reset ao fechar
   useEffect(() => {
@@ -292,6 +293,37 @@ export default function PromptModal({
   useEffect(() => {
     console.log('🔄 currentMediaType mudou para:', currentMediaType, 'forceRefresh:', forceMediaRefresh);
   }, [currentMediaType, forceMediaRefresh]);
+
+  // 🔥 NOVO: Verifica remoção completa DEPOIS da re-renderização
+  useEffect(() => {
+    if (isRemovingCover) {
+      console.log('🔍 [VERIFICAÇÃO AUTOMÁTICA] Estado ATUAL:', {
+        currentMediaType,
+        image_url: promptForm.image_url,
+        video_url: promptForm.video_url,
+        youtube_url: promptForm.youtube_url,
+        media_type: promptForm.media_type,
+        selectedMedia: promptForm.selectedMedia,
+      });
+
+      // ✅ Validação extra
+      if (promptForm.image_url || promptForm.video_url || promptForm.youtube_url || 
+          promptForm.videoFile || promptForm.imageFile) {
+        console.error('❌ ERRO: Mídia não foi completamente removida!', {
+          image_url: promptForm.image_url,
+          video_url: promptForm.video_url,
+          youtube_url: promptForm.youtube_url,
+          videoFile: !!promptForm.videoFile,
+          imageFile: !!promptForm.imageFile,
+        });
+      } else {
+        console.log('✅ SUCESSO: Todos os campos de mídia foram limpos!');
+      }
+
+      // Resetar flag
+      setIsRemovingCover(false);
+    }
+  }, [isRemovingCover, currentMediaType, promptForm.image_url, promptForm.video_url, promptForm.youtube_url, promptForm.videoFile, promptForm.imageFile, promptForm.media_type, promptForm.selectedMedia]);
 
   // ✅ Capturar tipo ORIGINAL ao abrir em modo edição
   useEffect(() => {
@@ -542,6 +574,9 @@ export default function PromptModal({
       setForceMediaRefresh(prev => prev + 1);
       console.log('🔄 Forçando re-render da UI');
       
+      // 🔥 PASSO 5: Ativar verificação DEPOIS da re-renderização
+      setIsRemovingCover(true);
+      
       // ✅ Mensagem de sucesso
       const tipoRemovido = 
         currentMediaType === 'image' ? 'Imagem' :
@@ -549,33 +584,6 @@ export default function PromptModal({
         currentMediaType === 'youtube' ? 'YouTube' : 'Mídia';
       
       toast.success(`🗑️ ${tipoRemovido} removida! Agora você pode adicionar qualquer tipo de mídia.`);
-      
-      // ✅ VERIFICAÇÃO FINAL após 300ms
-      setTimeout(() => {
-        console.log('🔍 [VERIFICAÇÃO FINAL] Estado DEPOIS da remoção:', {
-          currentMediaType,
-          image_url: promptForm.image_url,
-          video_url: promptForm.video_url,
-          youtube_url: promptForm.youtube_url,
-          media_type: promptForm.media_type,
-          selectedMedia: promptForm.selectedMedia,
-          originalMediaType,
-        });
-        
-        // ✅ Validação extra
-        if (promptForm.image_url || promptForm.video_url || promptForm.youtube_url || 
-            promptForm.videoFile || promptForm.imageFile) {
-          console.error('❌ ERRO: Mídia não foi completamente removida!', {
-            image_url: promptForm.image_url,
-            video_url: promptForm.video_url,
-            youtube_url: promptForm.youtube_url,
-            videoFile: !!promptForm.videoFile,
-            imageFile: !!promptForm.imageFile,
-          });
-        } else {
-          console.log('✅ SUCESSO: Todos os campos de mídia foram limpos!');
-        }
-      }, 300);
     } else {
       console.log('❌ Remoção cancelada pelo usuário');
     }
