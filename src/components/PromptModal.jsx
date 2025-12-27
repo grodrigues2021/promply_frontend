@@ -30,11 +30,9 @@ import {
   Zap, 
   Sparkles,
   ImagePlus,
-  Layers,
   AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
-import MediaTypeSelectorModal from "./MediaTypeSelectorModal";
 
 // ✅ SCROLLBAR CUSTOMIZADA
 const customScrollbarStyles = `
@@ -240,8 +238,7 @@ export default function PromptModal({
 }) {
   const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
-  // ✅ Estados para modal seletor e thumbnail
-  const [showMediaSelector, setShowMediaSelector] = useState(false);
+  // ✅ Estados para thumbnail
   const [thumbnailBlob, setThumbnailBlob] = useState(null);
   
   const imageInputRef = useRef(null);
@@ -353,7 +350,7 @@ export default function PromptModal({
     }
   }, [isOpen, editingPrompt, isEditMode, currentMediaType, originalMediaType, promptForm]);
 
-  // ✅ Handler de seleção de tipo do modal
+  // ✅ Handler de seleção de tipo direto (sem modal)
   const handleMediaTypeSelect = (type) => {
     console.log('🎯 handleMediaTypeSelect chamado:', { 
       type, 
@@ -388,14 +385,13 @@ export default function PromptModal({
       setOriginalMediaType(type);
     }
     
-    setShowMediaSelector(false);
-    
     // Disparar inputs automaticamente
     if (type === 'image') {
       setTimeout(() => imageInputRef.current?.click(), 100);
     } else if (type === 'video') {
       setTimeout(() => videoInputRef.current?.click(), 100);
     }
+    // YouTube não precisa disparar input
   };
 
   // ✅ Upload de vídeo com geração de thumbnail
@@ -893,22 +889,50 @@ export default function PromptModal({
                     </h3>
                   </div>
 
-                  {/* ✅ REGRA 1 e 2: Criação OU Edição SEM mídia → Mostra botão seletor */}
+                  {/* ✅ REGRA 1 e 2: Criação OU Edição SEM mídia → Mostra 3 botões diretos */}
                   {currentMediaType === 'none' && (
-                    <div className="space-y-3">
-                      <Button
-                        type="button"
-                        onClick={() => setShowMediaSelector(true)}
-                        className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold py-6 text-lg shadow-lg hover:shadow-xl transition-all"
-                      >
-                        <Layers className="w-6 h-6 mr-3" />
-                        🔎 Adicionar Capa
-                      </Button>
-                      
-                      <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                    <div className="space-y-4">
+                      <p className="text-sm text-center text-slate-600 dark:text-slate-400 font-medium">
                         {editingPrompt 
-                          ? "📸 Este prompt não possui capa. Clique acima para adicionar uma imagem, vídeo ou link do YouTube." 
-                          : "Opcional: Adicione uma capa visual ao card ou deixe em branco para usar o placeholder"}
+                          ? "📸 Este prompt não possui capa. Selecione o tipo de mídia abaixo:" 
+                          : "Opcional: Escolha o tipo de capa para o card"}
+                      </p>
+                      
+                      {/* Grid de 3 botões */}
+                      <div className="grid grid-cols-1 gap-3">
+                        {/* Botão Imagem */}
+                        <Button
+                          type="button"
+                          onClick={() => handleMediaTypeSelect('image')}
+                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 text-base shadow-md hover:shadow-lg transition-all"
+                        >
+                          <ImageIcon className="w-5 h-5 mr-2" />
+                          🖼️ Adicionar Imagem
+                        </Button>
+
+                        {/* Botão Vídeo */}
+                        <Button
+                          type="button"
+                          onClick={() => handleMediaTypeSelect('video')}
+                          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-4 text-base shadow-md hover:shadow-lg transition-all"
+                        >
+                          <Video className="w-5 h-5 mr-2" />
+                          🎥 Adicionar Vídeo MP4
+                        </Button>
+
+                        {/* Botão YouTube */}
+                        <Button
+                          type="button"
+                          onClick={() => handleMediaTypeSelect('youtube')}
+                          className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold py-4 text-base shadow-md hover:shadow-lg transition-all"
+                        >
+                          <Youtube className="w-5 h-5 mr-2" />
+                          📺 Adicionar YouTube
+                        </Button>
+                      </div>
+
+                      <p className="text-xs text-center text-slate-500 dark:text-slate-400 mt-2">
+                        💡 Dica: Você pode deixar em branco para usar o placeholder padrão
                       </p>
                     </div>
                   )}
@@ -1214,13 +1238,6 @@ export default function PromptModal({
 
         </DialogContent>
       </Dialog>
-
-      {/* ✅ MODAL SELETOR DE TIPO */}
-      <MediaTypeSelectorModal
-        isOpen={showMediaSelector}
-        onClose={() => setShowMediaSelector(false)}
-        onSelect={handleMediaTypeSelect}
-      />
     </>
   );
 }
