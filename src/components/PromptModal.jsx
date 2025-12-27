@@ -899,7 +899,7 @@ export default function PromptModal({
                           : "Opcional: Escolha o tipo de capa para o card"}
                       </p>
                       
-                      {/* Grid de 3 botões - Responsivo: Empilhado no mobile, lado a lado no desktop */}
+                      {/* Grid de 3 botões - Responsivo: Empilhado no mobile, quadrados no desktop */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {/* Botão Imagem */}
                         <Button
@@ -908,7 +908,7 @@ export default function PromptModal({
                           className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 md:py-8 text-base shadow-md hover:shadow-lg transition-all flex flex-row md:flex-col items-center justify-center gap-2 md:aspect-square"
                         >
                           <ImageIcon className="w-5 h-5 md:w-8 md:h-8" />
-                          <span>🖼️ Adicionar Imagem</span>
+                          <span>Adicionar Imagem</span>
                         </Button>
 
                         {/* Botão Vídeo */}
@@ -918,7 +918,7 @@ export default function PromptModal({
                           className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-4 md:py-8 text-base shadow-md hover:shadow-lg transition-all flex flex-row md:flex-col items-center justify-center gap-2 md:aspect-square"
                         >
                           <Video className="w-5 h-5 md:w-8 md:h-8" />
-                          <span>🎥 Adicionar Vídeo MP4</span>
+                          <span>Adicionar Vídeo MP4</span>
                         </Button>
 
                         {/* Botão YouTube */}
@@ -928,7 +928,7 @@ export default function PromptModal({
                           className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold py-4 md:py-8 text-base shadow-md hover:shadow-lg transition-all flex flex-row md:flex-col items-center justify-center gap-2 md:aspect-square"
                         >
                           <Youtube className="w-5 h-5 md:w-8 md:h-8" />
-                          <span>📺 Adicionar YouTube</span>
+                          <span>Adicionar YouTube</span>
                         </Button>
                       </div>
 
