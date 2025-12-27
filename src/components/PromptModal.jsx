@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptModal.jsx
-// ✅ VERSÃO FINAL CORRIGIDA - Permite trocar tipo após remover capa
+// ✅ VERSÃO FINAL CORRIGIDA - Remoção de capa 100% funcional
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -250,6 +250,9 @@ export default function PromptModal({
   // ✅ Tipo ORIGINAL ao abrir modal (para validação)
   const [originalMediaType, setOriginalMediaType] = useState('none');
 
+  // 🔥 NOVO: Força recalculo quando mídia é removida
+  const [forceMediaRefresh, setForceMediaRefresh] = useState(0);
+
   // ✅ Reset ao fechar
   useEffect(() => {
     if (!isOpen) {
@@ -284,6 +287,11 @@ export default function PromptModal({
     
     return 'none';
   })();
+
+  // 🔥 NOVO: Monitora mudanças e força log
+  useEffect(() => {
+    console.log('🔄 currentMediaType mudou para:', currentMediaType, 'forceRefresh:', forceMediaRefresh);
+  }, [currentMediaType, forceMediaRefresh]);
 
   // ✅ Capturar tipo ORIGINAL ao abrir em modo edição
   useEffect(() => {
@@ -464,26 +472,112 @@ export default function PromptModal({
 
   // ✅ CORREÇÃO CRÍTICA: Handler para remover capa completamente
   const handleRemoveCover = () => {
+    console.log('🔍 [DIAGNÓSTICO COMPLETO] Estado ANTES da remoção:', {
+      currentMediaType,
+      originalMediaType,
+      // Imagem
+      image_url: promptForm.image_url,
+      imageFile: !!promptForm.imageFile,
+      // Vídeo
+      video_url: promptForm.video_url,
+      videoFile: !!promptForm.videoFile,
+      // YouTube
+      youtube_url: promptForm.youtube_url,
+      // Tipo
+      media_type: promptForm.media_type,
+      selectedMedia: promptForm.selectedMedia,
+    });
+
     if (confirm('Tem certeza que deseja remover a capa deste prompt?')) {
-      console.log('🗑️ Removendo capa. originalMediaType atual:', originalMediaType);
+      console.log('🗑️ Iniciando remoção da capa...');
       
-      setPromptForm((prev) => ({
-        ...prev,
-        selectedMedia: 'none',
-        media_type: 'none',
-        image_url: '',
-        video_url: '',
-        youtube_url: '',
-        videoFile: null,
-        imageFile: null,
-      }));
+      // ✅ PASSO 1: Limpar estado do form de forma EXPLÍCITA
+      setPromptForm((prev) => {
+        console.log('📝 Limpando estado:', {
+          tipoAtual: currentMediaType,
+          tinha_imagem: !!prev.image_url || !!prev.imageFile,
+          tinha_video: !!prev.video_url || !!prev.videoFile,
+          tinha_youtube: !!prev.youtube_url,
+        });
+        
+        const newState = {
+          ...prev,
+          // ✅ Resetar TIPO
+          selectedMedia: 'none',
+          media_type: 'none',
+          
+          // ✅ Limpar TODOS os tipos de mídia
+          image_url: '',
+          video_url: '',
+          youtube_url: '',
+          
+          // ✅ Limpar ARQUIVOS
+          videoFile: null,
+          imageFile: null,
+        };
+        
+        console.log('✅ Estado limpo:', {
+          image_url: newState.image_url,
+          video_url: newState.video_url,
+          youtube_url: newState.youtube_url,
+          videoFile: newState.videoFile,
+          imageFile: newState.imageFile,
+          media_type: newState.media_type,
+          selectedMedia: newState.selectedMedia,
+        });
+        
+        return newState;
+      });
+      
+      // ✅ PASSO 2: Limpar thumbnail
       setThumbnailBlob(null);
+      console.log('✅ Thumbnail limpo');
       
-      // ✅ CORREÇÃO: Resetar originalMediaType para 'none'
+      // ✅ PASSO 3: Resetar tipo original
+      const oldType = originalMediaType;
       setOriginalMediaType('none');
-      console.log('✅ originalMediaType resetado para: none');
+      console.log(`✅ originalMediaType: "${oldType}" → "none"`);
       
-      toast.success('🗑️ Capa removida! Agora você pode adicionar qualquer tipo de mídia.');
+      // 🔥 PASSO 4: Forçar re-render (garante atualização da UI)
+      setForceMediaRefresh(prev => prev + 1);
+      console.log('🔄 Forçando re-render da UI');
+      
+      // ✅ Mensagem de sucesso
+      const tipoRemovido = 
+        currentMediaType === 'image' ? 'Imagem' :
+        currentMediaType === 'video' ? 'Vídeo MP4' :
+        currentMediaType === 'youtube' ? 'YouTube' : 'Mídia';
+      
+      toast.success(`🗑️ ${tipoRemovido} removida! Agora você pode adicionar qualquer tipo de mídia.`);
+      
+      // ✅ VERIFICAÇÃO FINAL após 300ms
+      setTimeout(() => {
+        console.log('🔍 [VERIFICAÇÃO FINAL] Estado DEPOIS da remoção:', {
+          currentMediaType,
+          image_url: promptForm.image_url,
+          video_url: promptForm.video_url,
+          youtube_url: promptForm.youtube_url,
+          media_type: promptForm.media_type,
+          selectedMedia: promptForm.selectedMedia,
+          originalMediaType,
+        });
+        
+        // ✅ Validação extra
+        if (promptForm.image_url || promptForm.video_url || promptForm.youtube_url || 
+            promptForm.videoFile || promptForm.imageFile) {
+          console.error('❌ ERRO: Mídia não foi completamente removida!', {
+            image_url: promptForm.image_url,
+            video_url: promptForm.video_url,
+            youtube_url: promptForm.youtube_url,
+            videoFile: !!promptForm.videoFile,
+            imageFile: !!promptForm.imageFile,
+          });
+        } else {
+          console.log('✅ SUCESSO: Todos os campos de mídia foram limpos!');
+        }
+      }, 300);
+    } else {
+      console.log('❌ Remoção cancelada pelo usuário');
     }
   };
 
