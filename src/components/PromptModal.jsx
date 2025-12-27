@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptModal.jsx
-// ✅ VERSÃO FINAL CORRIGIDA - Com edição de capa
+// ✅ VERSÃO FINAL - Opção B (Tipo Fixo) 100%
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -30,7 +30,8 @@ import {
   Zap, 
   Sparkles,
   ImagePlus,
-  Layers
+  Layers,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import MediaTypeSelectorModal from "./MediaTypeSelectorModal";
@@ -246,15 +247,84 @@ export default function PromptModal({
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
 
+  // ✅ Tipo ORIGINAL ao abrir modal (para validação)
+  const [originalMediaType, setOriginalMediaType] = useState('none');
+
   // ✅ Reset ao fechar
   useEffect(() => {
     if (!isOpen) {
       setThumbnailBlob(null);
+      setOriginalMediaType('none');
     }
   }, [isOpen]);
 
+  // ✅ Determinar tipo atual de mídia com INFERÊNCIA ROBUSTA
+  const currentMediaType = (() => {
+    // 1. Primeiro tenta usar o campo explícito
+    if (promptForm.media_type && promptForm.media_type !== 'none') {
+      return promptForm.media_type;
+    }
+    
+    if (promptForm.selectedMedia && promptForm.selectedMedia !== 'none') {
+      return promptForm.selectedMedia;
+    }
+    
+    // 2. Inferir baseado nos campos de URL (fallback)
+    if (promptForm.youtube_url?.trim()) {
+      return 'youtube';
+    }
+    
+    if (promptForm.video_url?.trim() || promptForm.videoFile) {
+      return 'video';
+    }
+    
+    if (promptForm.image_url?.trim() || promptForm.imageFile) {
+      return 'image';
+    }
+    
+    return 'none';
+  })();
+
+  // ✅ Capturar tipo ORIGINAL ao abrir em modo edição
+  useEffect(() => {
+    if (isOpen && editingPrompt) {
+      const originalType = editingPrompt.media_type || currentMediaType;
+      setOriginalMediaType(originalType);
+      console.log('📌 Tipo original capturado:', originalType);
+    }
+  }, [isOpen, editingPrompt, currentMediaType]);
+
+  // 🔍 DEBUG - Logs detalhados ao abrir o modal
+  useEffect(() => {
+    if (isOpen) {
+      console.log('🔍 DEBUG PromptModal ABERTO:', {
+        editingPrompt: !!editingPrompt,
+        isEditMode,
+        currentMediaType,
+        originalMediaType,
+        'promptForm.media_type': promptForm.media_type,
+        'promptForm.selectedMedia': promptForm.selectedMedia,
+        'promptForm.image_url': promptForm.image_url?.substring(0, 50),
+        'promptForm.video_url': promptForm.video_url?.substring(0, 50),
+        'promptForm.youtube_url': promptForm.youtube_url?.substring(0, 50),
+        'promptForm.videoFile': !!promptForm.videoFile,
+        'promptForm.imageFile': !!promptForm.imageFile,
+      });
+    }
+  }, [isOpen, editingPrompt, isEditMode, currentMediaType, originalMediaType, promptForm]);
+
   // ✅ Handler de seleção de tipo do modal
   const handleMediaTypeSelect = (type) => {
+    // ✅ VALIDAÇÃO: Não permitir mudança de tipo durante edição
+    if (editingPrompt && originalMediaType !== 'none') {
+      toast.error('❌ Não é possível mudar o tipo de mídia durante edição!');
+      console.warn('🚫 Tentativa bloqueada de trocar tipo:', {
+        de: originalMediaType,
+        para: type
+      });
+      return;
+    }
+
     setPromptForm((prev) => ({ 
       ...prev, 
       selectedMedia: type,
@@ -308,8 +378,8 @@ export default function PromptModal({
       const canvas = document.createElement('canvas');
       
       // ✅ CORREÇÃO: Usar dimensões REAIS do vídeo
-      canvas.width = video.videoWidth;   // ← Dinâmico
-      canvas.height = video.videoHeight; // ← Dinâmico
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
       
       console.log('📐 Dimensões do vídeo:', {
         width: video.videoWidth,
@@ -336,6 +406,23 @@ export default function PromptModal({
 
   // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
   const handleSaveWithThumbnail = async () => {
+    // ✅ VALIDAÇÃO: Garantir que tipo não mudou durante edição
+    if (editingPrompt && originalMediaType !== 'none') {
+      if (currentMediaType !== originalMediaType) {
+        toast.error(
+          `❌ Você não pode mudar o tipo de mídia!\n\n` +
+          `Tipo original: ${originalMediaType}\n` +
+          `Tipo atual: ${currentMediaType}\n\n` +
+          `Para mudar o tipo, remova a capa e adicione uma nova.`
+        );
+        console.error('🚫 Tentativa bloqueada de salvar com tipo diferente:', {
+          original: originalMediaType,
+          atual: currentMediaType
+        });
+        return;
+      }
+    }
+
     // ✅ Garantir que media_type seja definido baseado no tipo atual
     const finalMediaType = currentMediaType !== 'none' ? currentMediaType : 'none';
     
@@ -368,51 +455,6 @@ export default function PromptModal({
       toast.success('🗑️ Capa removida! Salve o prompt para confirmar.');
     }
   };
-
-  // ✅ Determinar tipo atual de mídia com INFERÊNCIA ROBUSTA
-  const currentMediaType = (() => {
-    // 1. Primeiro tenta usar o campo explícito
-    if (promptForm.media_type && promptForm.media_type !== 'none') {
-      return promptForm.media_type;
-    }
-    
-    if (promptForm.selectedMedia && promptForm.selectedMedia !== 'none') {
-      return promptForm.selectedMedia;
-    }
-    
-    // 2. Inferir baseado nos campos de URL (fallback)
-    if (promptForm.youtube_url?.trim()) {
-      return 'youtube';
-    }
-    
-    if (promptForm.video_url?.trim() || promptForm.videoFile) {
-      return 'video';
-    }
-    
-    if (promptForm.image_url?.trim() || promptForm.imageFile) {
-      return 'image';
-    }
-    
-    return 'none';
-  })();
-
-  // 🔍 DEBUG - Logs detalhados ao abrir o modal
-  useEffect(() => {
-    if (isOpen) {
-      console.log('🔍 DEBUG PromptModal ABERTO:', {
-        editingPrompt: !!editingPrompt,
-        isEditMode,
-        currentMediaType,
-        'promptForm.media_type': promptForm.media_type,
-        'promptForm.selectedMedia': promptForm.selectedMedia,
-        'promptForm.image_url': promptForm.image_url?.substring(0, 50),
-        'promptForm.video_url': promptForm.video_url?.substring(0, 50),
-        'promptForm.youtube_url': promptForm.youtube_url?.substring(0, 50),
-        'promptForm.videoFile': !!promptForm.videoFile,
-        'promptForm.imageFile': !!promptForm.imageFile,
-      });
-    }
-  }, [isOpen, editingPrompt, isEditMode, currentMediaType, promptForm]);
 
   return (
     <>
@@ -727,7 +769,7 @@ export default function PromptModal({
                         className="w-full bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold py-6 text-lg shadow-lg hover:shadow-xl transition-all"
                       >
                         <Layers className="w-6 h-6 mr-3" />
-                        📎 Adicionar Capa
+                        🔎 Adicionar Capa
                       </Button>
                       
                       <p className="text-xs text-center text-gray-500 dark:text-gray-400">
@@ -758,25 +800,34 @@ export default function PromptModal({
                   {/* ✅ REGRA 3: Edição COM mídia → Interface de edição (SEM modal seletor) */}
                   {currentMediaType !== 'none' && (
                     <div className="space-y-4">
-                      {/* Info do tipo atual */}
-                      <div className="bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-800 rounded-xl p-4">
-                        <p className="text-sm text-purple-900 dark:text-purple-300 font-semibold mb-2">
-                          📸 Tipo de capa atual: {
-                            currentMediaType === 'image' ? '🖼️ Imagem' :
-                            currentMediaType === 'video' ? '🎥 Vídeo MP4' :
-                            '📺 YouTube'
-                          }
-                        </p>
-                        {editingPrompt && (
-                          <p className="text-xs text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 rounded-lg p-2">
-                            ✏️ <strong>Regra de edição:</strong> Você pode trocar a {
-                              currentMediaType === 'image' ? 'imagem por outra imagem' :
-                              currentMediaType === 'video' ? 'vídeo por outro vídeo' :
-                              'URL do YouTube'
-                            }, mas não pode mudar o tipo de mídia (ex: de vídeo para imagem). Para mudar o tipo, remova a capa e adicione uma nova.
-                          </p>
-                        )}
-                      </div>
+                      {/* ✅ ALERTA: Tipo de mídia é IMUTÁVEL */}
+                      {editingPrompt && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-xl p-4">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div className="space-y-2">
+                              <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                                🔒 Tipo de Mídia Fixo
+                              </p>
+                              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                                <strong>Tipo atual:</strong> {
+                                  currentMediaType === 'image' ? '🖼️ Imagem' :
+                                  currentMediaType === 'video' ? '🎥 Vídeo MP4' :
+                                  '📺 YouTube'
+                                }
+                              </p>
+                              <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 rounded-lg p-2 leading-relaxed">
+                                ✏️ Você pode <strong>trocar</strong> a {
+                                  currentMediaType === 'image' ? 'imagem por outra imagem' :
+                                  currentMediaType === 'video' ? 'vídeo por outro vídeo' :
+                                  'URL do YouTube'
+                                }, mas <strong>não pode mudar o tipo de mídia</strong> (ex: de vídeo para imagem).<br/><br/>
+                                💡 Para mudar o tipo, primeiro <strong>remova a capa</strong> e depois adicione uma nova com o tipo desejado.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Preview de Imagem */}
                       {currentMediaType === "image" && (
@@ -973,7 +1024,7 @@ export default function PromptModal({
                         <SelectItem value="nanobanana">🌙 Nano Banana</SelectItem>
                         <SelectItem value="gemini">✨ Gemini</SelectItem>
                         <SelectItem value="veo3">🎥 VEO3</SelectItem>
-                        <SelectItem value="manus">📝 Manus</SelectItem>
+                        <SelectItem value="manus">🔒 Manus</SelectItem>
                         <SelectItem value="claude">🧠 Claude</SelectItem>
                       </SelectContent>
                     </Select>
