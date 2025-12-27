@@ -1,6 +1,6 @@
 // ==========================================
 // src/components/PromptModal.jsx
-// ✅ VERSÃO FINAL - Opção B (Tipo Fixo) 100%
+// ✅ VERSÃO FINAL CORRIGIDA - Permite trocar tipo após remover capa
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -315,9 +315,20 @@ export default function PromptModal({
 
   // ✅ Handler de seleção de tipo do modal
   const handleMediaTypeSelect = (type) => {
-    // ✅ VALIDAÇÃO: Não permitir mudança de tipo durante edição
-    if (editingPrompt && originalMediaType !== 'none') {
-      toast.error('❌ Não é possível mudar o tipo de mídia durante edição!');
+    console.log('🎯 handleMediaTypeSelect chamado:', { 
+      type, 
+      originalMediaType, 
+      editingPrompt: !!editingPrompt 
+    });
+
+    // ✅ CORREÇÃO: Se originalMediaType é 'none', PERMITIR qualquer tipo
+    if (editingPrompt && originalMediaType !== 'none' && type !== originalMediaType) {
+      toast.error(
+        `❌ Não é possível mudar o tipo de mídia!\n\n` +
+        `Tipo original: ${originalMediaType}\n` +
+        `Tipo selecionado: ${type}\n\n` +
+        `Remova a capa primeiro para adicionar outro tipo.`
+      );
       console.warn('🚫 Tentativa bloqueada de trocar tipo:', {
         de: originalMediaType,
         para: type
@@ -330,6 +341,13 @@ export default function PromptModal({
       selectedMedia: type,
       media_type: type 
     }));
+    
+    // ✅ CORREÇÃO: Atualizar originalMediaType quando adiciona nova mídia após remover
+    if (originalMediaType === 'none') {
+      console.log('✅ Atualizando originalMediaType de none para:', type);
+      setOriginalMediaType(type);
+    }
+    
     setShowMediaSelector(false);
     
     // Disparar inputs automaticamente
@@ -406,6 +424,12 @@ export default function PromptModal({
 
   // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
   const handleSaveWithThumbnail = async () => {
+    console.log('💾 handleSaveWithThumbnail chamado:', {
+      currentMediaType,
+      originalMediaType,
+      editingPrompt: !!editingPrompt
+    });
+
     // ✅ VALIDAÇÃO: Garantir que tipo não mudou durante edição
     if (editingPrompt && originalMediaType !== 'none') {
       if (currentMediaType !== originalMediaType) {
@@ -438,9 +462,11 @@ export default function PromptModal({
     await savePrompt(updatedForm);
   };
 
-  // ✅ Handler para remover capa completamente
+  // ✅ CORREÇÃO CRÍTICA: Handler para remover capa completamente
   const handleRemoveCover = () => {
     if (confirm('Tem certeza que deseja remover a capa deste prompt?')) {
+      console.log('🗑️ Removendo capa. originalMediaType atual:', originalMediaType);
+      
       setPromptForm((prev) => ({
         ...prev,
         selectedMedia: 'none',
@@ -452,7 +478,12 @@ export default function PromptModal({
         imageFile: null,
       }));
       setThumbnailBlob(null);
-      toast.success('🗑️ Capa removida! Salve o prompt para confirmar.');
+      
+      // ✅ CORREÇÃO: Resetar originalMediaType para 'none'
+      setOriginalMediaType('none');
+      console.log('✅ originalMediaType resetado para: none');
+      
+      toast.success('🗑️ Capa removida! Agora você pode adicionar qualquer tipo de mídia.');
     }
   };
 
@@ -800,8 +831,8 @@ export default function PromptModal({
                   {/* ✅ REGRA 3: Edição COM mídia → Interface de edição (SEM modal seletor) */}
                   {currentMediaType !== 'none' && (
                     <div className="space-y-4">
-                      {/* ✅ ALERTA: Tipo de mídia é IMUTÁVEL */}
-                      {editingPrompt && (
+                      {/* ✅ ALERTA: Tipo de mídia é IMUTÁVEL (só mostra se tem originalMediaType diferente de none) */}
+                      {editingPrompt && originalMediaType !== 'none' && (
                         <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-xl p-4">
                           <div className="flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
