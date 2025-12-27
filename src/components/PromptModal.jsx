@@ -905,30 +905,30 @@ export default function PromptModal({
                         <Button
                           type="button"
                           onClick={() => handleMediaTypeSelect('image')}
-                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 text-base shadow-md hover:shadow-lg transition-all"
+                          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-4 md:py-8 text-base shadow-md hover:shadow-lg transition-all flex flex-row md:flex-col items-center justify-center gap-2 md:aspect-square"
                         >
-                          <ImageIcon className="w-5 h-5 mr-2" />
-                          🖼️ Adicionar Imagem
+                          <ImageIcon className="w-5 h-5 md:w-8 md:h-8" />
+                          <span>🖼️ Adicionar Imagem</span>
                         </Button>
 
                         {/* Botão Vídeo */}
                         <Button
                           type="button"
                           onClick={() => handleMediaTypeSelect('video')}
-                          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-4 text-base shadow-md hover:shadow-lg transition-all"
+                          className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-4 md:py-8 text-base shadow-md hover:shadow-lg transition-all flex flex-row md:flex-col items-center justify-center gap-2 md:aspect-square"
                         >
-                          <Video className="w-5 h-5 mr-2" />
-                          🎥 Adicionar Vídeo MP4
+                          <Video className="w-5 h-5 md:w-8 md:h-8" />
+                          <span>🎥 Adicionar Vídeo MP4</span>
                         </Button>
 
                         {/* Botão YouTube */}
                         <Button
                           type="button"
                           onClick={() => handleMediaTypeSelect('youtube')}
-                          className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold py-4 text-base shadow-md hover:shadow-lg transition-all"
+                          className="w-full bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-semibold py-4 md:py-8 text-base shadow-md hover:shadow-lg transition-all flex flex-row md:flex-col items-center justify-center gap-2 md:aspect-square"
                         >
-                          <Youtube className="w-5 h-5 mr-2" />
-                          📺 Adicionar YouTube
+                          <Youtube className="w-5 h-5 md:w-8 md:h-8" />
+                          <span>📺 Adicionar YouTube</span>
                         </Button>
                       </div>
 
