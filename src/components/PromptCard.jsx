@@ -593,21 +593,30 @@ const PromptCard = React.memo(({
               {prompt.description || prompt.content}
             </p>
 
-            {/* Tags */}
-            {tagsArray.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {tagsArray.slice(0, 3).map((tag, idx) => (
-                  <Badge key={idx} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
-                {tagsArray.length > 3 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{tagsArray.length - 3}
-                  </Badge>
-                )}
-              </div>
-            )}
+           {/* Tags */}
+{tagsArray.length > 0 && (
+  <div className="flex flex-wrap gap-1.5 mb-3">
+    {tagsArray.slice(0, 3).map((tag, idx) => (
+      <Badge 
+        key={idx} 
+        variant="secondary" 
+        className="text-xs"
+        title={tag}
+      >
+        {tag}
+      </Badge>
+    ))}
+    {tagsArray.length > 3 && (
+      <Badge 
+        variant="outline" 
+        className="text-xs cursor-help"
+        title={tagsArray.slice(3).join(', ')}
+      >
+        +{tagsArray.length - 3}
+      </Badge>
+    )}
+  </div>
+)}
           </div>
 
           {/* BOTÕES DE AÇÃO */}
