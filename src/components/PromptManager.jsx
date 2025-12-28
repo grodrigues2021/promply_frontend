@@ -822,8 +822,7 @@ export default function PromptManager({
       })
     : [];
 
-  // ✅ ATUALIZADO: Adicionar media_type e thumbnailBlob ao FormData
-  const savePrompt = async (updatedFormFromModal) => {
+ const savePrompt = async (updatedFormFromModal) => {
     if (isSaving) return;
 
     if (!validateForm()) {
@@ -832,6 +831,9 @@ export default function PromptManager({
     }
 
     setIsSaving(true);
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadStage('Preparando...');
 
     try {
       // ✅ USAR DADOS DO MODAL SE FORNECIDOS
@@ -839,6 +841,10 @@ export default function PromptManager({
       
       if (isEditMode && editingPrompt?.id) {
         const promptId = editingPrompt.id;
+
+        // 📊 Etapa 1: Atualizando texto (0-30%)
+        setUploadStage('Atualizando prompt...');
+        setUploadProgress(10);
 
         const payload = {
           title: formToSave.title,
@@ -859,6 +865,8 @@ export default function PromptManager({
           data: payload,
         });
 
+        setUploadProgress(30);
+
         const mediaForm = new FormData();
         let hasMedia = false;
 
@@ -871,7 +879,6 @@ export default function PromptManager({
           mediaForm.append("video", formToSave.videoFile);
           hasMedia = true;
 
-          // ✅ ADICIONAR THUMBNAIL DO MODAL
           if (formToSave.thumbnailBlob instanceof Blob) {
             mediaForm.append("thumbnail", formToSave.thumbnailBlob, 'thumbnail.jpg');
           } else if (formToSave.imageFile instanceof File) {
@@ -889,6 +896,8 @@ export default function PromptManager({
         if (hasMedia) {
           try {
             startMediaUpload();
+            setUploadStage('Enviando mídia...');
+            setUploadProgress(40);
 
             const mediaResponse = await api.post(
               `/prompts/${promptId}/media`,
@@ -896,8 +905,16 @@ export default function PromptManager({
               {
                 headers: { "Content-Type": "multipart/form-data" },
                 timeout: 180000,
+                onUploadProgress: (progressEvent) => {
+                  const percentCompleted = Math.round(
+                    (progressEvent.loaded * 50) / progressEvent.total + 40
+                  );
+                  setUploadProgress(Math.min(percentCompleted, 90));
+                },
               }
             );
+
+            setUploadProgress(95);
 
             if (mediaResponse.data?.data) {
               queryClient.setQueryData(["prompts"], (old) => {
@@ -919,9 +936,18 @@ export default function PromptManager({
           }
         }
 
+        setUploadStage('Finalizando...');
+        setUploadProgress(100);
+
         toast.success("✅ Prompt atualizado com sucesso!");
-        resetPromptForm();
-        setIsPromptDialogOpen(false);
+        
+        setTimeout(() => {
+          resetPromptForm();
+          setIsPromptDialogOpen(false);
+          setIsUploading(false);
+          setUploadProgress(0);
+          setUploadStage('');
+        }, 500);
 
         queryClient.invalidateQueries(["stats"]);
         queryClient.invalidateQueries(["categories"]);
@@ -929,6 +955,7 @@ export default function PromptManager({
         return;
       }
 
+      // 📊 Criação de novo prompt
       const tempId = `temp-${Date.now()}`;
 
       const clientId =
@@ -948,7 +975,6 @@ export default function PromptManager({
         if (ytThumb) thumbUrl = ytThumb;
       }
 
-      // ✅ INCLUIR MEDIA_TYPE NO OPTIMISTIC
       const optimisticPrompt = {
         id: tempId,
         _tempId: tempId,
@@ -968,7 +994,7 @@ export default function PromptManager({
             ? parseInt(formToSave.category_id)
             : null,
 
-        media_type: formToSave.media_type || "none", // ✅ INCLUIR
+        media_type: formToSave.media_type || "none",
 
         image_url: imageBlobUrl || "",
         video_url: videoBlobUrl || "",
@@ -981,7 +1007,10 @@ export default function PromptManager({
 
       let realPrompt;
 
-      // ✅ INCLUIR MEDIA_TYPE NO PAYLOAD
+      // 📊 Etapa 1: Criando prompt básico (0-30%)
+      setUploadStage('Criando prompt...');
+      setUploadProgress(10);
+
       const basePayload = {
         title: formToSave.title,
         content: formToSave.content,
@@ -989,7 +1018,7 @@ export default function PromptManager({
         tags: formToSave.tags || "",
         platform: formToSave.platform || "chatgpt",
         is_favorite: formToSave.is_favorite || false,
-        media_type: formToSave.media_type || "none", // ✅ ENVIAR
+        media_type: formToSave.media_type || "none",
         category_id:
           formToSave.category_id !== "none"
             ? parseInt(formToSave.category_id)
@@ -1011,6 +1040,8 @@ export default function PromptManager({
         });
       }
 
+      setUploadProgress(30);
+
       if (!realPrompt?.id) {
         throw new Error("Backend não retornou o prompt criado");
       }
@@ -1026,21 +1057,38 @@ export default function PromptManager({
         formToSave.videoFile instanceof File &&
         !formToSave.youtube_url;
 
-      // ✅ CÓDIGO CORRIGIDO:
       const needsMediaUpload = 
-      hasImage || hasVideo || extraFiles.length > 0;
+        hasImage || hasVideo || extraFiles.length > 0;
 
       const imageFileToUpload = formToSave.imageFile;
       const videoFileToUpload = formToSave.videoFile;
-      const thumbnailBlobToUpload = formToSave.thumbnailBlob; // ✅ CAPTURAR
+      const thumbnailBlobToUpload = formToSave.thumbnailBlob;
       const extraFilesToUpload = [...extraFiles];
 
       console.log("🗑️ Limpando rascunho após salvamento");
       localStorage.removeItem("prompt-draft");
       
       toast.success("✅ Prompt criado com sucesso!");
-      resetPromptForm();
-      setIsPromptDialogOpen(false);
+
+      setUploadStage('Finalizando...');
+      setUploadProgress(needsMediaUpload ? 35 : 100);
+
+      if (!needsMediaUpload) {
+        setTimeout(() => {
+          resetPromptForm();
+          setIsPromptDialogOpen(false);
+          setIsUploading(false);
+          setUploadProgress(0);
+          setUploadStage('');
+        }, 500);
+      } else {
+        // Modal fecha mas upload continua em background
+        resetPromptForm();
+        setIsPromptDialogOpen(false);
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadStage('');
+      }
 
       queryClient.invalidateQueries(["stats"]);
       queryClient.invalidateQueries(["categories"]);
@@ -1055,7 +1103,6 @@ export default function PromptManager({
         if (hasVideo && videoFileToUpload) {
           mediaForm.append("video", videoFileToUpload);
           
-          // ✅ PRIORIZAR THUMBNAIL DO MODAL
           if (thumbnailBlobToUpload instanceof Blob) {
             mediaForm.append("thumbnail", thumbnailBlobToUpload, 'thumbnail.jpg');
           } else if (imageFileToUpload instanceof File) {
@@ -1071,6 +1118,7 @@ export default function PromptManager({
 
         startMediaUpload();
 
+        // Upload em background após fechar modal
         api
           .post(`/prompts/${promptId}/media`, mediaForm, {
             headers: { "Content-Type": "multipart/form-data" },
@@ -1120,6 +1168,9 @@ export default function PromptManager({
     } catch (error) {
       console.error("❌ Erro ao salvar prompt:", error);
       toast.error(error.message || "Erro ao salvar prompt");
+      setIsUploading(false);
+      setUploadProgress(0);
+      setUploadStage('');
     } finally {
       setIsSaving(false);
     }

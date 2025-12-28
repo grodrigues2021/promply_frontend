@@ -495,9 +495,12 @@ const PromptCard = React.memo(({
                     {authorInitials}
                   </div>
 
-                  <h3 className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0">
-                    {prompt.title}
-                  </h3>
+              <h3 
+                className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0"
+                title={prompt.title}
+              >
+                {prompt.title}
+              </h3>
 
                   {onToggleFavorite && (
                     <Button
@@ -521,9 +524,12 @@ const PromptCard = React.memo(({
             ) : (
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis line-clamp-1">
-                    {prompt.title}
-                  </h3>
+                  <h3 
+                className="text-lg font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis line-clamp-1"
+                title={prompt.title}
+              >
+                {prompt.title}
+              </h3>
                   
                   <div className="flex items-center justify-between mt-1 w-full">
                     {/* TAG DE CATEGORIA */}
