@@ -409,7 +409,7 @@ const [uploadStage, setUploadStage] = useState('');
 
     const cleanup = () => {
       clearTimeout(thumbnailTimeout);
-      URL.revokeObjectURL(videoURL);
+      
       video.remove();
       setUploadingImage(false);
     };
