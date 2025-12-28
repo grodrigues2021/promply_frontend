@@ -170,6 +170,11 @@ export default function PromptManager({
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
+// ✅ Estados para controle de upload de mídia
+const [isUploading, setIsUploading] = useState(false);
+const [uploadProgress, setUploadProgress] = useState(0);
+const [uploadStage, setUploadStage] = useState('');
+
   const [extraFiles, setExtraFiles] = useState([]);
   const [attachments, setAttachments] = useState([]);
   const extraFilesInputRef = useRef(null);
