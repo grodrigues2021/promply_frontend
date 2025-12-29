@@ -30,6 +30,12 @@ import { BookText } from "lucide-react";
 import TemplateModal from "@/components/templates/TemplateModal";
 import { useNavigate } from 'react-router-dom';
 import thumbnailCache from '@/lib/thumbnailCache';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 
 // ✅ Expor cache globalmente para acesso no useEffect
 if (typeof window !== 'undefined') {
@@ -1025,59 +1031,105 @@ export default function TemplatesPage({ onBack }) {
                 Todos
               </button>
 
-              {categories.map((cat) => (
-                <div
-                  key={cat.id}
-                  className={`group flex items-center justify-between p-2 rounded-lg transition ${
-                    selectedCategory === cat.name
-                      ? "bg-indigo-100 text-indigo-600 font-semibold"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
-                  <button
-                    onClick={() => {
-                      setSelectedCategory(cat.name);
-                      setIsMobileSidebarOpen(false);
-                    }}
-                    className="flex items-center gap-2 flex-1 text-left"
-                  >
-                    <span
-                      className="w-3 h-3 rounded-full border border-gray-300"
-                      style={{ backgroundColor: cat.color || "#6366f1" }}
-                    />
-                    <span className="truncate">{cat.name}</span>
-                  </button>
+              {categories.map((cat) => {
+  // ✅ Lógica de truncamento
+  const categoryName = cat.name;
+  const maxLength = 18;
+  const shouldTruncate = categoryName.length > maxLength;
+  const displayName = shouldTruncate 
+    ? `${categoryName.substring(0, maxLength)}...` 
+    : categoryName;
 
-                  {user?.is_admin && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => {
-                          setEditingCategory(cat);
-                          setCategoryForm({
-                            name: cat.name,
-                            description: cat.description || "",
-                            color: cat.color || "#6366f1",
-                          });
-                          setIsCategoryDialogOpen(true);
-                        }}
-                        className="p-1 text-gray-500 hover:text-indigo-600"
-                        title="Editar categoria"
-                        aria-label={`Editar categoria ${cat.name}`}
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => deleteCategory(cat)}
-                        className="p-1 text-gray-500 hover:text-red-600"
-                        title="Excluir categoria"
-                        aria-label={`Excluir categoria ${cat.name}`}
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+  return (
+    <div
+      key={cat.id}
+      className={`group flex items-center justify-between p-2 rounded-lg transition ${
+        selectedCategory === cat.name
+          ? "bg-indigo-100 text-indigo-600 font-semibold"
+          : "hover:bg-gray-100"
+      }`}
+    >
+      {/* ✅ Botão com tooltip condicional */}
+      {shouldTruncate ? (
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => {
+                  setSelectedCategory(cat.name);
+                  setIsMobileSidebarOpen(false);
+                }}
+                className="flex items-center gap-2 flex-1 text-left min-w-0"
+              >
+                <span
+                  className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                  style={{ backgroundColor: cat.color || "#6366f1" }}
+                />
+                <span className="truncate">{displayName}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="right"
+              className="bg-gray-900 text-white text-sm px-3 py-2 rounded shadow-xl z-50"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: cat.color || "#6366f1" }}
+                />
+                <span>{categoryName}</span>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <button
+          onClick={() => {
+            setSelectedCategory(cat.name);
+            setIsMobileSidebarOpen(false);
+          }}
+          className="flex items-center gap-2 flex-1 text-left min-w-0"
+        >
+          <span
+            className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+            style={{ backgroundColor: cat.color || "#6366f1" }}
+          />
+          <span className="truncate">{displayName}</span>
+        </button>
+      )}
+
+      {user?.is_admin && (
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => {
+              setEditingCategory(cat);
+              setCategoryForm({
+                name: cat.name,
+                description: cat.description || "",
+                color: cat.color || "#6366f1",
+              });
+              setIsCategoryDialogOpen(true);
+            }}
+            className="p-1 text-gray-500 hover:text-indigo-600"
+            title="Editar categoria"
+            aria-label={`Editar categoria ${cat.name}`}
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => deleteCategory(cat)}
+            className="p-1 text-gray-500 hover:text-red-600"
+            title="Excluir categoria"
+            aria-label={`Excluir categoria ${cat.name}`}
+          >
+            🗑️
+          </button>
+        </div>
+      )}
+    </div>
+  );
+})}
+
             </div>
           </aside>
 
