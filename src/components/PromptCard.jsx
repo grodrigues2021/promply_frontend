@@ -22,6 +22,7 @@ import { Badge } from "./ui/badge";
 import api from "../lib/api";
 import { resolveMediaUrl, resolveMediaUrlWithCache } from "../lib/media";
 import PromplyDefaultSvg from "@/media/placeholders/promply-default.svg";
+import { CategoryBadge } from '@/components/CategoryBadge';
 
 const cardVariants = cva(
   "group relative bg-white rounded-2xl overflow-hidden transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.08)] border-[2px] border-transparent hover:border-indigo-500",
@@ -536,17 +537,12 @@ const PromptCard = React.memo(({
                     {prompt.category && (
                       <div className="flex items-center gap-1.5">
                         <TagIcon className="w-3.5 h-3.5 text-gray-400" />
-                        <Badge
+                        <CategoryBadge
+                          name={prompt.category.name}
+                          color={prompt.category.color}
+                          maxLength={20}
                           variant="secondary"
-                          className="text-xs font-medium"
-                          style={{
-                            backgroundColor: prompt.category.color ? `${prompt.category.color}15` : '#e0e7ff',
-                            color: prompt.category.color || '#4f46e5',
-                            borderColor: prompt.category.color ? `${prompt.category.color}30` : '#c7d2fe',
-                          }}
-                        >
-                          {prompt.category.name}
-                        </Badge>
+                        />
                       </div>
                     )}
 

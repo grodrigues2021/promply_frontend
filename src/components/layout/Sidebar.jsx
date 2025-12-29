@@ -1,5 +1,6 @@
 // src/components/layout/Sidebar.jsx
 import React, { useEffect, useState, useMemo } from "react";
+import { CategorySidebarItem } from '@/components/CategoryBadge';
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import {
@@ -223,7 +224,7 @@ export default function Sidebar({
                   e.preventDefault();
                   e.stopPropagation();
                   resetCategoryForm();
-                  setIsCategoryDialogOpen(true);  // ✅ USA A MESMA FUNÇÃO PARA DESKTOP E MOBILE
+                  setIsCategoryDialogOpen(true);
                   setIsMobileSidebarOpen(false);
                 }}
                 className="text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 px-2 py-1 rounded-md text-xs flex items-center gap-1"
@@ -276,26 +277,19 @@ export default function Sidebar({
                     }
                   `}
                 >
-                  {/* Clique para selecionar categoria */}
+                  {/* ✅ ALTERAÇÃO: Usar CategorySidebarItem */}
                   <div
-                    className="flex items-center gap-2 flex-1 min-w-0"
                     onClick={() => {
                       setSelectedCategory(category.id);
                       setIsMobileSidebarOpen(false);
                     }}
                   >
-                    {/* bolinha colorida */}
-                    <span
-                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: category.color || "#3B82F6",
-                      }}
-                    ></span>
-
-                    {/* nome + contador */}
-                    <span className="truncate text-sm">
-                      {category.name} ({category.prompt_count})
-                    </span>
+                    <CategorySidebarItem
+                      name={category.name}
+                      color={category.color}
+                      promptCount={category.prompt_count}
+                      maxLength={20}
+                    />
                   </div>
 
                   {/* Ações (EDITAR / APAGAR) */}
