@@ -4,6 +4,7 @@
 // ✅ originalMediaType capturado DIRETAMENTE de editingPrompt
 // ✅ Remoção de capa 100% funcional
 // ✅ Grid responsivo: Empilhado mobile, lado a lado desktop
+// ✅ Logs de debug removidos - Produção ready
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -205,7 +206,6 @@ const safeCreateObjectURL = (file) => {
     if (file instanceof File || file instanceof Blob) {
       return URL.createObjectURL(file);
     }
-    console.warn("⚠️ safeCreateObjectURL: não é File/Blob válido");
     return "";
   } catch (error) {
     console.error("❌ Erro ao criar objectURL:", error);
@@ -241,20 +241,16 @@ export default function PromptModal({
 }) {
   const apiBaseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || '';
 
-  // ✅ Estados para thumbnail
   const [thumbnailBlob, setThumbnailBlob] = useState(null);
   
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
 
-  // ✅ Tipo ORIGINAL ao abrir modal (para validação)
   const [originalMediaType, setOriginalMediaType] = useState('none');
 
-  // 🔥 NOVO: Força recalculo quando mídia é removida
   const [forceMediaRefresh, setForceMediaRefresh] = useState(0);
   const [isRemovingCover, setIsRemovingCover] = useState(false);
 
-  // ✅ Reset ao fechar
   useEffect(() => {
     if (!isOpen) {
       setThumbnailBlob(null);
@@ -262,9 +258,7 @@ export default function PromptModal({
     }
   }, [isOpen]);
 
-  // ✅ Determinar tipo atual de mídia com INFERÊNCIA ROBUSTA
   const currentMediaType = (() => {
-    // 1. Primeiro tenta usar o campo explícito
     if (promptForm.media_type && promptForm.media_type !== 'none') {
       return promptForm.media_type;
     }
@@ -273,7 +267,6 @@ export default function PromptModal({
       return promptForm.selectedMedia;
     }
     
-    // 2. Inferir baseado nos campos de URL (fallback)
     if (promptForm.youtube_url?.trim()) {
       return 'youtube';
     }
@@ -289,24 +282,8 @@ export default function PromptModal({
     return 'none';
   })();
 
-  // 🔥 NOVO: Monitora mudanças e força log
-  useEffect(() => {
-    console.log('🔄 currentMediaType mudou para:', currentMediaType, 'forceRefresh:', forceMediaRefresh);
-  }, [currentMediaType, forceMediaRefresh]);
-
-  // 🔥 NOVO: Verifica remoção completa DEPOIS da re-renderização
   useEffect(() => {
     if (isRemovingCover) {
-      console.log('🔍 [VERIFICAÇÃO AUTOMÁTICA] Estado ATUAL:', {
-        currentMediaType,
-        image_url: promptForm.image_url,
-        video_url: promptForm.video_url,
-        youtube_url: promptForm.youtube_url,
-        media_type: promptForm.media_type,
-        selectedMedia: promptForm.selectedMedia,
-      });
-
-      // ✅ Validação extra
       if (promptForm.image_url || promptForm.video_url || promptForm.youtube_url || 
           promptForm.videoFile || promptForm.imageFile) {
         console.error('❌ ERRO: Mídia não foi completamente removida!', {
@@ -316,19 +293,14 @@ export default function PromptModal({
           videoFile: !!promptForm.videoFile,
           imageFile: !!promptForm.imageFile,
         });
-      } else {
-        console.log('✅ SUCESSO: Todos os campos de mídia foram limpos!');
       }
 
-      // Resetar flag
       setIsRemovingCover(false);
     }
   }, [isRemovingCover, currentMediaType, promptForm.image_url, promptForm.video_url, promptForm.youtube_url, promptForm.videoFile, promptForm.imageFile, promptForm.media_type, promptForm.selectedMedia]);
 
-  // ✅ CORREÇÃO BUG-002: Capturar tipo ORIGINAL DIRETAMENTE de editingPrompt
   useEffect(() => {
     if (isOpen && editingPrompt) {
-      // 🎯 PRIORIDADE: Pegar media_type DIRETAMENTE do editingPrompt
       const originalType = 
         editingPrompt.media_type || 
         (editingPrompt.youtube_url ? 'youtube' :
@@ -336,46 +308,12 @@ export default function PromptModal({
          editingPrompt.image_url ? 'image' : 'none');
       
       setOriginalMediaType(originalType);
-      console.log('📌 Tipo original capturado:', originalType, {
-        media_type: editingPrompt.media_type,
-        youtube_url: !!editingPrompt.youtube_url,
-        video_url: !!editingPrompt.video_url,
-        image_url: !!editingPrompt.image_url,
-      });
     } else if (isOpen && !editingPrompt) {
-      // Novo prompt - tipo none
       setOriginalMediaType('none');
     }
-  }, [isOpen, editingPrompt]); // ✅ Remover currentMediaType das dependências
+  }, [isOpen, editingPrompt]);
 
-  // 🔍 DEBUG - Logs detalhados ao abrir o modal
-  useEffect(() => {
-    if (isOpen) {
-      console.log('🔍 DEBUG PromptModal ABERTO:', {
-        editingPrompt: !!editingPrompt,
-        isEditMode,
-        currentMediaType,
-        originalMediaType,
-        'promptForm.media_type': promptForm.media_type,
-        'promptForm.selectedMedia': promptForm.selectedMedia,
-        'promptForm.image_url': promptForm.image_url?.substring(0, 50),
-        'promptForm.video_url': promptForm.video_url?.substring(0, 50),
-        'promptForm.youtube_url': promptForm.youtube_url?.substring(0, 50),
-        'promptForm.videoFile': !!promptForm.videoFile,
-        'promptForm.imageFile': !!promptForm.imageFile,
-      });
-    }
-  }, [isOpen, editingPrompt, isEditMode, currentMediaType, originalMediaType, promptForm]);
-
-  // ✅ Handler de seleção de tipo direto (sem modal)
   const handleMediaTypeSelect = (type) => {
-    console.log('🎯 handleMediaTypeSelect chamado:', { 
-      type, 
-      originalMediaType, 
-      editingPrompt: !!editingPrompt 
-    });
-
-    // ✅ CORREÇÃO: Se originalMediaType é 'none', PERMITIR qualquer tipo
     if (editingPrompt && originalMediaType !== 'none' && type !== originalMediaType) {
       toast.error(
         `❌ Não é possível mudar o tipo de mídia!\n\n` +
@@ -383,10 +321,6 @@ export default function PromptModal({
         `Tipo selecionado: ${type}\n\n` +
         `Remova a capa primeiro para adicionar outro tipo.`
       );
-      console.warn('🚫 Tentativa bloqueada de trocar tipo:', {
-        de: originalMediaType,
-        para: type
-      });
       return;
     }
 
@@ -396,27 +330,21 @@ export default function PromptModal({
       media_type: type 
     }));
     
-    // ✅ CORREÇÃO: Atualizar originalMediaType quando adiciona nova mídia após remover
     if (originalMediaType === 'none') {
-      console.log('✅ Atualizando originalMediaType de none para:', type);
       setOriginalMediaType(type);
     }
     
-    // Disparar inputs automaticamente
     if (type === 'image') {
       setTimeout(() => imageInputRef.current?.click(), 100);
     } else if (type === 'video') {
       setTimeout(() => videoInputRef.current?.click(), 100);
     }
-    // YouTube não precisa disparar input
   };
 
-  // ✅ Upload de vídeo com geração de thumbnail
   const handleVideoUploadWithThumbnail = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Validar tamanho (20MB)
     const MAX_SIZE = 20 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       toast.error('O vídeo deve ter no máximo 20MB');
@@ -424,10 +352,8 @@ export default function PromptModal({
       return;
     }
 
-    // Usar a função original
     handleVideoUpload(e);
 
-    // Gerar thumbnail no frontend
     try {
       const videoUrl = safeCreateObjectURL(file);
       const video = document.createElement('video');
@@ -448,15 +374,8 @@ export default function PromptModal({
 
       const canvas = document.createElement('canvas');
       
-      // ✅ CORREÇÃO: Usar dimensões REAIS do vídeo
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      
-      console.log('📐 Dimensões do vídeo:', {
-        width: video.videoWidth,
-        height: video.videoHeight,
-        aspect: (video.videoWidth / video.videoHeight).toFixed(2)
-      });
       
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -464,8 +383,6 @@ export default function PromptModal({
       canvas.toBlob((blob) => {
         if (blob) {
           setThumbnailBlob(blob);
-          console.log('✅ Thumbnail gerado:', blob.size, 'bytes');
-          console.log('✅ Dimensões corretas:', canvas.width, 'x', canvas.height);
         }
       }, 'image/jpeg', 0.85);
 
@@ -475,15 +392,7 @@ export default function PromptModal({
     }
   };
 
-  // ✅ Wrapper do savePrompt que adiciona thumbnailBlob
   const handleSaveWithThumbnail = async () => {
-    console.log('💾 handleSaveWithThumbnail chamado:', {
-      currentMediaType,
-      originalMediaType,
-      editingPrompt: !!editingPrompt
-    });
-
-    // ✅ VALIDAÇÃO: Garantir que tipo não mudou durante edição
     if (editingPrompt && originalMediaType !== 'none') {
       if (currentMediaType !== originalMediaType) {
         toast.error(
@@ -500,7 +409,6 @@ export default function PromptModal({
       }
     }
 
-    // ✅ Garantir que media_type seja definido baseado no tipo atual
     const finalMediaType = currentMediaType !== 'none' ? currentMediaType : 'none';
     
     const updatedForm = {
@@ -510,95 +418,43 @@ export default function PromptModal({
       thumbnailBlob: thumbnailBlob
     };
     
-    console.log('💾 Salvando com media_type:', finalMediaType);
-    
     await savePrompt(updatedForm);
   };
 
-  // ✅ CORREÇÃO CRÍTICA: Handler para remover capa completamente
   const handleRemoveCover = () => {
-    console.log('🔍 [DIAGNÓSTICO COMPLETO] Estado ANTES da remoção:', {
-      currentMediaType,
-      originalMediaType,
-      // Imagem
-      image_url: promptForm.image_url,
-      imageFile: !!promptForm.imageFile,
-      // Vídeo
-      video_url: promptForm.video_url,
-      videoFile: !!promptForm.videoFile,
-      // YouTube
-      youtube_url: promptForm.youtube_url,
-      // Tipo
-      media_type: promptForm.media_type,
-      selectedMedia: promptForm.selectedMedia,
-    });
-
     if (confirm('Tem certeza que deseja remover a capa deste prompt?')) {
-      console.log('🗑️ Iniciando remoção da capa...');
-      
-      // ✅ PASSO 1: Limpar estado do form de forma EXPLÍCITA
       setPromptForm((prev) => {
-        console.log('🔍 Limpando estado:', {
-          tipoAtual: currentMediaType,
-          tinha_imagem: !!prev.image_url || !!prev.imageFile,
-          tinha_video: !!prev.video_url || !!prev.videoFile,
-          tinha_youtube: !!prev.youtube_url,
-        });
-        
         const newState = {
           ...prev,
-          // ✅ Resetar TIPO
           selectedMedia: 'none',
           media_type: 'none',
           
-          // ✅ Limpar TODOS os tipos de mídia
           image_url: '',
           video_url: '',
           youtube_url: '',
           
-          // ✅ Limpar ARQUIVOS
           videoFile: null,
           imageFile: null,
         };
         
-        console.log('✅ Estado limpo:', {
-          image_url: newState.image_url,
-          video_url: newState.video_url,
-          youtube_url: newState.youtube_url,
-          videoFile: newState.videoFile,
-          imageFile: newState.imageFile,
-          media_type: newState.media_type,
-          selectedMedia: newState.selectedMedia,
-        });
-        
         return newState;
       });
       
-      // ✅ PASSO 2: Limpar thumbnail
       setThumbnailBlob(null);
-      console.log('✅ Thumbnail limpo');
       
-      // ✅ PASSO 3: Resetar tipo original
       const oldType = originalMediaType;
       setOriginalMediaType('none');
-      console.log(`✅ originalMediaType: "${oldType}" → "none"`);
       
-      // 🔥 PASSO 4: Forçar re-render (garante atualização da UI)
       setForceMediaRefresh(prev => prev + 1);
-      console.log('🔄 Forçando re-render da UI');
       
-      // 🔥 PASSO 5: Ativar verificação DEPOIS da re-renderização
       setIsRemovingCover(true);
       
-      // ✅ Mensagem de sucesso
       const tipoRemovido = 
         currentMediaType === 'image' ? 'Imagem' :
         currentMediaType === 'video' ? 'Vídeo MP4' :
         currentMediaType === 'youtube' ? 'YouTube' : 'Mídia';
       
       toast.success(`🗑️ ${tipoRemovido} removida! Agora você pode adicionar qualquer tipo de mídia.`);
-    } else {
-      console.log('❌ Remoção cancelada pelo usuário');
     }
   };
 
@@ -610,7 +466,6 @@ export default function PromptModal({
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="modal-glass-container max-w-7xl w-full p-0">
           
-          {/* ✨ BOTÃO DE FECHAR */}
           <button
             onClick={() => {
               resetPromptForm();
@@ -623,7 +478,6 @@ export default function PromptModal({
             <X className="w-6 h-6 text-white" strokeWidth={3} />
           </button>
 
-          {/* ✨ HEADER FIXO */}
           <div className="glass-header">
             <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 p-6 overflow-hidden">
               <div className="absolute inset-0 opacity-30" style={{
@@ -643,11 +497,9 @@ export default function PromptModal({
             </div>
           </div>
 
-          {/* ✨ CONTEÚDO SCROLLÁVEL */}
           <div className="glass-content-wrapper custom-scrollbar">
             <div className="glass-content-bg p-8 space-y-6">
 
-              {/* ========== TOPO - INFORMAÇÕES BÁSICAS ========== */}
               <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-blue-500">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -747,10 +599,8 @@ export default function PromptModal({
                 </div>
               </section>
 
-              {/* ========== MEIO - GRID 2 COLUNAS ========== */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                {/* COLUNA ESQUERDA - ARQUIVOS EXTRAS */}
                 <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-purple-500 h-fit">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
@@ -811,7 +661,6 @@ export default function PromptModal({
                                     const currentPromptId = editingPrompt?.id || promptForm?.id;
                                     
                                     if (!currentPromptId) {
-                                      console.error("❌ Não foi possível determinar o ID do prompt");
                                       toast.error("Erro: Não foi possível identificar o prompt. Por favor, feche e reabra o modal de edição.");
                                       return;
                                     }
@@ -895,7 +744,6 @@ export default function PromptModal({
                   </div>
                 </section>
 
-                {/* COLUNA DIREITA - MÍDIA */}
                 <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-green-500 h-fit">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
@@ -906,7 +754,6 @@ export default function PromptModal({
                     </h3>
                   </div>
 
-                  {/* ✅ REGRA 1 e 2: Criação OU Edição SEM mídia → Mostra 3 botões diretos */}
                   {currentMediaType === 'none' && (
                     <div className="space-y-4">
                       <p className="text-sm text-center text-slate-600 dark:text-slate-400 font-medium">
@@ -915,9 +762,7 @@ export default function PromptModal({
                           : "Opcional: Escolha o tipo de capa para o card"}
                       </p>
                       
-                      {/* Grid de 3 botões - Responsivo: Empilhado no mobile, quadrados no desktop */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {/* Botão Imagem */}
                         <Button
                           type="button"
                           onClick={() => handleMediaTypeSelect('image')}
@@ -927,7 +772,6 @@ export default function PromptModal({
                           <span>Adicionar Imagem</span>
                         </Button>
 
-                        {/* Botão Vídeo */}
                         <Button
                           type="button"
                           onClick={() => handleMediaTypeSelect('video')}
@@ -937,7 +781,6 @@ export default function PromptModal({
                           <span>Adicionar Vídeo MP4</span>
                         </Button>
 
-                        {/* Botão YouTube */}
                         <Button
                           type="button"
                           onClick={() => handleMediaTypeSelect('youtube')}
@@ -954,7 +797,6 @@ export default function PromptModal({
                     </div>
                   )}
 
-                  {/* Inputs ocultos */}
                   <input
                     ref={imageInputRef}
                     type="file"
@@ -971,10 +813,8 @@ export default function PromptModal({
                     className="hidden"
                   />
 
-                  {/* ✅ REGRA 3: Edição COM mídia → Interface de edição (SEM modal seletor) */}
                   {currentMediaType !== 'none' && (
                     <div className="space-y-4">
-                      {/* ✅ ALERTA: Tipo de mídia é IMUTÁVEL (só mostra se tem originalMediaType diferente de none) */}
                       {editingPrompt && originalMediaType !== 'none' && (
                         <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-xl p-4">
                           <div className="flex items-start gap-3">
@@ -1003,7 +843,6 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      {/* Preview de Imagem */}
                       {currentMediaType === "image" && (
                         <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
                           {promptForm.image_url ? (
@@ -1040,7 +879,6 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      {/* Preview de Vídeo */}
                       {currentMediaType === "video" && (
                         <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
                           {promptForm.videoFile ? (
@@ -1108,7 +946,6 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      {/* Preview de YouTube */}
                       {currentMediaType === "youtube" && (
                         <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
                           <Input
@@ -1133,7 +970,6 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      {/* ✅ Botão "Remover Capa" */}
                       <Button
                         type="button"
                         variant="destructive"
@@ -1148,7 +984,6 @@ export default function PromptModal({
                 </section>
               </div>
 
-              {/* ========== BAIXO - DETALHES DO PROMPT ========== */}
               <section className="glass-section rounded-2xl shadow-lg p-6 space-y-5 border-t-4 border-yellow-500">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
@@ -1203,12 +1038,9 @@ export default function PromptModal({
                       </SelectContent>
                     </Select>
                   </div>
-
-               
                 </div>
               </section>
 
-              {/* BOTÕES DE AÇÃO - FIXOS */}
               <div className="flex justify-end gap-3 pt-6 sticky bottom-0 glass-content-bg pb-2 -mb-8 -mx-8 px-8">
                 <Button
                   type="button"
