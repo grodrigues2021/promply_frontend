@@ -4,7 +4,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Badge } from '@/components/ui/badge';
 
 /**
- * Badge de categoria com truncamento automático e tooltip
+ * Badge de categoria com truncamento automático e tooltip CONDICIONAL
+ * 
+ * ✅ Tooltip SÓ aparece se o nome for truncado (> maxLength)
+ * ✅ Tooltip com fundo preto, sombra forte e bolinha colorida
  * 
  * @param {string} name - Nome da categoria
  * @param {string} color - Cor hexadecimal da categoria
@@ -41,7 +44,7 @@ export function CategoryBadge({
   const badgeContent = (
     <Badge
       variant={variant}
-      className={`text-xs font-medium cursor-help ${className}`}
+      className={`text-xs font-medium ${shouldTruncate ? 'cursor-help' : ''} ${className}`}
       style={{
         backgroundColor: color ? `${color}15` : '#e0e7ff',
         color: color || '#4f46e5',
@@ -52,12 +55,12 @@ export function CategoryBadge({
     </Badge>
   );
 
-  // Se não precisa truncar, retorna Badge direto
+  // ✅ Se NÃO truncar, retorna Badge direto SEM tooltip
   if (!shouldTruncate) {
     return badgeContent;
   }
 
-  // Se trunca, envolve com Tooltip MELHORADO
+  // ✅ Se truncar, envolve com Tooltip SUPER VISÍVEL
   return (
     <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
@@ -82,6 +85,9 @@ export function CategoryBadge({
 
 /**
  * Componente para exibir categoria na sidebar (com bolinha colorida)
+ * 
+ * ✅ Tooltip SÓ aparece se o nome for truncado (> maxLength)
+ * ✅ Tooltip com fundo preto, sombra forte e bolinha colorida
  */
 export function CategorySidebarItem({ 
   name, 
@@ -92,7 +98,9 @@ export function CategorySidebarItem({
 }) {
   if (!name) return null;
 
+  // ✅ Verifica se NOME trunca (não considera o contador)
   const shouldTruncate = name.length > maxLength;
+  
   const displayName = shouldTruncate 
     ? `${name.substring(0, maxLength)}...` 
     : name;
@@ -101,7 +109,7 @@ export function CategorySidebarItem({
   const fullText = `${name} (${promptCount || 0})`;
 
   const content = (
-    <div className={`flex items-center gap-2 flex-1 min-w-0 cursor-pointer ${className}`}>
+    <div className={`flex items-center gap-2 flex-1 min-w-0 ${shouldTruncate ? 'cursor-help' : 'cursor-pointer'} ${className}`}>
       <span
         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
         style={{ backgroundColor: color || "#3B82F6" }}
@@ -112,12 +120,12 @@ export function CategorySidebarItem({
     </div>
   );
 
-  // Se não precisa truncar, retorna conteúdo direto
+  // ✅ Se NÃO truncar, retorna conteúdo direto SEM tooltip
   if (!shouldTruncate) {
     return content;
   }
 
-  // Se trunca, envolve com Tooltip MELHORADO
+  // ✅ Se truncar, envolve com Tooltip SUPER VISÍVEL
   return (
     <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
