@@ -1,4 +1,6 @@
 // src/components/layout/Sidebar.jsx
+// ✅ VERSÃO CORRIGIDA - Responsividade melhorada
+
 import React, { useEffect, useState, useMemo } from "react";
 import { CategorySidebarItem } from '@/components/CategoryBadge';
 import { Button } from "../ui/button";
@@ -20,6 +22,9 @@ import {
   MessageSquare
 } from "lucide-react";
 import FooterMobile from "./FooterMobile";
+
+// ✅ Constante para breakpoint consistente
+const MOBILE_BREAKPOINT = 1024; // lg: em Tailwind
 
 export default function Sidebar({
   stats,
@@ -66,16 +71,53 @@ export default function Sidebar({
     return result;
   }, [myCategories, searchQuery, sortBy]);
 
-  // Bloqueia rolagem do body quando sidebar móvel aberta
+  // ✅ CORREÇÃO 1: Bloqueia rolagem do body quando sidebar móvel aberta
   useEffect(() => {
     if (isMobileSidebarOpen) {
       document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed"; // Evita scroll no iOS
+      document.body.style.width = "100%";
     } else {
       document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
     }
+    
     return () => {
       document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.width = "";
     };
+  }, [isMobileSidebarOpen]);
+
+  // ✅ CORREÇÃO 2: Detecta mudança de resolução e fecha sidebar automaticamente
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= MOBILE_BREAKPOINT && isMobileSidebarOpen) {
+        console.log('📱 Resolução mudou para desktop - fechando sidebar');
+        setIsMobileSidebarOpen(false);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobileSidebarOpen, setIsMobileSidebarOpen]);
+
+  // ✅ CORREÇÃO 3: Previne scroll quando sidebar aberta em mobile
+  useEffect(() => {
+    if (!isMobileSidebarOpen) return;
+
+    const preventScroll = (e) => {
+      if (window.innerWidth < MOBILE_BREAKPOINT) {
+        const sidebar = document.querySelector('aside[aria-label="Sidebar de navegação"]');
+        if (sidebar && !sidebar.contains(e.target)) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => document.removeEventListener('touchmove', preventScroll);
   }, [isMobileSidebarOpen]);
 
   const toggleSort = () => {
@@ -84,25 +126,45 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Overlay escurecido */}
+      {/* ✅ Overlay escurecido - MELHORADO */}
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998] lg:hidden"
-          onClick={() => setIsMobileSidebarOpen(false)}
+          onClick={() => {
+            console.log('🔘 Overlay clicado - fechando sidebar');
+            setIsMobileSidebarOpen(false);
+          }}
+          aria-hidden="true"
+          style={{ touchAction: 'auto' }}
         />
       )}
 
-      {/* Sidebar */}
+      {/* ✅ Sidebar - CORRIGIDA */}
       <aside
-        className={`fixed top-0 left-0 h-[100dvh] lg:h-auto w-[80%] max-w-sm lg:w-[260px] lg:relative z-[9999] lg:z-[30] flex flex-col bg-white dark:bg-slate-900 transform transition-transform duration-300 ease-in-out lg:transform-none ${
-          isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`
+          fixed top-0 left-0 h-[100dvh] 
+          lg:h-auto 
+          w-[80%] max-w-sm 
+          lg:w-[260px] lg:relative 
+          z-[9999] lg:z-[30] 
+          flex flex-col 
+          bg-white dark:bg-slate-900 
+          shadow-2xl lg:shadow-none
+          transform transition-transform duration-300 ease-in-out 
+          lg:transform-none 
+          ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
+        `}
+        aria-label="Sidebar de navegação"
+        aria-hidden={!isMobileSidebarOpen && window.innerWidth < MOBILE_BREAKPOINT}
       >
         {/* Botão de fechar - só no mobile */}
         <div className="lg:hidden flex justify-end px-4 py-1.5 flex-shrink-0">
           <button
-            onClick={() => setIsMobileSidebarOpen(false)}
-            className="p-2 rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800"
+            onClick={() => {
+              console.log('❌ Botão fechar clicado');
+              setIsMobileSidebarOpen(false);
+            }}
+            className="p-2 rounded-md text-slate-600 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 transition-colors"
             aria-label="Fechar menu"
           >
             ✕
@@ -155,6 +217,7 @@ export default function Sidebar({
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
+                  console.log('➕ Novo Prompt clicado');
                   openNewPromptModal();
                   setIsMobileSidebarOpen(false);
                 }}
@@ -167,6 +230,7 @@ export default function Sidebar({
               {/* Templates */}
               <Button
                 onClick={() => {
+                  console.log('📚 Templates clicado');
                   openTemplates();
                   setIsMobileSidebarOpen(false);
                 }}
@@ -179,6 +243,7 @@ export default function Sidebar({
               {/* Chat da Comunidade */}
               <Button
                 onClick={() => {
+                  console.log('💬 Chat clicado');
                   openChat();
                   setIsMobileSidebarOpen(false);
                 }}
@@ -223,6 +288,7 @@ export default function Sidebar({
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
+                  console.log('📁 Adicionar Categoria clicado');
                   resetCategoryForm();
                   setIsCategoryDialogOpen(true);
                   setIsMobileSidebarOpen(false);
@@ -235,7 +301,7 @@ export default function Sidebar({
             </div>
 
             {/* Lista minimalista + color bullets */}
-            <ul className="space-y-2 pl-2">
+            <ul className="space-y-2 pl-2 overflow-y-auto">
 
               {/* ITEM ESPECIAL: TODOS */}
               <li
@@ -249,6 +315,7 @@ export default function Sidebar({
                   }
                 `}
                 onClick={() => {
+                  console.log('📋 Todos clicado');
                   setSelectedCategory(null);
                   setIsMobileSidebarOpen(false);
                 }}
@@ -265,64 +332,67 @@ export default function Sidebar({
               </li>
 
               {filteredAndSortedCategories.map((category) => (
-  <li
-    key={category.id}
-    className={`
-      group flex items-center justify-between gap-2 cursor-pointer 
-      transition-colors
-      ${
-        selectedCategory === category.id
-          ? "text-blue-600 dark:text-blue-400 font-medium"
-          : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
-      }
-    `}
-  >
-    {/* ✅ CORREÇÃO 1: Adicionar flex-1 min-w-0 para permitir truncate */}
-    <div
-      className="flex-1 min-w-0"
-      onClick={() => {
-        setSelectedCategory(category.id);
-        setIsMobileSidebarOpen(false);
-      }}
-    >
-      <CategorySidebarItem
-        name={category.name}
-        color={category.color}
-        promptCount={category.prompt_count}
-        maxLength={20}
-      />
-    </div>
+                <li
+                  key={category.id}
+                  className={`
+                    group flex items-center justify-between gap-2 cursor-pointer 
+                    transition-colors
+                    ${
+                      selectedCategory === category.id
+                        ? "text-blue-600 dark:text-blue-400 font-medium"
+                        : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
+                    }
+                  `}
+                >
+                  {/* ✅ CORREÇÃO: Adicionar flex-1 min-w-0 para permitir truncate */}
+                  <div
+                    className="flex-1 min-w-0"
+                    onClick={() => {
+                      console.log('📁 Categoria clicada:', category.name);
+                      setSelectedCategory(category.id);
+                      setIsMobileSidebarOpen(false);
+                    }}
+                  >
+                    <CategorySidebarItem
+                      name={category.name}
+                      color={category.color}
+                      promptCount={category.prompt_count}
+                      maxLength={20}
+                    />
+                  </div>
 
-    {/* ✅ CORREÇÃO 2: Adicionar flex-shrink-0 para ícones não encolherem */}
-    <div className="flex items-center gap-1 flex-shrink-0
-      opacity-100 lg:opacity-0 lg:group-hover:opacity-100 
-      transition-opacity">
+                  {/* ✅ CORREÇÃO: Adicionar flex-shrink-0 para ícones não encolherem */}
+                  <div className="flex items-center gap-1 flex-shrink-0
+                    opacity-100 lg:opacity-0 lg:group-hover:opacity-100 
+                    transition-opacity">
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          editCategory(category);
-          setIsMobileSidebarOpen(false);
-        }}
-        className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-        title="Editar categoria"
-      >
-        <Edit3 className="w-4 h-4" />
-      </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('✏️ Editar categoria:', category.name);
+                        editCategory(category);
+                        setIsMobileSidebarOpen(false);
+                      }}
+                      className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      title="Editar categoria"
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </button>
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteCategory(category.id);
-        }}
-        className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-        title="Apagar categoria"
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
-    </div>
-  </li>
-))}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        console.log('🗑️ Deletar categoria:', category.name);
+                        deleteCategory(category.id);
+                      }}
+                      className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                      title="Apagar categoria"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </li>
+              ))}
             </ul>
 
           </div>
