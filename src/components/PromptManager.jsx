@@ -106,12 +106,10 @@ const safeCreateObjectURL = (file) => {
       return URL.createObjectURL(file);
     }
     
-    if (file) {
-      console.warn("⚠️ safeCreateObjectURL: não é File/Blob válido", typeof file, file);
-    }
+   
     return "";
   } catch (error) {
-    console.error("❌ Erro ao criar objectURL:", error);
+     console.error("❌ Erro ao criar objectURL:", error);
     return "";
   }
 };
@@ -245,13 +243,13 @@ export default function PromptManager({
 
   const removeAttachment = async (attachmentId, promptId) => {
     if (!promptId || promptId === undefined || promptId === null) {
-      console.error("❌ removeAttachment: promptId inválido:", promptId);
+      
       toast.error("Erro: ID do prompt não encontrado. Feche e reabra o modal de edição.");
       return;
     }
 
     if (!attachmentId || attachmentId === undefined || attachmentId === null) {
-      console.error("❌ removeAttachment: attachmentId inválido:", attachmentId);
+      
       toast.error("Erro: ID do anexo não encontrado.");
       return;
     }
@@ -259,7 +257,7 @@ export default function PromptManager({
     if (!confirm("Tem certeza que deseja remover este anexo?")) return;
 
     try {
-      console.log(`🗑️ Removendo anexo ${attachmentId} do prompt ${promptId}`);
+     
 
       setAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
       toast.success("📎 Anexo removido!");
@@ -267,15 +265,15 @@ export default function PromptManager({
       const response = await api.delete(`/prompts/${promptId}/files/${attachmentId}`);
       
       if (response.data?.success) {
-        console.log("✅ Anexo removido do servidor com sucesso");
+        
         queryClient.invalidateQueries(["prompts"]);
       } else {
-        console.warn("⚠️ Servidor não confirmou remoção:", response.data);
+    
         toast.error("Erro ao remover anexo no servidor");
         queryClient.invalidateQueries(["prompts"]);
       }
     } catch (error) {
-      console.error("❌ Erro ao remover anexo:", error);
+      console.error("❌ Erro ao remover anexo:", error); 
       toast.error("Falha ao remover anexo");
       queryClient.invalidateQueries(["prompts"]);
     }
@@ -351,7 +349,7 @@ export default function PromptManager({
         toast.error("Erro: servidor não retornou URL da imagem.");
       }
     } catch (err) {
-      console.error("❌ Erro no upload:", err);
+    console.error("❌ Erro no upload:", err); 
       toast.dismiss();
       toast.error("Falha ao enviar imagem.");
     } finally {
@@ -397,7 +395,7 @@ export default function PromptManager({
     video.playsInline = true;
 
     const thumbnailTimeout = setTimeout(() => {
-      console.warn("⚠️ Timeout ao gerar thumbnail, continuando sem thumbnail");
+     
       setPromptForm((prev) => ({
         ...prev,
         videoFile: file,
@@ -419,7 +417,7 @@ export default function PromptManager({
       try {
         video.currentTime = Math.min(1, video.duration / 2);
       } catch (err) {
-        console.warn("⚠️ Falha ao buscar frame do vídeo", err);
+       
       }
     };
 
@@ -435,7 +433,7 @@ export default function PromptManager({
         canvas.toBlob(
           (blob) => {
             if (!blob) {
-              console.warn("⚠️ Não foi possível gerar thumbnail");
+            
               setPromptForm((prev) => ({
                 ...prev,
                 videoFile: file,
@@ -466,7 +464,7 @@ export default function PromptManager({
           0.8
         );
       } catch (err) {
-        console.error("❌ Erro ao gerar thumbnail:", err);
+        console.error("❌ Erro ao gerar thumbnail:", err); 
         setPromptForm((prev) => ({
           ...prev,
           videoFile: file,
@@ -521,7 +519,7 @@ export default function PromptManager({
 
   // ✅ ATUALIZADO: Adicionado media_type no reset
   const resetPromptForm = useCallback(() => {
-    console.log("🔄 Resetando formulário...");
+   
     
     setPromptForm({
       title: "",
@@ -613,7 +611,7 @@ export default function PromptManager({
       }
     } catch (error) {
       if (error.response?.status === 404) {
-        console.log("ℹ️ Arquivos ainda não disponíveis (upload em andamento)");
+       
         setAttachments([]);
       } else {
         console.error("❌ Erro ao carregar anexos:", error);
@@ -656,7 +654,7 @@ export default function PromptManager({
     } catch (error) {
       setDbConnected(false);
       toast.error("Erro ao verificar conexão com o banco!");
-      console.error("Erro em testConnection:", error);
+      
     }
   }, [queryClient]);
 
@@ -787,10 +785,10 @@ export default function PromptManager({
       );
 
       if (shouldRestore) {
-        console.log("✅ Restaurando rascunho...");
+       
         setPromptForm(parsed);
       } else {
-        console.log("🗑️ Descartando rascunho...");
+       
         localStorage.removeItem("prompt-draft");
       }
 
@@ -798,7 +796,7 @@ export default function PromptManager({
         isRestoringDraft.current = false;
       }, 500);
     } catch (error) {
-      console.error("❌ Erro ao restaurar rascunho:", error);
+   console.error("❌ Erro ao restaurar rascunho:", error); 
       localStorage.removeItem("prompt-draft");
       isRestoringDraft.current = false;
     }
@@ -833,7 +831,7 @@ export default function PromptManager({
     if (isSaving) return;
 
     if (!validateForm()) {
-      console.warn("❌ Validação falhou");
+    
       return;
     }
 
@@ -853,15 +851,7 @@ export default function PromptManager({
         formToSave.image_url?.trim() || formToSave.imageFile ? 'image' : 'none'
       );
 
-      console.log('🔍 Validação de tipo:', {
-        isEditMode,
-        editingPrompt: !!editingPrompt,
-        originalType: editingPrompt?.media_type,
-        finalType: finalMediaType,
-        hasYoutube: !!formToSave.youtube_url,
-        hasVideo: !!(formToSave.video_url || formToSave.videoFile),
-        hasImage: !!(formToSave.image_url || formToSave.imageFile),
-      });
+     
       
       // ✅ VALIDAÇÃO MELHORADA: Só valida mudança de tipo se estiver editando COM tipo original definido
       if (isEditMode && editingPrompt?.id && editingPrompt?.media_type && editingPrompt.media_type !== 'none') {
@@ -874,10 +864,7 @@ export default function PromptManager({
             `Tipo atual: ${finalMediaType}\n\n` +
             `Remova a capa primeiro para adicionar outro tipo.`
           );
-          console.error('🚫 Tentativa bloqueada de salvar com tipo diferente:', {
-            original: originalType,
-            atual: finalMediaType
-          });
+       
           setIsSaving(false);
           setIsUploading(false);
           return;
@@ -973,7 +960,7 @@ export default function PromptManager({
               });
             }
           } catch (err) {
-            console.warn("⚠️ Erro ao subir mídia (edição):", err);
+           
             toast.warning(
               "Prompt atualizado, mas houve erro no upload da mídia."
             );
@@ -1111,7 +1098,7 @@ export default function PromptManager({
       const thumbnailBlobToUpload = formToSave.thumbnailBlob;
       const extraFilesToUpload = [...extraFiles];
 
-      console.log("🗑️ Limpando rascunho após salvamento");
+     
       localStorage.removeItem("prompt-draft");
       
       toast.success("✅ Prompt criado com sucesso!");
@@ -1192,8 +1179,8 @@ export default function PromptManager({
             }
           })
           .catch((err) => {
-            console.error("❌ Erro no upload da mídia:", err);
-            console.error("   Detalhes:", err.response?.data);
+            
+          
 
             queryClient.setQueryData(["prompts"], (old) => {
               if (!Array.isArray(old)) return old;
@@ -1212,7 +1199,7 @@ export default function PromptManager({
       queryClient.invalidateQueries(["stats"]);
       queryClient.invalidateQueries(["categories"]);
     } catch (error) {
-      console.error("❌ Erro ao salvar prompt:", error);
+   console.error("❌ Erro ao salvar prompt:", error); 
       toast.error(error.message || "Erro ao salvar prompt");
       setIsUploading(false);
       setUploadProgress(0);
@@ -1264,7 +1251,7 @@ export default function PromptManager({
         toast.error(data.error || "Erro ao deletar categoria");
       }
     } catch (err) {
-      console.error("❌ Erro ao deletar categoria:", err);
+    console.error("❌ Erro ao deletar categoria:", err);
       toast.error("Erro ao excluir categoria");
     }
   };
@@ -1283,7 +1270,7 @@ export default function PromptManager({
       await deletePromptMutation.mutateAsync(id);
       toast.success("🗑️ Prompt deletado!");
     } catch (err) {
-      console.error("❌ Erro ao deletar prompt:", err);
+    console.error("❌ Erro ao deletar prompt:", err); 
       toast.error("Erro ao deletar prompt");
     }
   };
@@ -1300,7 +1287,7 @@ export default function PromptManager({
       const status = !prompt.is_favorite ? "favoritado" : "removido dos favoritos";
       toast.success(`⭐ Prompt ${status}!`);
     } catch (err) {
-      console.error("❌ Erro ao alternar favorito:", err);
+    console.error("❌ Erro ao alternar favorito:", err); 
       toast.error("Erro ao atualizar favorito");
     }
   };
@@ -1525,11 +1512,11 @@ export default function PromptManager({
               );
 
               if (shouldSaveDraft) {
-                console.log("💾 Salvando rascunho...");
+               
                 localStorage.setItem("prompt-draft", JSON.stringify(promptForm));
                 toast.success("💾 Rascunho salvo!");
               } else {
-                console.log("🗑️ Descartando alterações...");
+                
                 localStorage.removeItem("prompt-draft");
                 toast.info("🗑️ Alterações descartadas");
               }
