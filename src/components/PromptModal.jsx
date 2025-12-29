@@ -4,8 +4,8 @@
 // ✅ originalMediaType capturado DIRETAMENTE de editingPrompt
 // ✅ Remoção de capa 100% funcional
 // ✅ Grid responsivo: Empilhado mobile, lado a lado desktop
-// ✅ Logs de debug removidos - Produção ready
-// ✅ UX melhorada: Gradient overlay em todas as mídias
+// ✅ DRY: Uma única barra universal para todas as mídias
+// ✅ Produção ready
 // ==========================================
 
 import { useState, useEffect, useRef } from "react";
@@ -459,6 +459,12 @@ export default function PromptModal({
     }
   };
 
+  // ✅ Verifica se há mídia para exibir
+  const hasMediaToShow = 
+    (currentMediaType === 'image' && promptForm.image_url) ||
+    (currentMediaType === 'video' && (promptForm.videoFile || promptForm.video_url)) ||
+    (currentMediaType === 'youtube' && promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url));
+
   return (
     <>
       <style>{customScrollbarStyles}</style>
@@ -844,50 +850,135 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      {/* ✅ IMAGEM COM GRADIENT OVERLAY */}
-                      {currentMediaType === "image" && (
+                      {/* ✅ PREVIEW UNIVERSAL COM BARRA ÚNICA */}
+                      {hasMediaToShow ? (
                         <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl overflow-hidden">
-                          {promptForm.image_url ? (
-                            <div className="relative w-full h-[400px] overflow-hidden">
+                          <div className="relative w-full h-[400px] overflow-hidden">
+                            
+                            {/* 🎯 RENDERIZA A MÍDIA APROPRIADA */}
+                            {currentMediaType === "image" && promptForm.image_url && (
                               <img
                                 src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
                                 alt="Preview"
                                 className="w-full h-full object-cover"
                               />
-                              
-                              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent pointer-events-none" />
-                              
-                              <div className="absolute bottom-4 left-0 right-0 px-5 flex justify-between items-center">
-                                <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
-                                  <ImageIcon className="w-4 h-4 text-blue-600" />
-                                  <span className="text-sm font-semibold text-slate-800">Imagem</span>
-                                </div>
+                            )}
 
-                                <div className="flex gap-2">
+                            {currentMediaType === "video" && (promptForm.videoFile || promptForm.video_url) && (
+                              <video
+                                controls
+                                src={promptForm.videoFile ? safeCreateObjectURL(promptForm.videoFile) : (promptForm.video_url.startsWith("http") ? promptForm.video_url : `${apiBaseUrl}${promptForm.video_url}`)}
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+
+                            {currentMediaType === "youtube" && promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url) && (
+                              <img
+                                src={getYouTubeThumbnail(promptForm.youtube_url)}
+                                alt="YouTube Thumbnail"
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            
+                            {/* ✨ GRADIENT OVERLAY UNIVERSAL (funciona para TODOS) */}
+                            <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent pointer-events-none" />
+                            
+                            {/* 🎨 BARRA DE CONTROLES UNIVERSAL */}
+                            <div className="absolute bottom-4 left-0 right-0 px-5 flex justify-between items-center">
+                              
+                              {/* Badge dinâmico baseado no tipo */}
+                              <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
+                                {currentMediaType === 'image' && (
+                                  <>
+                                    <ImageIcon className="w-4 h-4 text-blue-600" />
+                                    <span className="text-sm font-semibold text-slate-800">Imagem</span>
+                                  </>
+                                )}
+                                {currentMediaType === 'video' && (
+                                  <>
+                                    <Video className="w-4 h-4 text-purple-600" />
+                                    <span className="text-sm font-semibold text-slate-800">Vídeo MP4</span>
+                                  </>
+                                )}
+                                {currentMediaType === 'youtube' && (
+                                  <>
+                                    <Youtube className="w-4 h-4 text-red-600" />
+                                    <span className="text-sm font-semibold text-slate-800">YouTube</span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Botões universais */}
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => {
+                                    // Remove qualquer tipo de mídia
+                                    setPromptForm((prev) => ({
+                                      ...prev,
+                                      videoFile: null,
+                                      video_url: "",
+                                      image_url: "",
+                                      youtube_url: "",
+                                    }));
+                                    setThumbnailBlob(null);
+                                  }}
+                                  className="bg-white/95 backdrop-blur-sm hover:bg-red-50 border-red-300 text-red-600"
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  Remover
+                                </Button>
+                                
+                                {currentMediaType !== 'youtube' && (
                                   <Button
                                     type="button"
                                     size="sm"
-                                    onClick={removeImage}
-                                    className="bg-white/95 backdrop-blur-sm hover:bg-red-50 border-red-300 text-red-600"
-                                  >
-                                    <X className="w-4 h-4 mr-1" />
-                                    Remover
-                                  </Button>
-                                  
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => imageInputRef.current?.click()}
+                                    onClick={() => {
+                                      if (currentMediaType === 'image') {
+                                        imageInputRef.current?.click();
+                                      } else if (currentMediaType === 'video') {
+                                        videoInputRef.current?.click();
+                                      }
+                                    }}
                                     className="bg-white/95 backdrop-blur-sm hover:bg-blue-50 border-blue-300 text-blue-600"
                                   >
                                     <ImagePlus className="w-4 h-4 mr-1" />
                                     Alterar
                                   </Button>
-                                </div>
+                                )}
                               </div>
                             </div>
-                          ) : (
-                            <div className="text-center py-8 text-slate-500 p-5">
+                          </div>
+
+                          {/* Mensagem de thumbnail gerado */}
+                          {thumbnailBlob && (
+                            <p className="text-xs text-green-600 text-center px-5 py-3">
+                              ✅ Thumbnail gerado ({Math.round(thumbnailBlob.size / 1024)}KB)
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        /* Estado vazio para YouTube ou quando não há mídia selecionada */
+                        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
+                          {currentMediaType === 'youtube' && (
+                            <>
+                              <Input
+                                type="text"
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                value={promptForm.youtube_url}
+                                onChange={(e) => setPromptForm((prev) => ({ ...prev, youtube_url: e.target.value }))}
+                                className="glass-input border-red-300 focus:ring-red-500 focus:border-red-500"
+                              />
+                              <div className="text-center py-8 text-slate-500">
+                                <Youtube className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                                <p className="text-sm font-medium">Cole um link válido do YouTube</p>
+                              </div>
+                            </>
+                          )}
+                          
+                          {currentMediaType === 'image' && !promptForm.image_url && (
+                            <div className="text-center py-8 text-slate-500">
                               <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
                               <p className="text-sm font-medium mb-4">Nenhuma imagem selecionada</p>
                               <Button
@@ -901,61 +992,9 @@ export default function PromptModal({
                               </Button>
                             </div>
                           )}
-                        </div>
-                      )}
-
-                      {/* ✅ VÍDEO COM GRADIENT OVERLAY */}
-                      {currentMediaType === "video" && (
-                        <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl overflow-hidden">
-                          {(promptForm.videoFile || promptForm.video_url) ? (
-                            <div className="relative w-full h-[400px] overflow-hidden">
-                              <video
-                                controls
-                                src={promptForm.videoFile ? safeCreateObjectURL(promptForm.videoFile) : (promptForm.video_url.startsWith("http") ? promptForm.video_url : `${apiBaseUrl}${promptForm.video_url}`)}
-                                className="w-full h-full object-cover"
-                              />
-                              
-                              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent pointer-events-none" />
-                              
-                              <div className="absolute bottom-4 left-0 right-0 px-5 flex justify-between items-center">
-                                <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
-                                  <Video className="w-4 h-4 text-purple-600" />
-                                  <span className="text-sm font-semibold text-slate-800">Vídeo MP4</span>
-                                </div>
-
-                                <div className="flex gap-2">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => {
-                                      setPromptForm((prev) => ({
-                                        ...prev,
-                                        videoFile: null,
-                                        video_url: "",
-                                        image_url: "",
-                                      }));
-                                      setThumbnailBlob(null);
-                                    }}
-                                    className="bg-white/95 backdrop-blur-sm hover:bg-red-50 border-red-300 text-red-600"
-                                  >
-                                    <X className="w-4 h-4 mr-1" />
-                                    Remover
-                                  </Button>
-                                  
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => videoInputRef.current?.click()}
-                                    className="bg-white/95 backdrop-blur-sm hover:bg-purple-50 border-purple-300 text-purple-600"
-                                  >
-                                    <Video className="w-4 h-4 mr-1" />
-                                    Alterar
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-slate-500 p-5">
+                          
+                          {currentMediaType === 'video' && !promptForm.videoFile && !promptForm.video_url && (
+                            <div className="text-center py-8 text-slate-500">
                               <Video className="w-12 h-12 mx-auto mb-3 opacity-30" />
                               <p className="text-sm font-medium mb-4">Nenhum vídeo selecionado</p>
                               <Button
@@ -967,62 +1006,6 @@ export default function PromptModal({
                                 <Video className="w-4 h-4 mr-2" />
                                 Selecionar Vídeo
                               </Button>
-                            </div>
-                          )}
-                          
-                          {thumbnailBlob && (
-                            <p className="text-xs text-green-600 text-center px-5 py-3">
-                              ✅ Thumbnail gerado ({Math.round(thumbnailBlob.size / 1024)}KB)
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* ✅ YOUTUBE COM GRADIENT OVERLAY */}
-                      {currentMediaType === "youtube" && (
-                        <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl overflow-hidden">
-                          {promptForm.youtube_url && extractYouTubeId(promptForm.youtube_url) ? (
-                            <div className="relative w-full h-[400px] overflow-hidden">
-                              <img
-                                src={getYouTubeThumbnail(promptForm.youtube_url)}
-                                alt="YouTube Thumbnail"
-                                className="w-full h-full object-cover"
-                              />
-                              
-                              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent pointer-events-none" />
-                              
-                              <div className="absolute bottom-4 left-0 right-0 px-5 flex justify-between items-center">
-                                <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
-                                  <Youtube className="w-4 h-4 text-red-600" />
-                                  <span className="text-sm font-semibold text-slate-800">YouTube</span>
-                                </div>
-
-                                <div className="flex gap-2">
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => setPromptForm((prev) => ({ ...prev, youtube_url: '' }))}
-                                    className="bg-white/95 backdrop-blur-sm hover:bg-red-50 border-red-300 text-red-600"
-                                  >
-                                    <X className="w-4 h-4 mr-1" />
-                                    Remover
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-5 space-y-3">
-                              <Input
-                                type="text"
-                                placeholder="https://www.youtube.com/watch?v=..."
-                                value={promptForm.youtube_url}
-                                onChange={(e) => setPromptForm((prev) => ({ ...prev, youtube_url: e.target.value }))}
-                                className="glass-input border-red-300 focus:ring-red-500 focus:border-red-500"
-                              />
-                              <div className="text-center py-8 text-slate-500">
-                                <Youtube className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                                <p className="text-sm font-medium">Cole um link válido do YouTube</p>
-                              </div>
                             </div>
                           )}
                         </div>
@@ -1099,32 +1082,38 @@ export default function PromptModal({
                 </div>
               </section>
 
-              <div className="flex justify-end gap-3 pt-6 sticky bottom-0 glass-content-bg pb-2 -mb-8 -mx-8 px-8">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    resetPromptForm();
-                    setThumbnailBlob(null);
-                    onOpenChange(false);
-                  }}
-                  className="glass-input px-8 py-2 border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold rounded-xl"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="button"
-                  disabled={isSaving}
-                  onClick={async () => {
-                    if (!isSaving) await handleSaveWithThumbnail();
-                  }}
-                  className={`px-8 py-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold shadow-lg rounded-xl ${
-                    isSaving ? "opacity-50 cursor-not-allowed" : "hover:shadow-xl"
-                  }`}
-                >
-                  {isSaving ? "Salvando..." : editingPrompt ? "💾 Salvar Alterações" : "✨ Criar Prompt"}
-                </Button>
-              </div>
+              <div className="relative flex justify-end gap-3 pt-8 sticky bottom-0 -mb-8 -mx-8 px-8 pb-6">
+  {/* ✨ Gradient overlay no rodapé do modal */}
+  <div className="absolute inset-0 bg-gradient-to-t from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 dark:to-transparent pointer-events-none" />
+  
+  {/* Botões sobre o gradient */}
+  <div className="relative flex gap-3">
+    <Button
+      type="button"
+      variant="outline"
+      onClick={() => {
+        resetPromptForm();
+        setThumbnailBlob(null);
+        onOpenChange(false);
+      }}
+      className="glass-input px-8 py-2 border-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 font-semibold rounded-xl"
+    >
+      Cancelar
+    </Button>
+    <Button
+      type="button"
+      disabled={isSaving}
+      onClick={async () => {
+        if (!isSaving) await handleSaveWithThumbnail();
+      }}
+      className={`px-8 py-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-500 hover:from-blue-700 hover:via-purple-700 hover:to-pink-600 text-white font-bold shadow-lg rounded-xl ${
+        isSaving ? "opacity-50 cursor-not-allowed" : "hover:shadow-xl"
+      }`}
+    >
+      {isSaving ? "Salvando..." : editingPrompt ? "💾 Salvar Alterações" : "✨ Criar Prompt"}
+    </Button>
+  </div>
+</div>
             </div>
           </div>
 
