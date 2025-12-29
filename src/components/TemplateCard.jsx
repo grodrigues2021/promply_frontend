@@ -345,20 +345,20 @@ const TemplateCard = React.memo(({
               </h3>
               
               {/* Container para categoria e plataforma */}
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
            
 {/* Categoria discreta */}
 {item?.category && (() => {
   const categoryName = item.category.name;
-  const shouldTruncate = categoryName.length > 10;
-  const displayName = shouldTruncate 
-    ? `${categoryName.substring(0, 10)}...` 
-    : categoryName;
+  const shouldTruncate = categoryName.length > 15;
+const displayName = shouldTruncate 
+  ? `${categoryName.substring(0, 15)}...` 
+  : categoryName;
 
   const badge = (
-    <div 
-      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
-      style={{
+  <div 
+    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0"
+    style={{
         backgroundColor: `${item.category.color}15`,
         color: item.category.color || "#6366f1",
         border: `1px solid ${item.category.color}30`
@@ -368,7 +368,8 @@ const TemplateCard = React.memo(({
         className="w-1.5 h-1.5 rounded-full"
         style={{ backgroundColor: item.category.color || "#6366f1" }}
       />
-      <span>{displayName}</span>
+      <span className="whitespace-nowrap">{displayName}</span>
+
     </div>
   );
 
@@ -399,15 +400,16 @@ const TemplateCard = React.memo(({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div 
-                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium cursor-help"
-                          style={{
+  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium cursor-help flex-shrink-0"
+  style={{
                             backgroundColor: `${platformInfo.color}15`,
                             color: platformInfo.color,
                             border: `1px solid ${platformInfo.color}30`
                           }}
                         >
                           <span className="text-xs">{platformInfo.icon}</span>
-                          <span>{platformInfo.label}</span>
+                          <span className="whitespace-nowrap">{platformInfo.label}</span>
+
                         </div>
                       </TooltipTrigger>
                       <TooltipContent
