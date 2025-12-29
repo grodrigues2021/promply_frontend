@@ -10,10 +10,7 @@ export function useStats() {
   return useQuery({
     queryKey: ["stats"],
     queryFn: async () => {
-      console.log("🔄 [useStats] Buscando estatísticas...");
       const { data } = await api.get("/stats");
-
-      console.log("📊 [useStats] Resposta recebida:", data);
 
       if (!data.success) {
         throw new Error(data.error || "Falha ao carregar estatísticas");
@@ -30,7 +27,6 @@ export function useStats() {
           data.data?.totalGenerations || data.data?.total_generations || 0,
       };
 
-      console.log("✅ [useStats] Stats normalizados:", normalized);
       return normalized;
     },
     staleTime: 30 * 1000, // 30 segundos (atualiza mais frequente)

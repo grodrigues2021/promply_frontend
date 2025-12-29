@@ -12,42 +12,29 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const hasCheckedAuth = useRef(false);
 
-  // 🔐 Verifica autenticação no servidor
+  // 🔍 Verifica autenticação no servidor
   const checkAuth = useCallback(async (forceCheck = false) => {
     // Evita chamadas duplicadas (exceto quando forçado)
     if (hasCheckedAuth.current && !forceCheck) {
-      console.log("⏭️ [useAuth] checkAuth já executado, pulando...");
       return;
     }
-    
-    console.group("🔐 [useAuth] Verificando autenticação");
-    console.log(`🌍 Ambiente: ${currentEnv}`);
-    console.log(`🔑 Modo: ${isProduction ? "Session Cookies" : "JWT Token"}`);
-    console.log(`🔄 Force Check: ${forceCheck}`);
 
     // Em dev/staging, verifica se tem token ANTES de chamar API
     if (!isProduction) {
       const token = getAuthToken();
       if (!token) {
-        console.log("ℹ️ Nenhum token encontrado — usuário não autenticado");
         setUser(null);
         setIsAuthenticated(false);
         setIsLoading(false);
         hasCheckedAuth.current = true;
-        console.groupEnd();
         return;
       }
-      console.log("🧾 Token encontrado:", token.slice(0, 25) + "...");
     }
 
     try {
-      // ✅ Requisição ao backend (cookie ou token enviado automaticamente)
-      console.log("📡 Chamando /auth/me...");
       const resp = await api.get("/auth/me");
-      console.log("📨 Resposta /auth/me:", resp.data);
 
       if (resp.data?.success && resp.data?.data) {
-        console.log("✅ Usuário autenticado:", resp.data.data.email);
         setUser(resp.data.data);
         setIsAuthenticated(true);
       } else {
@@ -70,14 +57,11 @@ export function AuthProvider({ children }) {
     } finally {
       setIsLoading(false);
       hasCheckedAuth.current = true;
-      console.groupEnd();
     }
   }, []);
 
   // ✅ Captura retorno do Google OAuth (executa ANTES do checkAuth)
   useEffect(() => {
-    console.group("🔍 [useAuth] Verificando retorno do Google OAuth");
-
     const params = new URLSearchParams(window.location.search);
     
     // 🔑 DEV/STAGING: Token vem na URL
@@ -92,7 +76,6 @@ export function AuthProvider({ children }) {
 
     if (tokenFromUrl && !isProduction) {
       // ✅ DEV/STAGING: Salva token JWT
-      console.log("✅ [JWT] Token capturado da URL:", tokenFromUrl.slice(0, 25) + "...");
       saveAuthToken(tokenFromUrl);
       
       // 🔄 IMPORTANTE: Reseta o flag para permitir nova verificação
@@ -102,11 +85,9 @@ export function AuthProvider({ children }) {
       // 🧹 Limpa a URL
       const cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
-      console.log("🧹 URL limpa:", cleanUrl);
       
     } else if (authStatus === "success" && isProduction) {
       // ✅ PRODUCTION: Sessão criada no servidor, cookie já está no navegador
-      console.log("✅ [Session] Login Google bem-sucedido - verificando sessão...");
       
       // 🔄 IMPORTANTE: Reseta o flag para permitir nova verificação
       hasCheckedAuth.current = false;
@@ -115,7 +96,6 @@ export function AuthProvider({ children }) {
       // 🧹 Limpa a URL
       const cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
-      console.log("🧹 URL limpa:", cleanUrl);
       
     } else if (authError) {
       console.error("❌ Erro no login Google:", authError);
@@ -125,51 +105,38 @@ export function AuthProvider({ children }) {
       // 🧹 Limpa a URL
       const cleanUrl = window.location.origin + window.location.pathname;
       window.history.replaceState({}, document.title, cleanUrl);
-    } else {
-      console.log("🚫 Nenhum parâmetro de autenticação na URL");
     }
-
-    console.groupEnd();
 
     // ⚙️ Executa verificação de autenticação
     if (shouldCheckAuth) {
-      console.log(`🚀 [useAuth] Iniciando verificação de autenticação... (forceCheck: ${forceCheck})`);
       checkAuth(forceCheck);
     }
   }, [checkAuth]);
 
   // 🔑 Login manual (email/senha)
   const login = useCallback(async (email, password) => {
-    console.group("🔑 [useAuth] Iniciando login");
-    console.log("📤 Email:", email);
-
     try {
       const resp = await api.post("/auth/login", { email, password });
-      console.log("📨 Resposta do backend:", resp.data);
 
       const { access_token, success, data, error } = resp.data;
 
       // ✅ DEV/STAGING: Salva token JWT
       if (access_token && !isProduction) {
         saveAuthToken(access_token);
-        console.log("💾 Token JWT salvo");
       }
 
       if (success || access_token || data) {
         setUser(data || null);
         setIsAuthenticated(true);
-        console.log("✅ Login bem-sucedido");
       } else {
         console.warn("⚠️ Login falhou:", error || resp.data);
         setIsAuthenticated(false);
       }
 
-      console.groupEnd();
       return resp.data;
     } catch (err) {
       console.error("❌ Erro no login:", err);
       console.error("📨 Resposta do backend:", err.response?.data);
-      console.groupEnd();
       throw err;
     }
   }, []);
@@ -177,7 +144,6 @@ export function AuthProvider({ children }) {
   // 📝 Registro de novo usuário
   const register = useCallback(async (name, email, password) => {
     try {
-      console.log("📝 [useAuth] Criando conta...");
       const resp = await api.post("/auth/register", { name, email, password });
       return resp.data;
     } catch (err) {
@@ -189,8 +155,6 @@ export function AuthProvider({ children }) {
   // 🚪 Logout
   const logout = useCallback(async () => {
     try {
-      console.group("🚪 [useAuth] Iniciando logout...");
-      
       // Limpa estado local
       setUser(null);
       setIsAuthenticated(false);
@@ -202,12 +166,10 @@ export function AuthProvider({ children }) {
       try {
         // ✅ Backend limpa sessão (production) ou invalida token
         await api.post("/auth/logout");
-        console.log("✅ Logout processado no servidor");
       } catch (apiError) {
         console.warn("⚠️ Erro ao chamar API de logout:", apiError.message);
       }
 
-      console.groupEnd();
       window.location.href = "/";
     } catch (err) {
       console.error("❌ Erro geral no logout:", err);
@@ -230,7 +192,6 @@ export function AuthProvider({ children }) {
     if (!isLoading && isAuthenticated) {
       const currentPath = window.location.pathname;
       if (["/", "/login", "/register", "/reset-password"].includes(currentPath)) {
-        console.log("🎯 [useAuth] Usuário autenticado — redirecionando para /workspace");
         window.history.replaceState({}, "", "/workspace");
       }
     }
