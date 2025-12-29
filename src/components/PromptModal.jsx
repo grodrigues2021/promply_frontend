@@ -1159,7 +1159,7 @@ export default function PromptModal({
                   </h3>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
                       Categoria
@@ -1204,22 +1204,7 @@ export default function PromptModal({
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      Favorito
-                    </Label>
-                    <label className="flex items-center gap-3 p-3 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-slate-700 dark:to-slate-750 rounded-xl cursor-pointer hover:shadow-md transition-all h-10">
-                      <input
-                        type="checkbox"
-                        checked={promptForm.is_favorite}
-                        onChange={(e) => setPromptForm((prev) => ({ ...prev, is_favorite: e.target.checked }))}
-                        className="form-checkbox h-5 w-5 text-yellow-600 rounded"
-                      />
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                        ⭐ Marcar como favorito
-                      </span>
-                    </label>
-                  </div>
+               
                 </div>
               </section>
 
