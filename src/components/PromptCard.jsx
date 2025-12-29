@@ -533,16 +533,26 @@ const PromptCard = React.memo(({
               </h3>
                   
                   <div className="flex items-center justify-between mt-1 w-full">
-                    {/* TAG DE CATEGORIA */}
+                    {/* TAG DE CATEGORIA COM TOOLTIP */}
                     {prompt.category && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 relative group/category">
                         <TagIcon className="w-3.5 h-3.5 text-gray-400" />
-                        <CategoryBadge
-                          name={prompt.category.name}
-                          color={prompt.category.color}
-                          maxLength={20}
-                          variant="secondary"
-                        />
+                        <div className="peer">
+                          <CategoryBadge
+                            name={prompt.category.name}
+                            color={prompt.category.color}
+                            maxLength={20}
+                            variant="secondary"
+                          />
+                        </div>
+                        
+                        {/* Tooltip da Categoria */}
+                        <div className="absolute bottom-full left-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg opacity-0 invisible group-hover/category:opacity-100 group-hover/category:visible transition-all duration-200 whitespace-nowrap pointer-events-none z-10">
+                          {prompt.category.name}
+                          <div className="absolute top-full left-4 -mt-px">
+                            <div className="border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
                       </div>
                     )}
 
