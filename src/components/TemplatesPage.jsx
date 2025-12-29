@@ -1069,9 +1069,11 @@ export default function TemplatesPage({ onBack }) {
               </button>
             </TooltipTrigger>
             <TooltipContent
-              side="right"
-              className="bg-gray-900 text-white text-sm px-3 py-2 rounded shadow-xl z-50"
-            >
+  side="bottom"  // ← Aparece embaixo
+  align="start"  // ← Alinha à esquerda
+  className="bg-gray-900 text-white text-sm px-3 py-2 rounded shadow-xl z-50"
+  sideOffset={8}  // ← Espaçamento de 8px
+>
               <div className="flex items-center gap-2">
                 <span
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
