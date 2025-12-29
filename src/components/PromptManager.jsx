@@ -1,6 +1,7 @@
 // ==========================================
 // src/components/PromptManager.jsx
-// ✅ VERSÃO ATUALIZADA - Com suporte a media_type
+// ✅ VERSÃO CORRIGIDA - Validação de media_type melhorada
+// ✅ Recalcula tipo final antes de validar mudanças
 // ==========================================
 
 import { toast } from "sonner";
@@ -170,10 +171,10 @@ export default function PromptManager({
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-// ✅ Estados para controle de upload de mídia
-const [isUploading, setIsUploading] = useState(false);
-const [uploadProgress, setUploadProgress] = useState(0);
-const [uploadStage, setUploadStage] = useState('');
+  // ✅ Estados para controle de upload de mídia
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStage, setUploadStage] = useState('');
 
   const [extraFiles, setExtraFiles] = useState([]);
   const [attachments, setAttachments] = useState([]);
@@ -200,7 +201,7 @@ const [uploadStage, setUploadStage] = useState('');
     videoFile: null,
     imageFile: null,
     selectedMedia: "none",
-    media_type: "none", // ✅ NOVO
+    media_type: "none",
   });
 
   const [categoryForm, setCategoryForm] = useState({
@@ -536,7 +537,7 @@ const [uploadStage, setUploadStage] = useState('');
       videoFile: null,
       imageFile: null,
       selectedMedia: "none",
-      media_type: "none", // ✅ RESETAR TIPO
+      media_type: "none",
     });
     
     if (!isEditMode) {
@@ -597,7 +598,7 @@ const [uploadStage, setUploadStage] = useState('');
       is_favorite: prompt.is_favorite || false,
       platform: prompt.platform || "chatgpt",
       selectedMedia: mediaType,
-      media_type: mediaType, // ✅ INCLUIR MEDIA_TYPE
+      media_type: mediaType,
     };
 
     setPromptForm(formData);
@@ -827,7 +828,8 @@ const [uploadStage, setUploadStage] = useState('');
       })
     : [];
 
- const savePrompt = async (updatedFormFromModal) => {
+  // ✅ FUNÇÃO DE SALVAMENTO CORRIGIDA
+  const savePrompt = async (updatedFormFromModal) => {
     if (isSaving) return;
 
     if (!validateForm()) {
@@ -844,6 +846,44 @@ const [uploadStage, setUploadStage] = useState('');
       // ✅ USAR DADOS DO MODAL SE FORNECIDOS
       const formToSave = updatedFormFromModal || promptForm;
       
+      // ✅ CORREÇÃO: Recalcular tipo final ANTES de validar
+      const finalMediaType = formToSave.media_type || (
+        formToSave.youtube_url?.trim() ? 'youtube' :
+        formToSave.video_url?.trim() || formToSave.videoFile ? 'video' :
+        formToSave.image_url?.trim() || formToSave.imageFile ? 'image' : 'none'
+      );
+
+      console.log('🔍 Validação de tipo:', {
+        isEditMode,
+        editingPrompt: !!editingPrompt,
+        originalType: editingPrompt?.media_type,
+        finalType: finalMediaType,
+        hasYoutube: !!formToSave.youtube_url,
+        hasVideo: !!(formToSave.video_url || formToSave.videoFile),
+        hasImage: !!(formToSave.image_url || formToSave.imageFile),
+      });
+      
+      // ✅ VALIDAÇÃO MELHORADA: Só valida mudança de tipo se estiver editando COM tipo original definido
+      if (isEditMode && editingPrompt?.id && editingPrompt?.media_type && editingPrompt.media_type !== 'none') {
+        const originalType = editingPrompt.media_type;
+        
+        if (finalMediaType !== originalType && finalMediaType !== 'none') {
+          toast.error(
+            `❌ Não é possível mudar o tipo de mídia!\n\n` +
+            `Tipo original: ${originalType}\n` +
+            `Tipo atual: ${finalMediaType}\n\n` +
+            `Remova a capa primeiro para adicionar outro tipo.`
+          );
+          console.error('🚫 Tentativa bloqueada de salvar com tipo diferente:', {
+            original: originalType,
+            atual: finalMediaType
+          });
+          setIsSaving(false);
+          setIsUploading(false);
+          return;
+        }
+      }
+      
       if (isEditMode && editingPrompt?.id) {
         const promptId = editingPrompt.id;
 
@@ -859,6 +899,7 @@ const [uploadStage, setUploadStage] = useState('');
           platform: formToSave.platform || "chatgpt",
           is_favorite: formToSave.is_favorite || false,
           youtube_url: formToSave.youtube_url || "",
+          media_type: finalMediaType, // ✅ Incluir media_type
           category_id:
             formToSave.category_id !== "none"
               ? parseInt(formToSave.category_id)
@@ -999,7 +1040,7 @@ const [uploadStage, setUploadStage] = useState('');
             ? parseInt(formToSave.category_id)
             : null,
 
-        media_type: formToSave.media_type || "none",
+        media_type: finalMediaType,
 
         image_url: imageBlobUrl || "",
         video_url: videoBlobUrl || "",
@@ -1023,7 +1064,7 @@ const [uploadStage, setUploadStage] = useState('');
         tags: formToSave.tags || "",
         platform: formToSave.platform || "chatgpt",
         is_favorite: formToSave.is_favorite || false,
-        media_type: formToSave.media_type || "none",
+        media_type: finalMediaType,
         category_id:
           formToSave.category_id !== "none"
             ? parseInt(formToSave.category_id)

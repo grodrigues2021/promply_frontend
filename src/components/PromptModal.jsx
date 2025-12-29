@@ -1,6 +1,8 @@
 // ==========================================
 // src/components/PromptModal.jsx
-// ✅ VERSÃO FINAL CORRIGIDA - Remoção de capa 100% funcional
+// ✅ VERSÃO CORRIGIDA - BUG-002 RESOLVIDO
+// ✅ originalMediaType capturado DIRETAMENTE de editingPrompt
+// ✅ Remoção de capa 100% funcional
 // ✅ Grid responsivo: Empilhado mobile, lado a lado desktop
 // ==========================================
 
@@ -323,14 +325,28 @@ export default function PromptModal({
     }
   }, [isRemovingCover, currentMediaType, promptForm.image_url, promptForm.video_url, promptForm.youtube_url, promptForm.videoFile, promptForm.imageFile, promptForm.media_type, promptForm.selectedMedia]);
 
-  // ✅ Capturar tipo ORIGINAL ao abrir em modo edição
+  // ✅ CORREÇÃO BUG-002: Capturar tipo ORIGINAL DIRETAMENTE de editingPrompt
   useEffect(() => {
     if (isOpen && editingPrompt) {
-      const originalType = editingPrompt.media_type || currentMediaType;
+      // 🎯 PRIORIDADE: Pegar media_type DIRETAMENTE do editingPrompt
+      const originalType = 
+        editingPrompt.media_type || 
+        (editingPrompt.youtube_url ? 'youtube' :
+         editingPrompt.video_url ? 'video' :
+         editingPrompt.image_url ? 'image' : 'none');
+      
       setOriginalMediaType(originalType);
-      console.log('📌 Tipo original capturado:', originalType);
+      console.log('📌 Tipo original capturado:', originalType, {
+        media_type: editingPrompt.media_type,
+        youtube_url: !!editingPrompt.youtube_url,
+        video_url: !!editingPrompt.video_url,
+        image_url: !!editingPrompt.image_url,
+      });
+    } else if (isOpen && !editingPrompt) {
+      // Novo prompt - tipo none
+      setOriginalMediaType('none');
     }
-  }, [isOpen, editingPrompt, currentMediaType]);
+  }, [isOpen, editingPrompt]); // ✅ Remover currentMediaType das dependências
 
   // 🔍 DEBUG - Logs detalhados ao abrir o modal
   useEffect(() => {
@@ -749,7 +765,7 @@ export default function PromptModal({
                     {attachments.length > 0 && (
                       <div className="space-y-3">
                         <Label className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                          🔎 Arquivos anexados ({attachments.length})
+                          📎 Arquivos anexados ({attachments.length})
                         </Label>
                         <div className="custom-scrollbar-inner space-y-2 max-h-48 overflow-y-auto">
                           {attachments.map((file) => (
@@ -1182,7 +1198,7 @@ export default function PromptModal({
                         <SelectItem value="nanobanana">🌙 Nano Banana</SelectItem>
                         <SelectItem value="gemini">✨ Gemini</SelectItem>
                         <SelectItem value="veo3">🎥 VEO3</SelectItem>
-                        <SelectItem value="manus">🔐 Manus</SelectItem>
+                        <SelectItem value="manus">📝 Manus</SelectItem>
                         <SelectItem value="claude">🧠 Claude</SelectItem>
                       </SelectContent>
                     </Select>
