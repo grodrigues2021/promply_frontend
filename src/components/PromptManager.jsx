@@ -1,7 +1,8 @@
 // ==========================================
 // src/components/PromptManager.jsx
-// ✅ VERSÃO CORRIGIDA - Validação de media_type melhorada
-// ✅ Recalcula tipo final antes de validar mudanças
+// ✅ VERSÃO CORRIGIDA COMPLETA
+// ✅ Correção do estado da sidebar resetando
+// ✅ Validação de media_type melhorada
 // ==========================================
 
 import { toast } from "sonner";
@@ -89,7 +90,9 @@ import { debounce } from "lodash";
 import { resolveMediaUrl } from "../lib/media";
 import PromptModal from "./PromptModal";
 
-const isMobile = window.innerWidth < 768;
+// ✅ CORREÇÃO: Breakpoint consistente com Tailwind
+const MOBILE_BREAKPOINT = 1024; // lg: em Tailwind
+const isMobile = window.innerWidth < MOBILE_BREAKPOINT;
 
 const SharePromptModal = React.lazy(() =>
   import(
@@ -105,11 +108,9 @@ const safeCreateObjectURL = (file) => {
     if (file instanceof File || file instanceof Blob) {
       return URL.createObjectURL(file);
     }
-    
-   
     return "";
   } catch (error) {
-     console.error("❌ Erro ao criar objectURL:", error);
+    console.error("❌ Erro ao criar objectURL:", error);
     return "";
   }
 };
@@ -163,13 +164,16 @@ export default function PromptManager({
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
+  
+  // ✅ CORREÇÃO: Estado da sidebar com ref para evitar loops
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const sidebarStateRef = useRef(false);
+  
   const [currentVideoUrl, setCurrentVideoUrl] = useState(null);
   const [isChatDetached, setIsChatDetached] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
-  // ✅ Estados para controle de upload de mídia
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStage, setUploadStage] = useState('');
@@ -184,7 +188,6 @@ export default function PromptManager({
     content: ""
   });
 
-  // ✅ ATUALIZADO: Adicionado media_type
   const [promptForm, setPromptForm] = useState({
     title: "",
     content: "",
@@ -212,6 +215,57 @@ export default function PromptManager({
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [categorySearch, setCategorySearch] = useState("");
 
+  // ✅ CORREÇÃO: Monitorar mudanças de estado da sidebar
+  useEffect(() => {
+    console.log('🔄 SIDEBAR STATE MUDOU:', {
+      isMobileSidebarOpen,
+      timestamp: new Date().toLocaleTimeString(),
+      width: window.innerWidth,
+      isMobile: window.innerWidth < MOBILE_BREAKPOINT
+    });
+    
+    sidebarStateRef.current = isMobileSidebarOpen;
+  }, [isMobileSidebarOpen]);
+
+  // ✅ CORREÇÃO: Detectar resets não intencionais
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      if (sidebarStateRef.current === true && isMobileSidebarOpen === false) {
+        console.error('❌ ESTADO RESETADO DETECTADO!');
+        console.trace('Stack trace do reset:');
+      }
+    }, 100);
+    
+    return () => clearInterval(checkInterval);
+  }, [isMobileSidebarOpen]);
+
+  // ✅ CORREÇÃO: useEffect de resize SEM dependência circular
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobileNow = window.innerWidth < MOBILE_BREAKPOINT;
+      
+      // Usar ref ao invés do estado para evitar loop
+      if (!isMobileNow && sidebarStateRef.current) {
+        console.log('📱 Mudou para desktop - fechando sidebar');
+        setIsMobileSidebarOpen(false);
+      }
+    };
+
+    // Debounce para evitar múltiplas chamadas
+    let timeoutId;
+    const debouncedResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleResize, 150);
+    };
+
+    window.addEventListener('resize', debouncedResize);
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', debouncedResize);
+    };
+  }, []); // ✅ Array vazio - sem dependências!
+
+  // ✅ Handlers
   const handleExtraFiles = (e) => {
     const files = Array.from(e.target.files || []);
     const valid = files.filter(
@@ -243,13 +297,11 @@ export default function PromptManager({
 
   const removeAttachment = async (attachmentId, promptId) => {
     if (!promptId || promptId === undefined || promptId === null) {
-      
       toast.error("Erro: ID do prompt não encontrado. Feche e reabra o modal de edição.");
       return;
     }
 
     if (!attachmentId || attachmentId === undefined || attachmentId === null) {
-      
       toast.error("Erro: ID do anexo não encontrado.");
       return;
     }
@@ -257,23 +309,19 @@ export default function PromptManager({
     if (!confirm("Tem certeza que deseja remover este anexo?")) return;
 
     try {
-     
-
       setAttachments((prev) => prev.filter((att) => att.id !== attachmentId));
       toast.success("📎 Anexo removido!");
 
       const response = await api.delete(`/prompts/${promptId}/files/${attachmentId}`);
       
       if (response.data?.success) {
-        
         queryClient.invalidateQueries(["prompts"]);
       } else {
-    
         toast.error("Erro ao remover anexo no servidor");
         queryClient.invalidateQueries(["prompts"]);
       }
     } catch (error) {
-      console.error("❌ Erro ao remover anexo:", error); 
+      console.error("❌ Erro ao remover anexo:", error);
       toast.error("Falha ao remover anexo");
       queryClient.invalidateQueries(["prompts"]);
     }
@@ -349,7 +397,7 @@ export default function PromptManager({
         toast.error("Erro: servidor não retornou URL da imagem.");
       }
     } catch (err) {
-    console.error("❌ Erro no upload:", err); 
+      console.error("❌ Erro no upload:", err);
       toast.dismiss();
       toast.error("Falha ao enviar imagem.");
     } finally {
@@ -395,7 +443,6 @@ export default function PromptManager({
     video.playsInline = true;
 
     const thumbnailTimeout = setTimeout(() => {
-     
       setPromptForm((prev) => ({
         ...prev,
         videoFile: file,
@@ -408,7 +455,6 @@ export default function PromptManager({
 
     const cleanup = () => {
       clearTimeout(thumbnailTimeout);
-      
       video.remove();
       setUploadingImage(false);
     };
@@ -417,7 +463,7 @@ export default function PromptManager({
       try {
         video.currentTime = Math.min(1, video.duration / 2);
       } catch (err) {
-       
+        // Ignorar erro de seek
       }
     };
 
@@ -433,7 +479,6 @@ export default function PromptManager({
         canvas.toBlob(
           (blob) => {
             if (!blob) {
-            
               setPromptForm((prev) => ({
                 ...prev,
                 videoFile: file,
@@ -464,7 +509,7 @@ export default function PromptManager({
           0.8
         );
       } catch (err) {
-        console.error("❌ Erro ao gerar thumbnail:", err); 
+        console.error("❌ Erro ao gerar thumbnail:", err);
         setPromptForm((prev) => ({
           ...prev,
           videoFile: file,
@@ -517,10 +562,7 @@ export default function PromptManager({
     return tags;
   }, []);
 
-  // ✅ ATUALIZADO: Adicionado media_type no reset
   const resetPromptForm = useCallback(() => {
-   
-    
     setPromptForm({
       title: "",
       content: "",
@@ -562,7 +604,6 @@ export default function PromptManager({
     setEditingCategory(null);
   }, []);
 
-  // ✅ ATUALIZADO: Mapear media_type ao editar
   const editPrompt = useCallback(async (prompt) => {
     setIsEditMode(true);
     setEditingPrompt(prompt);
@@ -573,7 +614,6 @@ export default function PromptManager({
       prompt.thumb_url ||
       "";
 
-    // ✅ DETERMINAR MEDIA_TYPE
     const mediaType = prompt.media_type || (
       prompt.youtube_url ? "youtube" :
       prompt.video_url ? "video" :
@@ -611,7 +651,6 @@ export default function PromptManager({
       }
     } catch (error) {
       if (error.response?.status === 404) {
-       
         setAttachments([]);
       } else {
         console.error("❌ Erro ao carregar anexos:", error);
@@ -654,7 +693,6 @@ export default function PromptManager({
     } catch (error) {
       setDbConnected(false);
       toast.error("Erro ao verificar conexão com o banco!");
-      
     }
   }, [queryClient]);
 
@@ -727,12 +765,6 @@ export default function PromptManager({
   }, [showChatModal]);
 
   useEffect(() => {
-    if (window.innerWidth >= 768 && isMobileSidebarOpen) {
-      setIsMobileSidebarOpen(false);
-    }
-  }, [isMobileSidebarOpen]);
-
-  useEffect(() => {
     if (!isPromptDialogOpen) {
       setIsSaving(false);
       
@@ -785,10 +817,8 @@ export default function PromptManager({
       );
 
       if (shouldRestore) {
-       
         setPromptForm(parsed);
       } else {
-       
         localStorage.removeItem("prompt-draft");
       }
 
@@ -796,7 +826,7 @@ export default function PromptManager({
         isRestoringDraft.current = false;
       }, 500);
     } catch (error) {
-   console.error("❌ Erro ao restaurar rascunho:", error); 
+      console.error("❌ Erro ao restaurar rascunho:", error);
       localStorage.removeItem("prompt-draft");
       isRestoringDraft.current = false;
     }
@@ -826,12 +856,10 @@ export default function PromptManager({
       })
     : [];
 
-  // ✅ FUNÇÃO DE SALVAMENTO CORRIGIDA
   const savePrompt = async (updatedFormFromModal) => {
     if (isSaving) return;
 
     if (!validateForm()) {
-    
       return;
     }
 
@@ -841,19 +869,14 @@ export default function PromptManager({
     setUploadStage('Preparando...');
 
     try {
-      // ✅ USAR DADOS DO MODAL SE FORNECIDOS
       const formToSave = updatedFormFromModal || promptForm;
       
-      // ✅ CORREÇÃO: Recalcular tipo final ANTES de validar
       const finalMediaType = formToSave.media_type || (
         formToSave.youtube_url?.trim() ? 'youtube' :
         formToSave.video_url?.trim() || formToSave.videoFile ? 'video' :
         formToSave.image_url?.trim() || formToSave.imageFile ? 'image' : 'none'
       );
-
-     
       
-      // ✅ VALIDAÇÃO MELHORADA: Só valida mudança de tipo se estiver editando COM tipo original definido
       if (isEditMode && editingPrompt?.id && editingPrompt?.media_type && editingPrompt.media_type !== 'none') {
         const originalType = editingPrompt.media_type;
         
@@ -864,7 +887,6 @@ export default function PromptManager({
             `Tipo atual: ${finalMediaType}\n\n` +
             `Remova a capa primeiro para adicionar outro tipo.`
           );
-       
           setIsSaving(false);
           setIsUploading(false);
           return;
@@ -874,7 +896,6 @@ export default function PromptManager({
       if (isEditMode && editingPrompt?.id) {
         const promptId = editingPrompt.id;
 
-        // 📊 Etapa 1: Atualizando texto (0-30%)
         setUploadStage('Atualizando prompt...');
         setUploadProgress(10);
 
@@ -886,7 +907,7 @@ export default function PromptManager({
           platform: formToSave.platform || "chatgpt",
           is_favorite: formToSave.is_favorite || false,
           youtube_url: formToSave.youtube_url || "",
-          media_type: finalMediaType, // ✅ Incluir media_type
+          media_type: finalMediaType,
           category_id:
             formToSave.category_id !== "none"
               ? parseInt(formToSave.category_id)
@@ -960,7 +981,6 @@ export default function PromptManager({
               });
             }
           } catch (err) {
-           
             toast.warning(
               "Prompt atualizado, mas houve erro no upload da mídia."
             );
@@ -988,7 +1008,6 @@ export default function PromptManager({
         return;
       }
 
-      // 📊 Criação de novo prompt
       const tempId = `temp-${Date.now()}`;
 
       const clientId =
@@ -1040,7 +1059,6 @@ export default function PromptManager({
 
       let realPrompt;
 
-      // 📊 Etapa 1: Criando prompt básico (0-30%)
       setUploadStage('Criando prompt...');
       setUploadProgress(10);
 
@@ -1098,7 +1116,6 @@ export default function PromptManager({
       const thumbnailBlobToUpload = formToSave.thumbnailBlob;
       const extraFilesToUpload = [...extraFiles];
 
-     
       localStorage.removeItem("prompt-draft");
       
       toast.success("✅ Prompt criado com sucesso!");
@@ -1115,7 +1132,6 @@ export default function PromptManager({
           setUploadStage('');
         }, 500);
       } else {
-        // Modal fecha mas upload continua em background
         resetPromptForm();
         setIsPromptDialogOpen(false);
         setIsUploading(false);
@@ -1151,7 +1167,6 @@ export default function PromptManager({
 
         startMediaUpload();
 
-        // Upload em background após fechar modal
         api
           .post(`/prompts/${promptId}/media`, mediaForm, {
             headers: { "Content-Type": "multipart/form-data" },
@@ -1179,9 +1194,6 @@ export default function PromptManager({
             }
           })
           .catch((err) => {
-            
-          
-
             queryClient.setQueryData(["prompts"], (old) => {
               if (!Array.isArray(old)) return old;
               return old.map((p) =>
@@ -1199,7 +1211,7 @@ export default function PromptManager({
       queryClient.invalidateQueries(["stats"]);
       queryClient.invalidateQueries(["categories"]);
     } catch (error) {
-   console.error("❌ Erro ao salvar prompt:", error); 
+      console.error("❌ Erro ao salvar prompt:", error);
       toast.error(error.message || "Erro ao salvar prompt");
       setIsUploading(false);
       setUploadProgress(0);
@@ -1251,7 +1263,7 @@ export default function PromptManager({
         toast.error(data.error || "Erro ao deletar categoria");
       }
     } catch (err) {
-    console.error("❌ Erro ao deletar categoria:", err);
+      console.error("❌ Erro ao deletar categoria:", err);
       toast.error("Erro ao excluir categoria");
     }
   };
@@ -1270,7 +1282,7 @@ export default function PromptManager({
       await deletePromptMutation.mutateAsync(id);
       toast.success("🗑️ Prompt deletado!");
     } catch (err) {
-    console.error("❌ Erro ao deletar prompt:", err); 
+      console.error("❌ Erro ao deletar prompt:", err);
       toast.error("Erro ao deletar prompt");
     }
   };
@@ -1287,7 +1299,7 @@ export default function PromptManager({
       const status = !prompt.is_favorite ? "favoritado" : "removido dos favoritos";
       toast.success(`⭐ Prompt ${status}!`);
     } catch (err) {
-    console.error("❌ Erro ao alternar favorito:", err); 
+      console.error("❌ Erro ao alternar favorito:", err);
       toast.error("Erro ao atualizar favorito");
     }
   };
@@ -1327,13 +1339,7 @@ export default function PromptManager({
 
         <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
           <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
-            {isMobileSidebarOpen && window.innerWidth < 768 && (
-              <div
-                className="fixed inset-0 bg-black/40 z-30"
-                onClick={() => setIsMobileSidebarOpen(false)}
-              />
-            )}
-
+            
             <Sidebar
               stats={stats}
               myCategories={myCategories}
@@ -1512,11 +1518,9 @@ export default function PromptManager({
               );
 
               if (shouldSaveDraft) {
-               
                 localStorage.setItem("prompt-draft", JSON.stringify(promptForm));
                 toast.success("💾 Rascunho salvo!");
               } else {
-                
                 localStorage.removeItem("prompt-draft");
                 toast.info("🗑️ Alterações descartadas");
               }
