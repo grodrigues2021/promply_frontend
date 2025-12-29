@@ -535,14 +535,13 @@ const PromptCard = React.memo(({
                   <div className="flex items-center justify-between mt-1 w-full">
                     {/* TAG DE CATEGORIA */}
                     {prompt.category && (
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5" title={prompt.category.name}>
                         <TagIcon className="w-3.5 h-3.5 text-gray-400" />
                         <CategoryBadge
                           name={prompt.category.name}
                           color={prompt.category.color}
                           maxLength={20}
                           variant="secondary"
-                          title={prompt.category.name}
                         />
                       </div>
                     )}
