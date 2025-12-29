@@ -589,7 +589,7 @@ const PromptCard = React.memo(({
               {prompt.description || prompt.content}
             </p>
 
-           {/* Tags */}
+           {/* Tags com truncagem em 20 caracteres */}
 {tagsArray.length > 0 && (
   <div className="flex flex-wrap gap-1.5 mb-3">
     {tagsArray.slice(0, 3).map((tag, idx) => (
@@ -599,7 +599,7 @@ const PromptCard = React.memo(({
         className="text-xs"
         title={tag}
       >
-        {tag}
+        {tag.length > 20 ? tag.substring(0, 20) + '...' : tag}
       </Badge>
     ))}
     {tagsArray.length > 3 && (
