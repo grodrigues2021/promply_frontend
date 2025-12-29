@@ -24,8 +24,9 @@ import {
 import { resolveMediaUrl, extractYouTubeId, detectVideoType } from '../lib/media';
 import thumbnailCache from '../lib/thumbnailCache';
 import DebugTemplateCache from './DebugTemplateCache';
+
 // ============================================================
-// 📵 PLATAFORMAS DISPONÍVEIS
+// 🔵 PLATAFORMAS DISPONÍVEIS
 // ============================================================
 const PLATFORMS = {
   chatgpt: { label: "ChatGPT", icon: "🤖", color: "#10a37f" },
@@ -333,98 +334,147 @@ const TemplateCard = React.memo(({
   }, [templateId, item?.thumb_url, cachedThumbnail]);
 
   return (
-   
     <div className={cn(cardVariants({ layout: "horizontal", hover: "lift" }), className)}>
       {/* CONTEÚDO À ESQUERDA */}
       <div className={cn(contentVariants({ layout: "horizontal" }))}>
         <div className="min-w-0 flex-1 flex flex-col justify-between">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-2">
-                {item?.title}
-              </h3>
-              
-              {/* Container para categoria e plataforma */}
-              <div className="flex items-center gap-2">
-           
-{/* Categoria discreta */}
-{item?.category && (() => {
-  const categoryName = item.category.name;
-  const shouldTruncate = categoryName.length > 15;
-const displayName = shouldTruncate 
-  ? `${categoryName.substring(0, 15)}...` 
-  : categoryName;
+          {/* CABEÇALHO - Título + Categoria/Plataforma */}
+          <div className="mb-2">
+            <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 mb-2">
+              {item?.title}
+            </h3>
+            
+            {/* Container para categoria e plataforma */}
+            <div className="flex items-center gap-2">
+              {/* Categoria discreta */}
+              {item?.category && (() => {
+                const categoryName = item.category.name;
+                const shouldTruncate = categoryName.length > 15;
+                const displayName = shouldTruncate 
+                  ? `${categoryName.substring(0, 15)}...` 
+                  : categoryName;
 
-  const badge = (
-  <div 
-    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0"
-    style={{
-        backgroundColor: `${item.category.color}15`,
-        color: item.category.color || "#6366f1",
-        border: `1px solid ${item.category.color}30`
-      }}
-    >
-      <div 
-        className="w-1.5 h-1.5 rounded-full"
-        style={{ backgroundColor: item.category.color || "#6366f1" }}
-      />
-      <span className="whitespace-nowrap">{displayName}</span>
+                const badge = (
+                  <div 
+                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0"
+                    style={{
+                      backgroundColor: `${item.category.color}15`,
+                      color: item.category.color || "#6366f1",
+                      border: `1px solid ${item.category.color}30`
+                    }}
+                  >
+                    <div 
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{ backgroundColor: item.category.color || "#6366f1" }}
+                    />
+                    <span className="whitespace-nowrap">{displayName}</span>
+                  </div>
+                );
 
-    </div>
-  );
+                // Se não truncar, retorna badge direto
+                if (!shouldTruncate) return badge;
 
-  // Se não truncar, retorna badge direto
-  if (!shouldTruncate) return badge;
-
-  // Se truncar, envolve com tooltip
-  return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          {badge}
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
-        >
-          {categoryName}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  );
-})()}
-
-                {/* Badge de plataforma */}
-                {platformInfo && (
+                // Se truncar, envolve com tooltip
+                return (
                   <TooltipProvider delayDuration={100}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div 
-  className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium cursor-help flex-shrink-0"
-  style={{
-                            backgroundColor: `${platformInfo.color}15`,
-                            color: platformInfo.color,
-                            border: `1px solid ${platformInfo.color}30`
-                          }}
-                        >
-                          <span className="text-xs">{platformInfo.icon}</span>
-                          <span className="whitespace-nowrap">{platformInfo.label}</span>
-
-                        </div>
+                        {badge}
                       </TooltipTrigger>
                       <TooltipContent
                         side="top"
                         className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
                       >
-                        Plataforma: {platformInfo.label}
+                        {categoryName}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                )}
-              </div>
-            </div>
+                );
+              })()}
 
-            {/* ❤️ FAVORITOS + 📈 USOS */}
+              {/* Badge de plataforma */}
+              {platformInfo && (
+                <TooltipProvider delayDuration={100}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div 
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium cursor-help flex-shrink-0"
+                        style={{
+                          backgroundColor: `${platformInfo.color}15`,
+                          color: platformInfo.color,
+                          border: `1px solid ${platformInfo.color}30`
+                        }}
+                      >
+                        <span className="text-xs">{platformInfo.icon}</span>
+                        <span className="whitespace-nowrap">{platformInfo.label}</span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
+                    >
+                      Plataforma: {platformInfo.label}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          </div>
+
+          {/* DESCRIÇÃO */}
+          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
+            {item?.description?.trim()
+              ? item.description
+              : item?.content}
+          </p>
+
+          {/* 🏷️ TAGS + 📈 USOS + ❤️ FAVORITOS - TUDO NA MESMA LINHA */}
+          <div className="flex items-center justify-between gap-2 mb-3 mt-auto">
+            {/* LADO ESQUERDO - TAGS */}
+            {tagsArray.length > 0 ? (
+              <TooltipProvider delayDuration={100}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex gap-2 cursor-pointer">
+                      {/* PRIMEIRA TAG */}
+                      <div className="text-xs px-2 py-0.5 rounded-full bg-purple-100/70 text-purple-700 border border-purple-300/50 shadow-sm max-w-[100px] truncate">
+                        {tagsArray[0]}
+                      </div>
+
+                      {/* +N (se houver mais de 1 tag) */}
+                      {tagsArray.length > 1 && (
+                        <div className="text-xs px-2 py-0.5 rounded-full bg-purple-100/70 text-purple-700 border border-purple-300/50 shadow-sm font-medium">
+                          +{tagsArray.length - 1}
+                        </div>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+
+                  {/* TOOLTIP COM TODAS AS TAGS */}
+                  <TooltipContent
+                    side="top"
+                    align="start"
+                    sideOffset={8}
+                    className="rounded-2xl bg-purple-100/80 border border-purple-300/50 backdrop-blur-md shadow-xl p-3 max-w-[280px] animate-in fade-in zoom-in-95"
+                  >
+                    <div className="flex flex-wrap gap-2">
+                      {tagsArray.map((tag, idx) => (
+                        <span
+                          key={idx}
+                          className="text-xs px-2 py-0.5 rounded-full bg-purple-200/70 text-purple-700 border border-purple-300/40 backdrop-blur-sm"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <div></div>
+            )}
+
+            {/* LADO DIREITO - USOS + FAVORITOS */}
             <div className="flex items-center gap-2">
               {/* 📈 INDICADOR DE USOS */}
               <TooltipProvider delayDuration={100}>
@@ -493,118 +543,67 @@ const displayName = shouldTruncate
             </div>
           </div>
 
-          <p className="text-sm text-gray-600 line-clamp-2 mb-3">
-            {item?.description?.trim()
-              ? item.description
-              : item?.content}
-          </p>
-        </div>
+          {/* BOTÕES DE AÇÃO */}
+          <div className="flex items-center gap-2">
+            {/* Usar Template */}
+            <Button
+              size="sm"
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
+              onClick={(e) => {
+                e.stopPropagation();
+                onShare?.(item);
+              }}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Salvar Template
+            </Button>
 
-        {tagsArray.length > 0 && (
-          <TooltipProvider delayDuration={100}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex gap-2 mb-3 mt-auto cursor-pointer">
-                  {/* TAGS VISÍVEIS (ATÉ 3) */}
-                  {tagsArray.slice(0, 3).map((tag, index) => (
-                    <div
-                      key={index}
-                      className="text-xs px-2 py-0.5 rounded-full bg-purple-100/70 text-purple-700 border border-purple-300/50 shadow-sm max-w-[80px] truncate"
-                    >
-                      {tag}
-                    </div>
-                  ))}
-
-                  {/* +N (somente se houver mais de 3 tags) */}
-                  {tagsArray.length > 3 && (
-                    <div className="text-xs px-2 py-0.5 rounded-full bg-purple-100/70 text-purple-700 border border-purple-300/50 shadow-sm">
-                      +{tagsArray.length - 3}
-                    </div>
-                  )}
-                </div>
-              </TooltipTrigger>
-
-              {/* TOOLTIP COM TODAS AS TAGS */}
-              <TooltipContent
-                side="top"
-                align="center"
-                sideOffset={8}
-                className="rounded-2xl bg-purple-100/80 border border-purple-300/50 backdrop-blur-md shadow-xl p-3 max-w-[260px] animate-in fade-in zoom-in-95"
+            {/* Copiar */}
+            {onCopy && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Copiar conteúdo"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCopy(item);
+                }}
               >
-                <div className="flex flex-wrap gap-2">
-                  {tagsArray.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="text-xs px-2 py-0.5 rounded-full bg-purple-200/70 text-purple-700 border border-purple-300/40 backdrop-blur-sm"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+                <Copy className="w-4 h-4" />
+              </Button>
+            )}
 
-        <div className="flex items-center gap-2 pt-3">
-          {/* Usar Template */}
-          <Button
-            size="sm"
-            className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:shadow-md transition"
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare?.(item);
-            }}
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Salvar Template
-          </Button>
+            {/* Editar – somente admin */}
+            {user?.is_admin && onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Editar Template"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(item);
+                }}
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            )}
 
-          {/* Copiar */}
-          {onCopy && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Copiar conteúdo"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCopy(item);
-              }}
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          )}
-
-          {/* Editar – somente admin */}
-          {user?.is_admin && onEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Editar Template"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(item);
-              }}
-            >
-              <Edit className="w-4 h-4" />
-            </Button>
-          )}
-
-          {/* Excluir – somente admin */}
-          {user?.is_admin && typeof onDelete === "function" && (
-            <Button
-              variant="outline"
-              size="sm"
-              title="Excluir Template"
-              className="text-red-600 hover:text-red-700"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(item?.id);
-              }}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
+            {/* Excluir – somente admin */}
+            {user?.is_admin && typeof onDelete === "function" && (
+              <Button
+                variant="outline"
+                size="sm"
+                title="Excluir Template"
+                className="text-red-600 hover:text-red-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(item?.id);
+                }}
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
