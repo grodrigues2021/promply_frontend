@@ -87,7 +87,8 @@ export function CategoryBadge({
  * Componente para exibir categoria na sidebar (com bolinha colorida)
  * 
  * ✅ Tooltip SÓ aparece se o nome for truncado (> maxLength)
- * ✅ Tooltip com fundo preto, sombra forte e bolinha colorida
+ * ✅ Tooltip aparece EMBAIXO para não cobrir os ícones
+ * ✅ Tooltip alinhado à ESQUERDA do elemento
  */
 export function CategorySidebarItem({ 
   name, 
@@ -125,16 +126,17 @@ export function CategorySidebarItem({
     return content;
   }
 
-  // ✅ Se truncar, envolve com Tooltip SUPER VISÍVEL
+  // ✅ CORRIGIDO: Tooltip aparece EMBAIXO e alinhado à ESQUERDA
   return (
     <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
         {content}
       </TooltipTrigger>
       <TooltipContent 
-        side="right" 
+        side="bottom"        // ✅ MUDOU: "right" → "bottom"
+        align="start"        // ✅ NOVO: Alinha à esquerda
         className="bg-gray-950 text-white px-4 py-2.5 text-sm font-semibold max-w-xs shadow-2xl border border-gray-700 z-[9999]"
-        sideOffset={12}
+        sideOffset={8}       // ✅ AJUSTADO: 12 → 8 (espaço menor)
       >
         <div className="flex items-center gap-2">
           <span
