@@ -347,22 +347,72 @@ const TemplateCard = React.memo(({
               {/* Container para categoria e plataforma */}
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Categoria discreta */}
-                {item?.category && (
-                  <div 
-                    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                    style={{
-                      backgroundColor: `${item.category.color}15`,
-                      color: item.category.color || "#6366f1",
-                      border: `1px solid ${item.category.color}30`
-                    }}
-                  >
-                    <div 
-                      className="w-1.5 h-1.5 rounded-full"
-                      style={{ backgroundColor: item.category.color || "#6366f1" }}
-                    />
-                    <span>{item.category.name}</span>
-                  </div>
-                )}
+                // ❌ ANTES (mostra nome completo):
+{/* Categoria discreta */}
+{item?.category && (
+  <div 
+    className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+    style={{
+      backgroundColor: `${item.category.color}15`,
+      color: item.category.color || "#6366f1",
+      border: `1px solid ${item.category.color}30`
+    }}
+  >
+    <div 
+      className="w-1.5 h-1.5 rounded-full"
+      style={{ backgroundColor: item.category.color || "#6366f1" }}
+    />
+    <span>{item.category.name}</span>  {/* ← AQUI: nome completo */}
+  </div>
+)}
+
+✅ SUBSTITUIR POR (com truncamento e tooltip):
+javascript// ✅ DEPOIS (trunca em 10 caracteres + tooltip):
+{/* Categoria discreta */}
+{item?.category && (() => {
+  const categoryName = item.category.name;
+  const shouldTruncate = categoryName.length > 10;
+  const displayName = shouldTruncate 
+    ? `${categoryName.substring(0, 10)}...` 
+    : categoryName;
+
+  const badge = (
+    <div 
+      className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium"
+      style={{
+        backgroundColor: `${item.category.color}15`,
+        color: item.category.color || "#6366f1",
+        border: `1px solid ${item.category.color}30`
+      }}
+    >
+      <div 
+        className="w-1.5 h-1.5 rounded-full"
+        style={{ backgroundColor: item.category.color || "#6366f1" }}
+      />
+      <span>{displayName}</span>
+    </div>
+  );
+
+  // Se não truncar, retorna badge direto
+  if (!shouldTruncate) return badge;
+
+  // Se truncar, envolve com tooltip
+  return (
+    <TooltipProvider delayDuration={100}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {badge}
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          className="bg-gray-900 text-white text-xs px-2 py-1 rounded"
+        >
+          {categoryName}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+})()}
 
                 {/* Badge de plataforma */}
                 {platformInfo && (
