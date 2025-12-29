@@ -843,41 +843,69 @@ export default function PromptModal({
                         </div>
                       )}
 
-                      {currentMediaType === "image" && (
-                        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
-                          {promptForm.image_url ? (
-                            <div className="relative group">
-                              <img
-                                src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
-                                alt="Preview"
-                                className="w-full rounded-xl shadow-lg"
-                              />
-                              <button
-                                type="button"
-                                onClick={removeImage}
-                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-center py-8 text-slate-500">
-                              <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                              <p className="text-sm font-medium">Nenhuma imagem selecionada</p>
-                            </div>
-                          )}
+               {currentMediaType === "image" && (
+  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl overflow-hidden">
+    {promptForm.image_url ? (
+      <div className="relative w-full h-[400px] overflow-hidden">
+        {/* Imagem de fundo */}
+        <img
+          src={promptForm.image_url.startsWith("http") ? promptForm.image_url : `${apiBaseUrl}${promptForm.image_url}`}
+          alt="Preview"
+          className="w-full h-full object-cover"
+        />
+        
+        {/* ✨ NOVO: Gradient overlay suave */}
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-slate-900/80 via-slate-900/40 to-transparent pointer-events-none" />
+        
+        {/* Botões sobre o gradient */}
+        <div className="absolute bottom-4 left-0 right-0 px-5 flex justify-between items-center">
+          {/* Badge do tipo */}
+          <div className="flex items-center gap-2 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
+            <ImageIcon className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-semibold text-slate-800">Imagem</span>
+          </div>
 
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => imageInputRef.current?.click()}
-                            className="w-full border-blue-300 hover:bg-blue-100 dark:hover:bg-slate-600"
-                          >
-                            <ImagePlus className="w-4 h-4 mr-2" />
-                            {promptForm.image_url ? '🔄 Alterar Imagem' : 'Selecionar Imagem'}
-                          </Button>
-                        </div>
-                      )}
+          {/* Botões de ação */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={removeImage}
+              className="bg-white/95 backdrop-blur-sm hover:bg-red-50 border-red-300 text-red-600"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Remover
+            </Button>
+            
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => imageInputRef.current?.click()}
+              className="bg-white/95 backdrop-blur-sm hover:bg-blue-50 border-blue-300 text-blue-600"
+            >
+              <ImagePlus className="w-4 h-4 mr-1" />
+              Alterar
+            </Button>
+          </div>
+        </div>
+      </div>
+    ) : (
+      <div className="text-center py-8 text-slate-500">
+        <ImageIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+        <p className="text-sm font-medium">Nenhuma imagem selecionada</p>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => imageInputRef.current?.click()}
+          className="mt-4 border-blue-300 hover:bg-blue-100"
+        >
+          <ImagePlus className="w-4 h-4 mr-2" />
+          Selecionar Imagem
+        </Button>
+      </div>
+    )}
+  </div>
+)}
 
                       {currentMediaType === "video" && (
                         <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-slate-750 dark:to-slate-700 rounded-2xl p-5 space-y-3">
