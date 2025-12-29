@@ -320,13 +320,11 @@ const PromptCard = React.memo(({
         // 🔒 PRIORIDADE 1: Se JÁ tem blob no ref, NUNCA troca!
         if (stableThumbnailRef.current?.startsWith("blob:")) {
           thumbnailUrl = stableThumbnailRef.current;
-          console.log('🔒 Mantendo blob URL (ignorando backend):', stableThumbnailRef.current.substring(0, 50));
         }
         // 💾 PRIORIDADE 2: Se thumb_url é blob, salva no ref
         else if (thumbUrl.startsWith("blob:")) {
           thumbnailUrl = thumbUrl;
           stableThumbnailRef.current = thumbUrl;
-          console.log('💾 Salvando blob URL no ref:', thumbUrl.substring(0, 50));
         }
         // 🌐 PRIORIDADE 3: Usa HTTPS apenas se ref está vazio (refresh)
         else {
@@ -335,7 +333,6 @@ const PromptCard = React.memo(({
           if (!stableThumbnailRef.current) {
             stableThumbnailRef.current = thumbnailUrl;
           }
-          console.log('🌐 Usando HTTPS (página foi recarregada)');
         }
       }
     }
@@ -455,26 +452,6 @@ const PromptCard = React.memo(({
       videoId: null,
     });
   };
-
-  // 🔍 DEBUG LOG #1: Monitora mudanças na URL da thumbnail
-  useEffect(() => {
-    if (mediaInfo.hasLocalVideo && mediaInfo.thumbnailUrl) {
-      console.log('🔄 thumbnailUrl ATUALIZADA:', {
-        promptId: prompt.id,
-        title: prompt.title,
-        url: mediaInfo.thumbnailUrl,
-        urlLength: mediaInfo.thumbnailUrl.length,
-        isBlob: mediaInfo.thumbnailUrl.startsWith('blob:'),
-        isHttp: mediaInfo.thumbnailUrl.startsWith('http'),
-        hasTimestamp: mediaInfo.thumbnailUrl.includes('?t='),
-        stableRef: stableThumbnailRef.current,
-        _uploadingMedia: prompt._uploadingMedia,
-        updated_at: prompt.updated_at,
-        renderCount: (window.renderCounts = (window.renderCounts || {}))[prompt.id] = ((window.renderCounts || {})[prompt.id] || 0) + 1,
-        timestamp: new Date().toISOString()
-      });
-    }
-  }, [mediaInfo.thumbnailUrl, mediaInfo.hasLocalVideo, prompt.id, prompt.title, prompt._uploadingMedia, prompt.updated_at]);
 
   return (
     <>
@@ -835,23 +812,7 @@ const PromptCard = React.memo(({
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
                     
-                  
-                    onLoad={(e) => {
-                      console.log('🖼️ Thumbnail CARREGADA:', {
-                        promptId: prompt.id,
-                        title: prompt.title,
-                        src: e.target.src,
-                        srcLength: e.target.src.length,
-                        naturalWidth: e.target.naturalWidth,
-                        naturalHeight: e.target.naturalHeight,
-                        aspectRatio: (e.target.naturalWidth / e.target.naturalHeight).toFixed(2),
-                        displayWidth: e.target.width,
-                        displayHeight: e.target.height,
-                        containerAspect: (e.target.width / e.target.height).toFixed(2),
-                        timestamp: new Date().toISOString()
-                      });
-                    }}
-                    
+                                                         
                     onError={(e) => {
                       console.error('❌ ERRO ao carregar thumbnail:', {
                         promptId: prompt.id,
