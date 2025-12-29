@@ -265,63 +265,64 @@ export default function Sidebar({
               </li>
 
               {filteredAndSortedCategories.map((category) => (
-                <li
-                  key={category.id}
-                  className={`
-                    group flex items-center justify-between gap-2 cursor-pointer 
-                    transition-colors
-                    ${
-                      selectedCategory === category.id
-                        ? "text-blue-600 dark:text-blue-400 font-medium"
-                        : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
-                    }
-                  `}
-                >
-                  {/* ✅ ALTERAÇÃO: Usar CategorySidebarItem */}
-                  <div
-                    onClick={() => {
-                      setSelectedCategory(category.id);
-                      setIsMobileSidebarOpen(false);
-                    }}
-                  >
-                    <CategorySidebarItem
-                      name={category.name}
-                      color={category.color}
-                      promptCount={category.prompt_count}
-                      maxLength={20}
-                    />
-                  </div>
+  <li
+    key={category.id}
+    className={`
+      group flex items-center justify-between gap-2 cursor-pointer 
+      transition-colors
+      ${
+        selectedCategory === category.id
+          ? "text-blue-600 dark:text-blue-400 font-medium"
+          : "text-slate-700 dark:text-slate-300 hover:text-blue-600"
+      }
+    `}
+  >
+    {/* ✅ CORREÇÃO 1: Adicionar flex-1 min-w-0 para permitir truncate */}
+    <div
+      className="flex-1 min-w-0"
+      onClick={() => {
+        setSelectedCategory(category.id);
+        setIsMobileSidebarOpen(false);
+      }}
+    >
+      <CategorySidebarItem
+        name={category.name}
+        color={category.color}
+        promptCount={category.prompt_count}
+        maxLength={20}
+      />
+    </div>
 
-                  {/* Ações (EDITAR / APAGAR) */}
-                  <div className="flex items-center gap-1 
-                    opacity-100 lg:opacity-0 lg:group-hover:opacity-100 
-                    transition-opacity">
+    {/* ✅ CORREÇÃO 2: Adicionar flex-shrink-0 para ícones não encolherem */}
+    <div className="flex items-center gap-1 flex-shrink-0
+      opacity-100 lg:opacity-0 lg:group-hover:opacity-100 
+      transition-opacity">
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        editCategory(category);
-                        setIsMobileSidebarOpen(false);
-                      }}
-                      className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                      title="Editar categoria"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          editCategory(category);
+          setIsMobileSidebarOpen(false);
+        }}
+        className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        title="Editar categoria"
+      >
+        <Edit3 className="w-4 h-4" />
+      </button>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteCategory(category.id);
-                      }}
-                      className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                      title="Apagar categoria"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </li>
-              ))}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          deleteCategory(category.id);
+        }}
+        className="p-1 text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+        title="Apagar categoria"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  </li>
+))}
             </ul>
 
           </div>
