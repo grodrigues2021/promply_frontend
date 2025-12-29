@@ -41,7 +41,7 @@ export function CategoryBadge({
   const badgeContent = (
     <Badge
       variant={variant}
-      className={`text-xs font-medium ${className}`}
+      className={`text-xs font-medium cursor-help ${className}`}
       style={{
         backgroundColor: color ? `${color}15` : '#e0e7ff',
         color: color || '#4f46e5',
@@ -57,18 +57,24 @@ export function CategoryBadge({
     return badgeContent;
   }
 
-  // Se trunca, envolve com Tooltip
+  // Se trunca, envolve com Tooltip MELHORADO
   return (
-    <Tooltip delayDuration={200}>
+    <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
         {badgeContent}
       </TooltipTrigger>
       <TooltipContent 
         side="top" 
-        className="bg-slate-900 text-white px-3 py-1.5 text-xs font-medium max-w-xs"
-        sideOffset={5}
+        className="bg-gray-950 text-white px-4 py-2 text-sm font-semibold max-w-xs shadow-2xl border border-gray-700 z-[9999]"
+        sideOffset={8}
       >
-        {fullName}
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color || "#3B82F6" }}
+          />
+          <span>{fullName}</span>
+        </div>
       </TooltipContent>
     </Tooltip>
   );
@@ -95,7 +101,7 @@ export function CategorySidebarItem({
   const fullText = `${name} (${promptCount || 0})`;
 
   const content = (
-    <div className={`flex items-center gap-2 flex-1 min-w-0 ${className}`}>
+    <div className={`flex items-center gap-2 flex-1 min-w-0 cursor-pointer ${className}`}>
       <span
         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
         style={{ backgroundColor: color || "#3B82F6" }}
@@ -111,18 +117,24 @@ export function CategorySidebarItem({
     return content;
   }
 
-  // Se trunca, envolve com Tooltip
+  // Se trunca, envolve com Tooltip MELHORADO
   return (
-    <Tooltip delayDuration={200}>
+    <Tooltip delayDuration={100}>
       <TooltipTrigger asChild>
         {content}
       </TooltipTrigger>
       <TooltipContent 
         side="right" 
-        className="bg-slate-900 text-white px-3 py-1.5 text-xs font-medium max-w-xs"
-        sideOffset={8}
+        className="bg-gray-950 text-white px-4 py-2.5 text-sm font-semibold max-w-xs shadow-2xl border border-gray-700 z-[9999]"
+        sideOffset={12}
       >
-        {fullText}
+        <div className="flex items-center gap-2">
+          <span
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color || "#3B82F6" }}
+          />
+          <span>{fullText}</span>
+        </div>
       </TooltipContent>
     </Tooltip>
   );
