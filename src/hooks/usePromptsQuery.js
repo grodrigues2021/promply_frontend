@@ -239,7 +239,12 @@ export function useUpdatePromptMutation() {
 
   return useMutation({
     mutationFn: async ({ id, data }) => {
-      const { data: response } = await api.put(`/prompts/${id}`, data);
+      // ✅ CORREÇÃO: Adicionar header Content-Type
+      const { data: response } = await api.put(`/prompts/${id}`, data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       if (!response.success) {
         throw new Error(response.error || "Erro ao atualizar prompt");
       }
