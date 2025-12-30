@@ -21,7 +21,7 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const tokenParam = params.get('reset_token') || params.get('token') // Aceita ambos para compatibilidade
+    const tokenParam = params.get('reset_token') || params.get('token')
     if (tokenParam) {
       setToken(tokenParam)
     } else {
@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
+        <Card className="w-full max-w-md bg-white dark:bg-slate-950">
           <CardHeader className="space-y-4">
             <div className="flex justify-center">
               <img
@@ -103,7 +103,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md bg-white dark:bg-slate-950">
         <CardHeader className="space-y-4">
           <div className="flex justify-center">
             <img
