@@ -95,6 +95,140 @@ const INITIAL_USE_TEMPLATE_FORM = {
 };
 
 // ===== HELPER FUNCTIONS =====
+
+// ✅ FUNÇÃO UNIVERSAL DE DOWNLOAD (múltiplas estratégias)
+async function downloadMediaFile(url, filename) {
+  console.log(`🔽 Iniciando download: ${filename}`);
+  
+  // Estratégia 1: Fetch com blob (melhor qualidade)
+  try {
+    console.log('📥 Tentando estratégia 1: Fetch com blob...');
+    const response = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'omit',
+      headers: {
+        'Accept': '*/*',
+      }
+    });
+    
+    if (response.ok) {
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+      console.log('✅ Download via fetch concluído!');
+      return true;
+    }
+  } catch (error) {
+    console.warn('⚠️ Estratégia 1 falhou:', error.message);
+  }
+  
+  // Estratégia 2: XMLHttpRequest com blob (mais compatível)
+  try {
+    console.log('📥 Tentando estratégia 2: XMLHttpRequest...');
+    const blob = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'blob';
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          resolve(xhr.response);
+        } else {
+          reject(new Error(`HTTP ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send();
+    });
+    
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    }, 100);
+    
+    console.log('✅ Download via XHR concluído!');
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Estratégia 2 falhou:', error.message);
+  }
+  
+  // Estratégia 3: Download direto com <a> tag
+  try {
+    console.log('📥 Tentando estratégia 3: Download direto...');
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.target = "_self";
+    link.rel = "noopener noreferrer";
+    link.style.display = 'none';
+    
+    document.body.appendChild(link);
+    
+    // Simula clique real do usuário
+    const event = new MouseEvent('click', {
+      view: window,
+      bubbles: true,
+      cancelable: true,
+      buttons: 1
+    });
+    
+    link.dispatchEvent(event);
+    
+    setTimeout(() => {
+      document.body.removeChild(link);
+    }, 100);
+    
+    console.log('✅ Download direto iniciado!');
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Estratégia 3 falhou:', error.message);
+  }
+  
+  // Estratégia 4: Iframe invisível (último recurso antes de abrir nova aba)
+  try {
+    console.log('📥 Tentando estratégia 4: Iframe invisível...');
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = url;
+    document.body.appendChild(iframe);
+    
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 2000);
+    
+    console.log('✅ Download via iframe iniciado!');
+    return true;
+  } catch (error) {
+    console.warn('⚠️ Estratégia 4 falhou:', error.message);
+  }
+  
+  // Fallback final: Abre em nova aba
+  console.log('🔄 Todas as estratégias falharam, abrindo em nova aba...');
+  window.open(url, '_blank', 'noopener,noreferrer');
+  return false;
+}
+
 function extractYouTubeId(url) {
   if (!url) return null;
   const patterns = [
@@ -193,7 +327,7 @@ async function processQueue() {
       })
       .finally(() => {
         queue.activeCount--;
-        processQueue(); // Processa próximo da fila
+        processQueue();
       });
   }
   
@@ -204,7 +338,6 @@ async function processQueue() {
 function queueThumbnailGeneration(videoUrl, templateId, callback) {
   const queue = window.thumbnailProcessingQueue;
   
-  // Evita duplicatas
   const exists = queue.queue.some(item => item.templateId === templateId);
   if (exists) return;
   
@@ -282,14 +415,12 @@ export default function TemplatesPage({ onBack }) {
   const queryClient = useQueryClient(); 
   const navigate = useNavigate();
 
-  // ✅ REACT QUERY - Templates
   const {
     data: templates = [],
     isLoading: loading,
     isFetching: fetchingTemplates,
   } = useTemplatesQuery();
 
-  // ✅ REACT QUERY - Mutations
   const createTemplateMutation = useCreateTemplateMutation();
   const updateTemplateMutation = useUpdateTemplateMutation();
   const deleteTemplateMutation = useDeleteTemplateMutation();
@@ -313,7 +444,6 @@ export default function TemplatesPage({ onBack }) {
     }, 0);
   };
 
-  // ✅ MANTER: Estados de categorias (fetch direto)
   const [categories, setCategories] = useState([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [myCategories, setMyCategories] = useState([]);
@@ -340,7 +470,6 @@ export default function TemplatesPage({ onBack }) {
   const [videoPreview, setVideoPreview] = useState({ open: false, url: "" });
   const [extraFiles, setExtraFiles] = useState([]);
 
-  // ✅ MANTER: useEffect de categorias
   useEffect(() => {
     const loadCategories = async () => {
       try {
@@ -554,7 +683,6 @@ export default function TemplatesPage({ onBack }) {
     setIsTemplateDialogOpen(true);
   }, []);
 
-  // ✅ ATUALIZADO: saveTemplate com MUTATION
   const saveTemplate = useCallback(async () => {
     if (!templateForm.title.trim()) {
       toast.error("Informe o título do template");
@@ -583,7 +711,6 @@ export default function TemplatesPage({ onBack }) {
         });
       }
 
-      // ✅ USAR MUTATION
       if (editingTemplate?.id) {
         await updateTemplateMutation.mutateAsync({
           id: editingTemplate.id,
@@ -611,17 +738,14 @@ export default function TemplatesPage({ onBack }) {
     createTemplateMutation,
   ]);
 
-  // ✅ CORRIGIDO: handleSaveTemplate SEM DUPLICAÇÃO
   const handleSaveTemplate = useCallback(
     async (payload, templateId) => {
       try {
         let formData;
 
         if (payload instanceof FormData) {
-          // ✅ Payload já é FormData (vem do TemplateModal com extra_files)
           formData = payload;
         } else {
-          // ✅ Cria FormData apenas se payload for objeto JSON
           formData = new FormData();
           formData.append("title", payload.title);
           formData.append("content", payload.content);
@@ -638,9 +762,6 @@ export default function TemplatesPage({ onBack }) {
           if (payload.youtube_url) formData.append("youtube_url", payload.youtube_url);
         }
 
-        // ✅ REMOVIDO: Bloco de extra_files (TemplateModal já enviou)
-
-        // ✅ USAR MUTATION
         if (templateId) {
           await updateTemplateMutation.mutateAsync({
             id: templateId,
@@ -654,16 +775,15 @@ export default function TemplatesPage({ onBack }) {
 
         setIsTemplateModalOpen(false);
         setSelectedTemplateForModal(null);
-        setExtraFiles([]); // ✅ Limpa estado local
+        setExtraFiles([]);
       } catch (error) {
         console.error("❌ Erro ao salvar template:", error);
         toast.error(error.message || "Erro ao salvar template");
       }
     },
-    [updateTemplateMutation, createTemplateMutation] // ✅ Removido extraFiles da dependência
+    [updateTemplateMutation, createTemplateMutation]
   );
 
-  // ✅ ATUALIZADO: deleteTemplate com MUTATION
   const deleteTemplate = useCallback(
     async (id) => {
       if (!window.confirm("Tem certeza que deseja excluir este template?")) return;
@@ -690,7 +810,6 @@ export default function TemplatesPage({ onBack }) {
     setIsUseTemplateDialogOpen(true);
   }, []);
 
-// âœ… ATUALIZADO: useTemplate com MUTATION + Cache de Thumbnails
   const useTemplate = useCallback(
     async () => {
       if (!selectedTemplate) return;
@@ -703,19 +822,13 @@ export default function TemplatesPage({ onBack }) {
           is_favorite: useTemplateForm.is_favorite,
         };
 
-        // ✅ USAR MUTATION
         const result = await useTemplateMutation.mutateAsync({
           templateId: selectedTemplate.id,
           payload,
         });
 
-        // ============================================================
-        // 🆕 CORREÇÃO: Salvar thumb_url no cache após criar prompt
-        // ============================================================
         if (result?.prompt?.thumb_url && result?.prompt?.id) {
           console.log(`💾 [UseTemplate] Salvando thumbnail do prompt ${result.prompt.id} no cache`);
-          
-          // Salva thumbnail do template no cache com ID do novo prompt
           thumbnailCache.set(result.prompt.id, result.prompt.thumb_url);
         }
 
@@ -752,7 +865,6 @@ export default function TemplatesPage({ onBack }) {
     }
   }, []);
 
-  // ✅ ATUALIZADO: handleToggleFavorite com MUTATION
   const handleToggleFavorite = useCallback(
     async (template) => {
       if (!template?.id) return;
@@ -772,10 +884,8 @@ export default function TemplatesPage({ onBack }) {
 
   // ===== PRÉ-PROCESSAMENTO DE THUMBNAILS =====
   useEffect(() => {
-    // Só processa quando templates acabaram de chegar
     if (templates.length === 0 || loading) return;
     
-    // ✅ CRÍTICO: Verifica cache DIRETAMENTE (não usa estado)
     const videoTemplates = templates.filter(t => {
       if (!t.video_url || t.thumb_url) return false;
       if (t.video_url.includes('youtube') || t.video_url.includes('youtu.be')) return false;
@@ -783,7 +893,6 @@ export default function TemplatesPage({ onBack }) {
       return !thumbnailCache.get(templateId);
     });
 
-    // ✅ Se não há vídeos para processar, NÃO ativa processamento
     if (videoTemplates.length === 0) {
       console.log('✅ Todos os vídeos já têm thumbnail em cache - liberando UI instantaneamente');
       return;
@@ -960,7 +1069,6 @@ export default function TemplatesPage({ onBack }) {
         </div>
       </header>
 
-      {/* ✅ INDICADOR DE SINCRONIZAÇÃO */}
       {fetchingTemplates && !loading && (
         <div className="fixed top-20 right-6 z-50 bg-blue-500/90 backdrop-blur text-white px-3 py-1.5 rounded-full shadow-lg text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
           <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
@@ -968,7 +1076,6 @@ export default function TemplatesPage({ onBack }) {
         </div>
       )}
 
-      {/* ✅ CORREÇÃO 1: Overlay mobile com z-30 (era z-40) */}
       {isMobileSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-30 lg:hidden"
@@ -978,7 +1085,6 @@ export default function TemplatesPage({ onBack }) {
 
       <div className="w-full px-6 lg:px-10 xl:px-14 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6 xl:gap-8">
-          {/* ✅ CORREÇÃO 2: Sidebar com z-40 (era z-50) */}
           <aside
             className={`fixed lg:static top-0 left-0 h-full lg:h-auto bg-white lg:bg-transparent w-64 lg:w-[240px] shadow-lg lg:shadow-none p-5 rounded-r-xl lg:rounded-xl transform transition-transform duration-300 ease-in-out z-40 ${
               isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
@@ -1032,106 +1138,103 @@ export default function TemplatesPage({ onBack }) {
               </button>
 
               {categories.map((cat) => {
-  // ✅ Lógica de truncamento
-  const categoryName = cat.name;
-  const maxLength = 18;
-  const shouldTruncate = categoryName.length > maxLength;
-  const displayName = shouldTruncate 
-    ? `${categoryName.substring(0, maxLength)}...` 
-    : categoryName;
+                const categoryName = cat.name;
+                const maxLength = 18;
+                const shouldTruncate = categoryName.length > maxLength;
+                const displayName = shouldTruncate 
+                  ? `${categoryName.substring(0, maxLength)}...` 
+                  : categoryName;
 
-  return (
-    <div
-      key={cat.id}
-      className={`group flex items-center justify-between p-2 rounded-lg transition ${
-        selectedCategory === cat.name
-          ? "bg-indigo-100 text-indigo-600 font-semibold"
-          : "hover:bg-gray-100"
-      }`}
-    >
-      {/* ✅ Botão com tooltip condicional */}
-      {shouldTruncate ? (
-        <TooltipProvider delayDuration={100}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => {
-                  setSelectedCategory(cat.name);
-                  setIsMobileSidebarOpen(false);
-                }}
-                className="flex items-center gap-2 flex-1 text-left min-w-0"
-              >
-                <span
-                  className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
-                  style={{ backgroundColor: cat.color || "#6366f1" }}
-                />
-                <span className="truncate">{displayName}</span>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent
-  side="bottom"  // ← Aparece embaixo
-  align="start"  // ← Alinha à esquerda
-  className="bg-gray-900 text-white text-sm px-3 py-2 rounded shadow-xl z-50"
-  sideOffset={8}  // ← Espaçamento de 8px
->
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: cat.color || "#6366f1" }}
-                />
-                <span>{categoryName}</span>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
-        <button
-          onClick={() => {
-            setSelectedCategory(cat.name);
-            setIsMobileSidebarOpen(false);
-          }}
-          className="flex items-center gap-2 flex-1 text-left min-w-0"
-        >
-          <span
-            className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
-            style={{ backgroundColor: cat.color || "#6366f1" }}
-          />
-          <span className="truncate">{displayName}</span>
-        </button>
-      )}
+                return (
+                  <div
+                    key={cat.id}
+                    className={`group flex items-center justify-between p-2 rounded-lg transition ${
+                      selectedCategory === cat.name
+                        ? "bg-indigo-100 text-indigo-600 font-semibold"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    {shouldTruncate ? (
+                      <TooltipProvider delayDuration={100}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => {
+                                setSelectedCategory(cat.name);
+                                setIsMobileSidebarOpen(false);
+                              }}
+                              className="flex items-center gap-2 flex-1 text-left min-w-0"
+                            >
+                              <span
+                                className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                                style={{ backgroundColor: cat.color || "#6366f1" }}
+                              />
+                              <span className="truncate">{displayName}</span>
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent
+                            side="bottom"
+                            align="start"
+                            className="bg-gray-900 text-white text-sm px-3 py-2 rounded shadow-xl z-50"
+                            sideOffset={8}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: cat.color || "#6366f1" }}
+                              />
+                              <span>{categoryName}</span>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setSelectedCategory(cat.name);
+                          setIsMobileSidebarOpen(false);
+                        }}
+                        className="flex items-center gap-2 flex-1 text-left min-w-0"
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                          style={{ backgroundColor: cat.color || "#6366f1" }}
+                        />
+                        <span className="truncate">{displayName}</span>
+                      </button>
+                    )}
 
-      {user?.is_admin && (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => {
-              setEditingCategory(cat);
-              setCategoryForm({
-                name: cat.name,
-                description: cat.description || "",
-                color: cat.color || "#6366f1",
-              });
-              setIsCategoryDialogOpen(true);
-            }}
-            className="p-1 text-gray-500 hover:text-indigo-600"
-            title="Editar categoria"
-            aria-label={`Editar categoria ${cat.name}`}
-          >
-            ✏️
-          </button>
-          <button
-            onClick={() => deleteCategory(cat)}
-            className="p-1 text-gray-500 hover:text-red-600"
-            title="Excluir categoria"
-            aria-label={`Excluir categoria ${cat.name}`}
-          >
-            🗑️
-          </button>
-        </div>
-      )}
-    </div>
-  );
-})}
-
+                    {user?.is_admin && (
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => {
+                            setEditingCategory(cat);
+                            setCategoryForm({
+                              name: cat.name,
+                              description: cat.description || "",
+                              color: cat.color || "#6366f1",
+                            });
+                            setIsCategoryDialogOpen(true);
+                          }}
+                          className="p-1 text-gray-500 hover:text-indigo-600"
+                          title="Editar categoria"
+                          aria-label={`Editar categoria ${cat.name}`}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={() => deleteCategory(cat)}
+                          className="p-1 text-gray-500 hover:text-red-600"
+                          title="Excluir categoria"
+                          aria-label={`Excluir categoria ${cat.name}`}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </aside>
 
@@ -1174,7 +1277,6 @@ export default function TemplatesPage({ onBack }) {
         </div>
       </div>
 
-      {/* Modal Categoria */}
       <Dialog open={isCategoryDialogOpen} onOpenChange={setIsCategoryDialogOpen}>
         <DialogContent className="max-w-md bg-white shadow-lg rounded-xl p-6">
           <DialogHeader>
@@ -1254,7 +1356,6 @@ export default function TemplatesPage({ onBack }) {
         handleExtraFilesChange={handleExtraFilesChange}
       />
 
-      {/* Modal Usar Template */}
       <Dialog open={isUseTemplateDialogOpen} onOpenChange={setIsUseTemplateDialogOpen}>
         <DialogContent className="max-w-md bg-white rounded-xl p-6 shadow-lg">
           <DialogHeader>
@@ -1322,7 +1423,7 @@ export default function TemplatesPage({ onBack }) {
         </DialogContent>
       </Dialog>
 
-      {/* Modal Preview Imagem */}
+      {/* ✅ MODAL PREVIEW IMAGEM COM DOWNLOAD CORRIGIDO */}
       {imagePreview.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85">
           <div className="relative w-full max-w-4xl bg-black rounded-xl overflow-hidden">
@@ -1335,27 +1436,18 @@ export default function TemplatesPage({ onBack }) {
                 <Button 
                   onClick={async () => {
                     try {
-                      toast.info("⏳ Baixando imagem...");
+                      toast.info("⏳ Iniciando download...");
                       
                       const extension = imagePreview.url.match(/\.(jpg|jpeg|png|gif|webp|svg)/i)?.[1] || "jpg";
-                      const filename = `${imagePreview.title || 'template'}.${extension}`;
+                      const filename = `${(imagePreview.title || 'template').replace(/[^a-z0-9]/gi, '_')}.${extension}`;
                       
-                      const response = await fetch(imagePreview.url);
-                      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                      const success = await downloadMediaFile(imagePreview.url, filename);
                       
-                      const blob = await response.blob();
-                      const blobUrl = window.URL.createObjectURL(blob);
-                      
-                      const link = document.createElement("a");
-                      link.href = blobUrl;
-                      link.download = filename;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      
-                      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 100);
-                      
-                      toast.success("✅ Download concluído!");
+                      if (success) {
+                        toast.success("✅ Download concluído!");
+                      } else {
+                        toast.info("📂 Arquivo aberto em nova aba");
+                      }
                     } catch (error) {
                       console.error("❌ Erro ao baixar imagem:", error);
                       toast.error("Erro ao baixar. Abrindo em nova aba...");
@@ -1388,7 +1480,7 @@ export default function TemplatesPage({ onBack }) {
         </div>
       )}
 
-      {/* Modal Preview Vídeo */}
+      {/* MODAL PREVIEW VÍDEO */}
       <Dialog open={videoPreview.open} onOpenChange={(open) => setVideoPreview({ ...videoPreview, open })}>
         <DialogContent className="max-w-5xl p-0 overflow-hidden bg-black">
           <DialogHeader className="sr-only">
