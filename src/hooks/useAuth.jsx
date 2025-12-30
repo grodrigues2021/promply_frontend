@@ -188,14 +188,16 @@ export function AuthProvider({ children }) {
   };
 
   // 🚀 Redireciona automaticamente após autenticação
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      const currentPath = window.location.pathname;
-      if (["/", "/login", "/register", "/reset-password"].includes(currentPath)) {
-        window.history.replaceState({}, "", "/workspace");
-      }
+ // 🚀 Redireciona automaticamente após autenticação
+useEffect(() => {
+  if (!isLoading && isAuthenticated) {
+    const currentPath = window.location.pathname;
+    // ✅ REMOVIDO /reset-password - essa página deve funcionar independente de autenticação
+    if (["/", "/login", "/register"].includes(currentPath)) {
+      window.history.replaceState({}, "", "/workspace");
     }
-  }, [isAuthenticated, isLoading]);
+  }
+}, [isAuthenticated, isLoading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
