@@ -56,7 +56,7 @@ const axiosConfig = {
 export const api = axios.create(axiosConfig);
 
 // =====================================
-// 🔒 Interceptor de Requisição
+// 📤 Interceptor de Requisição
 // =====================================
 api.interceptors.request.use(
   (config) => {
@@ -96,7 +96,7 @@ api.interceptors.request.use(
 // =====================================
 api.interceptors.response.use(
   (response) => {
-    // 🔑 Salva token JWT se vier na resposta (apenas dev/staging)
+    // 🔐 Salva token JWT se vier na resposta (apenas dev/staging)
     if (ENV !== "production" && response.data?.access_token) {
       const token = response.data.access_token;
       localStorage.setItem("access_token", token);
@@ -123,7 +123,13 @@ api.interceptors.response.use(
           localStorage.removeItem("authToken");
         }
 
-        if (!window.location.pathname.includes("/login")) {
+        // ✅ Rotas públicas que NÃO devem redirecionar em erro 401
+        const publicPaths = ["/login", "/register", "/reset-password"];
+        const isPublicPath = publicPaths.some((path) =>
+          window.location.pathname.includes(path)
+        );
+
+        if (!isPublicPath) {
           console.warn("🔄 Redirecionando para login...");
           window.location.href = "/login";
         }
