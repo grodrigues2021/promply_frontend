@@ -98,7 +98,7 @@ const INITIAL_USE_TEMPLATE_FORM = {
 
 // ✅ FUNÇÃO UNIVERSAL DE DOWNLOAD (múltiplas estratégias)
 async function downloadMediaFile(url, filename) {
-  console.log(`🔽 Iniciando download: ${filename}`);
+  console.log(`📽 Iniciando download: ${filename}`);
   
   // Estratégia 1: Fetch com blob (melhor qualidade)
   try {
@@ -991,6 +991,18 @@ export default function TemplatesPage({ onBack }) {
     processVideoThumbnails();
   }, [templates, loading]);
 
+  // ===== TEMPLATE COUNTS BY CATEGORY =====
+  const templateCountsByCategory = useMemo(() => {
+    const counts = {};
+    
+    templates.forEach((template) => {
+      const categoryName = template.category?.name || "Sem categoria";
+      counts[categoryName] = (counts[categoryName] || 0) + 1;
+    });
+    
+    return counts;
+  }, [templates]);
+
   // ===== FILTERED TEMPLATES =====
   const filteredTemplates = useMemo(() => {
     return templates.filter((t) => {
@@ -1128,13 +1140,20 @@ export default function TemplatesPage({ onBack }) {
                   setSelectedCategory("Todos");
                   setIsMobileSidebarOpen(false);
                 }}
-                className={`p-2 rounded-lg text-left transition ${
+                className={`p-2 rounded-lg text-left transition flex items-center justify-between ${
                   selectedCategory === "Todos"
                     ? "bg-indigo-100 text-indigo-600 font-semibold"
                     : "hover:bg-gray-100"
                 }`}
               >
-                Todos
+                <span>Todos</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  selectedCategory === "Todos"
+                    ? "bg-indigo-200 text-indigo-700"
+                    : "bg-gray-200 text-gray-600"
+                }`}>
+                  {templates.length}
+                </span>
               </button>
 
               {categories.map((cat) => {
@@ -1144,6 +1163,7 @@ export default function TemplatesPage({ onBack }) {
                 const displayName = shouldTruncate 
                   ? `${categoryName.substring(0, maxLength)}...` 
                   : categoryName;
+                const count = templateCountsByCategory[categoryName] || 0;
 
                 return (
                   <div
@@ -1170,6 +1190,13 @@ export default function TemplatesPage({ onBack }) {
                                 style={{ backgroundColor: cat.color || "#6366f1" }}
                               />
                               <span className="truncate">{displayName}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${
+                                selectedCategory === cat.name
+                                  ? "bg-indigo-200 text-indigo-700"
+                                  : "bg-gray-200 text-gray-600"
+                              }`}>
+                                {count}
+                              </span>
                             </button>
                           </TooltipTrigger>
                           <TooltipContent
@@ -1184,6 +1211,7 @@ export default function TemplatesPage({ onBack }) {
                                 style={{ backgroundColor: cat.color || "#6366f1" }}
                               />
                               <span>{categoryName}</span>
+                              <span className="text-gray-400">({count})</span>
                             </div>
                           </TooltipContent>
                         </Tooltip>
@@ -1201,11 +1229,18 @@ export default function TemplatesPage({ onBack }) {
                           style={{ backgroundColor: cat.color || "#6366f1" }}
                         />
                         <span className="truncate">{displayName}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ml-auto ${
+                          selectedCategory === cat.name
+                            ? "bg-indigo-200 text-indigo-700"
+                            : "bg-gray-200 text-gray-600"
+                        }`}>
+                          {count}
+                        </span>
                       </button>
                     )}
 
                     {user?.is_admin && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                         <button
                           onClick={() => {
                             setEditingCategory(cat);
