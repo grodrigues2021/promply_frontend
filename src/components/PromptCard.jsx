@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   Star,
   Copy,
+  CopyPlus, 
   Edit,
   Trash2,
   Play,
@@ -659,7 +660,7 @@ const PromptCard = React.memo(({
                   {isDuplicating ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <Files className="w-4 h-4" />
+                    <CopyPlus className="w-4 h-4" />
                   )}
                 </Button>
               )}
