@@ -1,4 +1,12 @@
-// src/components/PromptCard.jsx - VERSÃO FINAL COM CORREÇÃO ANTI-DEFORMAÇÃO E TOOLTIPS CONSISTENTES + DUPLICAR
+// ==========================================
+// src/components/PromptCard.jsx
+// ✅ VERSÃO FINAL COM TODAS AS CORREÇÕES
+// ✅ Correção anti-deformação de thumbnails
+// ✅ Suporte a duplicação com loading state
+// ✅ Proteção contra double-click integrada
+// ✅ Tooltips consistentes
+// ==========================================
+
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
@@ -17,6 +25,7 @@ import {
   Youtube,
   Download,
   Files,
+  Loader2,  // ✅ ADICIONADO
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -247,6 +256,7 @@ const PromptCard = React.memo(({
   onDelete,
   onCopy,
   onDuplicate,
+  duplicatingIds,  // ✅ ADICIONADO
   onToggleFavorite,
   onOpenImage,
   onOpenVideo,
@@ -279,8 +289,13 @@ const PromptCard = React.memo(({
     return Boolean(prompt?._uploadingMedia);
   }, [prompt?._uploadingMedia]);
 
-  // 🎯 Prompt bloqueado = otimista OU fazendo upload
-  const isBlocked = isOptimistic || isUploadingMedia;
+  // ✅ ADICIONADO: Detecta se está duplicando este prompt
+  const isDuplicating = useMemo(() => {
+    return duplicatingIds?.has(prompt.id) || false;
+  }, [duplicatingIds, prompt.id]);
+
+  // 🎯 Prompt bloqueado = otimista OU fazendo upload OU duplicando
+  const isBlocked = isOptimistic || isUploadingMedia || isDuplicating;
 
   // =====================================================
   // 🖼️ MEDIA INFO NORMALIZADO - VERSÃO COM CORREÇÃO ANTI-DEFORMAÇÃO
@@ -475,12 +490,12 @@ const PromptCard = React.memo(({
                     {authorInitials}
                   </div>
 
-              <h3 
-                className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0"
-                title={prompt.title}
-              >
-                {prompt.title}
-              </h3>
+                  <h3 
+                    className="text-base font-semibold text-gray-900 line-clamp-1 flex-1 min-w-0"
+                    title={prompt.title}
+                  >
+                    {prompt.title}
+                  </h3>
 
                   {onToggleFavorite && (
                     <Button
@@ -505,11 +520,11 @@ const PromptCard = React.memo(({
               <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
                   <h3 
-                className="text-lg font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis line-clamp-1"
-                title={prompt.title}
-              >
-                {prompt.title}
-              </h3>
+                    className="text-lg font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis line-clamp-1"
+                    title={prompt.title}
+                  >
+                    {prompt.title}
+                  </h3>
                   
                   <div className="flex items-center justify-between mt-1 w-full">
                     {/* TAG DE CATEGORIA */}
@@ -568,30 +583,30 @@ const PromptCard = React.memo(({
               {prompt.description || prompt.content}
             </p>
 
-           {/* Tags com truncagem em 20 caracteres */}
-{tagsArray.length > 0 && (
-  <div className="flex flex-wrap gap-1.5 mb-3">
-    {tagsArray.slice(0, 3).map((tag, idx) => (
-      <Badge 
-        key={idx} 
-        variant="secondary" 
-        className="text-xs"
-        title={tag}
-      >
-        {tag.length > 20 ? tag.substring(0, 20) + '...' : tag}
-      </Badge>
-    ))}
-    {tagsArray.length > 3 && (
-      <Badge 
-        variant="outline" 
-        className="text-xs cursor-help"
-        title={tagsArray.slice(3).join(', ')}
-      >
-        +{tagsArray.length - 3}
-      </Badge>
-    )}
-  </div>
-)}
+            {/* Tags com truncagem em 20 caracteres */}
+            {tagsArray.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {tagsArray.slice(0, 3).map((tag, idx) => (
+                  <Badge 
+                    key={idx} 
+                    variant="secondary" 
+                    className="text-xs"
+                    title={tag}
+                  >
+                    {tag.length > 20 ? tag.substring(0, 20) + '...' : tag}
+                  </Badge>
+                ))}
+                {tagsArray.length > 3 && (
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs cursor-help"
+                    title={tagsArray.slice(3).join(', ')}
+                  >
+                    +{tagsArray.length - 3}
+                  </Badge>
+                )}
+              </div>
+            )}
           </div>
 
           {/* BOTÕES DE AÇÃO */}
@@ -626,6 +641,8 @@ const PromptCard = React.memo(({
                       ? "⏳ Aguarde a criação do prompt"
                       : isUploadingMedia
                       ? "⏳ Aguarde o upload terminar"
+                      : isDuplicating
+                      ? "⏳ Duplicando..."
                       : "Duplicar Prompt"
                   }
                   disabled={isBlocked}
@@ -635,10 +652,15 @@ const PromptCard = React.memo(({
                   }}
                   className={cn(
                     "text-blue-600 hover:text-blue-700",
-                    isBlocked && "opacity-50 cursor-not-allowed"
+                    isBlocked && "opacity-50 cursor-not-allowed",
+                    isDuplicating && "animate-pulse"
                   )}
                 >
-                  <Files className="w-4 h-4" />
+                  {isDuplicating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Files className="w-4 h-4" />
+                  )}
                 </Button>
               )}
 
@@ -822,7 +844,7 @@ const PromptCard = React.memo(({
               </button>
             )}
 
-            {/* ✅ VÍDEO LOCAL - COM LOGS DE DEBUG */}
+            {/* ✅ VÍDEO LOCAL */}
             {mediaInfo.hasLocalVideo && !mediaInfo.hasYouTubeVideo && (
               <button
                 type="button"
@@ -838,8 +860,6 @@ const PromptCard = React.memo(({
                     alt={prompt.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
                     loading="lazy"
-                    
-                                                         
                     onError={(e) => {
                       console.error('❌ ERRO ao carregar thumbnail:', {
                         promptId: prompt.id,
@@ -934,7 +954,8 @@ const PromptCard = React.memo(({
     prevProps.prompt.youtube_url === nextProps.prompt.youtube_url &&
     prevProps.prompt.thumb_url === nextProps.prompt.thumb_url &&
     prevProps.prompt.tags === nextProps.prompt.tags &&
-    prevProps.prompt._uploadingMedia === nextProps.prompt._uploadingMedia
+    prevProps.prompt._uploadingMedia === nextProps.prompt._uploadingMedia &&
+    prevProps.duplicatingIds === nextProps.duplicatingIds  // ✅ ADICIONADO
   );
 });
 

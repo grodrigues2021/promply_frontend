@@ -1,3 +1,11 @@
+// ==========================================
+// src/components/PromptGrid.jsx
+// ✅ VERSÃO CORRIGIDA COM SUPORTE A DUPLICAÇÃO
+// ✅ Adiciona prop duplicatingIds
+// ✅ Adiciona prop onDuplicate
+// ✅ Grid otimizado com React.memo
+// ==========================================
+
 import React, { useMemo } from "react";
 import { Loader2, FolderOpen } from "lucide-react";
 import PromptCard from "./PromptCard";
@@ -7,6 +15,7 @@ import PromptCard from "./PromptCard";
  * - Mantém comportamento atual
  * - Usa React.memo para evitar re-renderizações desnecessárias
  * - Usa useMemo para memorizar a lista renderizada
+ * - Suporta estado de duplicação de prompts
  */
 function PromptGrid({
   prompts = [],
@@ -16,6 +25,8 @@ function PromptGrid({
   onEdit,
   onDelete,
   onCopy,
+  onDuplicate,           // ✅ ADICIONADO
+  duplicatingIds,        // ✅ ADICIONADO
   onToggleFavorite,
   onShare,
   onOpenImage,
@@ -57,43 +68,46 @@ function PromptGrid({
     return (
       <div className="grid grid-cols-1 min-[1200px]:grid-cols-2 min-[1680px]:grid-cols-3 min-[2240px]:grid-cols-4 gap-6 auto-rows-fr">
         {prompts.map((prompt) => {
-  // =====================================================
-  // 🔒 KEY ESTÁVEL — NUNCA MUDA
-  // =====================================================
-  const stableKey = prompt._clientId;
+          // =====================================================
+          // 🔑 KEY ESTÁVEL – NUNCA MUDA
+          // =====================================================
+          const stableKey = prompt._clientId || prompt.id;
 
- 
-  return (
-    <div
-      key={stableKey || prompt.id}
-      className={
-        prompt._skipAnimation ? "" : "animate-in fade-in duration-200"
-      }
-    >
-      <CardComponent
-        prompt={prompt}
-        user={user}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onCopy={onCopy}
-        onToggleFavorite={onToggleFavorite}
-        onShare={onShare}
-        onOpenImage={onOpenImage}
-        onOpenVideo={onOpenVideo}
-      />
-    </div>
-  );
-})}
-
+          return (
+            <div
+              key={stableKey}
+              className={
+                prompt._skipAnimation ? "" : "animate-in fade-in duration-200"
+              }
+            >
+              <CardComponent
+                prompt={prompt}
+                user={user}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onCopy={onCopy}
+                onDuplicate={onDuplicate}           // ✅ ADICIONADO
+                duplicatingIds={duplicatingIds}     // ✅ ADICIONADO
+                onToggleFavorite={onToggleFavorite}
+                onShare={onShare}
+                onOpenImage={onOpenImage}
+                onOpenVideo={onOpenVideo}
+              />
+            </div>
+          );
+        })}
       </div>
     );
   }, [
     prompts,
     isLoading,
     emptyMessage,
+    user,
     onEdit,
     onDelete,
     onCopy,
+    onDuplicate,          // ✅ ADICIONADO
+    duplicatingIds,       // ✅ ADICIONADO
     onToggleFavorite,
     onShare,
     onOpenImage,

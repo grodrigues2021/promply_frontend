@@ -1,8 +1,10 @@
 // ==========================================
 // src/components/PromptManager.jsx
-// ✅ VERSÃO CORRIGIDA COMPLETA
+// ✅ VERSÃO CORRIGIDA COM PROTEÇÃO ANTI-DOUBLE-CLICK
 // ✅ Correção do estado da sidebar resetando
 // ✅ Validação de media_type melhorada
+// ✅ Função de duplicar prompt com proteção contra duplicatas
+// ✅ Feedback de erro melhorado
 // ==========================================
 
 import { toast } from "sonner";
@@ -182,6 +184,9 @@ export default function PromptManager({
   const [attachments, setAttachments] = useState([]);
   const extraFilesInputRef = useRef(null);
   const isRestoringDraft = useRef(false);
+
+  // 🔴 NOVO: Estado para proteção contra double-click na duplicação
+  const [duplicatingIds, setDuplicatingIds] = useState(new Set());
 
   const [formErrors, setFormErrors] = useState({
     title: "",
@@ -1304,6 +1309,122 @@ export default function PromptManager({
     }
   };
 
+  // 🔴 FUNÇÃO MELHORADA: Duplicar Prompt com Proteção Anti-Double-Click
+  const handleDuplicatePrompt = useCallback(async (prompt) => {
+    // Validação: Prompt temporário
+    if (String(prompt.id).startsWith("temp-")) {
+      toast.warning("⏳ Aguarde o prompt ser criado antes de duplicar!");
+      return;
+    }
+
+    // 🔴 PROTEÇÃO: Verifica se já está duplicando este prompt
+    if (duplicatingIds.has(prompt.id)) {
+      toast.info("⏳ Duplicação em andamento...");
+      return;
+    }
+
+    // 🔴 MARCA COMO "DUPLICANDO"
+    setDuplicatingIds(prev => new Set(prev).add(prompt.id));
+
+    try {
+      toast.info("📋 Duplicando prompt...");
+
+      const finalMediaType = prompt.media_type || (
+        prompt.youtube_url ? 'youtube' :
+        prompt.video_url ? 'video' :
+        prompt.image_url ? 'image' : 'none'
+      );
+
+      const basePayload = {
+        title: `${prompt.title} (Cópia)`,
+        content: prompt.content || "",
+        description: prompt.description || "",
+        tags: Array.isArray(prompt.tags) ? prompt.tags.join(",") : (prompt.tags || ""),
+        platform: prompt.platform || "chatgpt",
+        is_favorite: false,
+        media_type: finalMediaType,
+        category_id: prompt.category_id || null,
+      };
+
+      if (finalMediaType === 'youtube' && prompt.youtube_url) {
+        basePayload.youtube_url = prompt.youtube_url;
+      }
+
+      const tempId = `temp-${Date.now()}`;
+      const clientId = typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+      const optimisticPrompt = {
+        id: tempId,
+        _tempId: tempId,
+        _clientId: clientId,
+        _isOptimistic: true,
+        _skipAnimation: false,
+        ...basePayload,
+        image_url: prompt.image_url || "",
+        video_url: prompt.video_url || "",
+        thumb_url: prompt.thumb_url || "",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        usage_count: 0,
+      };
+
+      const newPrompt = await createPromptMutation.mutateAsync({
+        payload: basePayload,
+        optimisticPrompt,
+      });
+
+      if (!newPrompt?.id) {
+        throw new Error("Erro ao criar prompt duplicado");
+      }
+
+      // Copiar mídia se necessário
+      if ((finalMediaType === 'image' || finalMediaType === 'video') && prompt.id) {
+        try {
+          await api.post(`/prompts/${prompt.id}/duplicate-media`, {
+            target_prompt_id: newPrompt.id
+          });
+          
+          toast.success("✅ Prompt duplicado com mídia!");
+        } catch (mediaError) {
+          console.error("❌ Erro ao duplicar mídia:", mediaError);
+          
+          // 🔴 MELHORIA: Mensagens de erro específicas
+          if (mediaError.response?.status === 404) {
+            toast.warning("⚠️ Prompt duplicado, mas mídia original não encontrada!");
+          } else {
+            toast.warning("⚠️ Prompt duplicado, mas mídia não foi copiada!");
+          }
+        }
+      } else {
+        toast.success("✅ Prompt duplicado com sucesso!");
+      }
+
+      queryClient.invalidateQueries(["prompts"]);
+      queryClient.invalidateQueries(["stats"]);
+
+    } catch (error) {
+      console.error("❌ Erro ao duplicar prompt:", error);
+      
+      // 🔴 MELHORIA: Mensagens de erro específicas
+      if (error.response?.status === 404) {
+        toast.error("❌ Prompt original não encontrado!");
+      } else if (error.response?.status === 403) {
+        toast.error("❌ Você não tem permissão para duplicar este prompt!");
+      } else {
+        toast.error("❌ Erro ao duplicar prompt. Tente novamente.");
+      }
+    } finally {
+      // 🔴 CRÍTICO: Remove o ID da lista de "duplicando"
+      setDuplicatingIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(prompt.id);
+        return newSet;
+      });
+    }
+  }, [duplicatingIds, createPromptMutation, queryClient]);
+
   const copyToClipboard = async (prompt) => {
     try {
       await navigator.clipboard.writeText(prompt.content);
@@ -1431,6 +1552,7 @@ export default function PromptManager({
               <PromptGrid
                 prompts={filteredPrompts}
                 isLoading={loadingPrompts || loadingCategories}
+                duplicatingIds={duplicatingIds}
                 emptyMessage={
                   searchTerm
                     ? `Nenhum resultado para "${searchTerm}"`
@@ -1441,6 +1563,7 @@ export default function PromptManager({
                 onEdit={editPrompt}
                 onDelete={deletePrompt}
                 onCopy={copyToClipboard}
+                onDuplicate={handleDuplicatePrompt}
                 onToggleFavorite={handleToggleFavorite}
                 onShare={(prompt) => {
                   setPromptToShare(prompt);
