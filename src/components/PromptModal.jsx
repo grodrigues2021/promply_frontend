@@ -908,11 +908,12 @@ export default function PromptModal({
                                 )}
                               </div>
 
-                              {/* Botões universais */}
+                            {/* Botões universais */}
                               <div className="flex gap-2">
                                 <Button
                                   type="button"
                                   size="sm"
+                                  variant="outline"
                                   onClick={() => {
                                     // Remove qualquer tipo de mídia
                                     setPromptForm((prev) => ({
@@ -924,7 +925,7 @@ export default function PromptModal({
                                     }));
                                     setThumbnailBlob(null);
                                   }}
-                                  className="bg-white/95 backdrop-blur-sm hover:bg-red-50 border-red-300 text-red-600"
+                                  className="bg-white/95 backdrop-blur-sm hover:bg-red-50 border-2 border-red-400 text-red-600 font-semibold shadow-lg hover:shadow-xl transition-all"
                                 >
                                   <X className="w-4 h-4 mr-1" />
                                   Remover
@@ -934,6 +935,7 @@ export default function PromptModal({
                                   <Button
                                     type="button"
                                     size="sm"
+                                    variant="outline"
                                     onClick={() => {
                                       if (currentMediaType === 'image') {
                                         imageInputRef.current?.click();
@@ -941,7 +943,7 @@ export default function PromptModal({
                                         videoInputRef.current?.click();
                                       }
                                     }}
-                                    className="bg-white/95 backdrop-blur-sm hover:bg-blue-50 border-blue-300 text-blue-600"
+                                    className="bg-white/95 backdrop-blur-sm hover:bg-blue-50 border-2 border-blue-400 text-blue-600 font-semibold shadow-lg hover:shadow-xl transition-all"
                                   >
                                     <ImagePlus className="w-4 h-4 mr-1" />
                                     Alterar
