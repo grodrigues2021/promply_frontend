@@ -1,4 +1,4 @@
-// src/components/PromptCard.jsx - VERSÃO FINAL COM CORREÇÃO ANTI-DEFORMAÇÃO E TOOLTIPS CONSISTENTES
+// src/components/PromptCard.jsx - VERSÃO FINAL COM CORREÇÃO ANTI-DEFORMAÇÃO E TOOLTIPS CONSISTENTES + DUPLICAR
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { cva } from "class-variance-authority";
 import { cn } from "../lib/utils";
@@ -16,6 +16,7 @@ import {
   X,
   Youtube,
   Download,
+  Files,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -245,6 +246,7 @@ const PromptCard = React.memo(({
   onEdit,
   onDelete,
   onCopy,
+  onDuplicate,
   onToggleFavorite,
   onOpenImage,
   onOpenVideo,
@@ -612,6 +614,31 @@ const PromptCard = React.memo(({
                   }}
                 >
                   <Copy className="w-4 h-4" />
+                </Button>
+              )}
+
+              {onDuplicate && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  title={
+                    isOptimistic
+                      ? "⏳ Aguarde a criação do prompt"
+                      : isUploadingMedia
+                      ? "⏳ Aguarde o upload terminar"
+                      : "Duplicar Prompt"
+                  }
+                  disabled={isBlocked}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate(prompt);
+                  }}
+                  className={cn(
+                    "text-blue-600 hover:text-blue-700",
+                    isBlocked && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  <Files className="w-4 h-4" />
                 </Button>
               )}
 
