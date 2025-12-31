@@ -21,7 +21,7 @@ import api from "../../lib/api";
 // ============================================================
 const PLATFORMS = [
     { value: "chatgpt", label: "ChatGPT", icon: "🤖", color: "#10a37f" },
-    { value: "VEO3", label: "VEO3", icon: "🎥 ", color: "#6366f1" },
+    { value: "veo3", label: "VEO3", icon: "🎥 ", color: "#6366f1" },
     { value: "claude", label: "Claude", icon: "🧠", color: "#6366f1" },
     { value: "gemini", label: "Gemini", icon: "✨", color: "#8e44ad" },
     { value: "copilot", label: "Copilot", icon: "🔷", color: "#0078d4" },
