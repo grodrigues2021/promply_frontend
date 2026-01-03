@@ -2,6 +2,7 @@
 // src/hooks/usePromptsQuery.js
 // ✅ VERSÃO CORRIGIDA - ANTI-FLICKER + YOUTUBE + ID RESOLUTION
 // ✅ Sistema de resolução de IDs temporários → reais
+// 🔍 COM LOGS CRÍTICOS PARA DEBUG
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -296,6 +297,7 @@ export function useCreatePromptMutation() {
 
 // ===================================================
 // 🟡 MUTATION: Atualizar Prompt
+// 🔍 VERSÃO COM LOGS CRÍTICOS PARA DEBUG
 // ===================================================
 export function useUpdatePromptMutation() {
   const queryClient = useQueryClient();
@@ -309,16 +311,70 @@ export function useUpdatePromptMutation() {
         `📝 [useUpdatePromptMutation] Atualizando prompt ${id} → ${realId}`
       );
 
-      // ✅ CORREÇÃO: Adicionar header Content-Type
-      const { data: response } = await api.put(`/prompts/${realId}`, data, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-      if (!response.success) {
-        throw new Error(response.error || "Erro ao atualizar prompt");
+      // ============================================================
+      // 🔍 LOG CRÍTICO 1: Verificar se mutationFn foi chamada
+      // ============================================================
+      console.log(
+        "%c🚀 [mutationFn] CHAMADA INICIADA",
+        "background: orange; color: white; padding: 4px; font-weight: bold;"
+      );
+      console.log("  ID:", id, "→", realId);
+      console.log("  Data type:", data?.constructor?.name);
+      console.log("  Data is FormData?", data instanceof FormData);
+
+      if (data instanceof FormData) {
+        console.log("  FormData keys:", Array.from(data.keys()));
+        console.log(
+          "  FormData entries count:",
+          Array.from(data.entries()).length
+        );
+
+        // Log dos valores
+        for (let [key, value] of data.entries()) {
+          if (value instanceof File) {
+            console.log(`  ${key}:`, value.name, value.size, "bytes");
+          } else {
+            console.log(`  ${key}:`, value);
+          }
+        }
+      } else {
+        console.log("  Data:", data);
       }
-      return response.data;
+
+      console.log(
+        "%c📡 [mutationFn] FAZENDO API.PUT AGORA...",
+        "background: blue; color: white; padding: 4px;"
+      );
+
+      try {
+        // ✅ CORREÇÃO: Adicionar header Content-Type
+        const { data: response } = await api.put(`/prompts/${realId}`, data, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+
+        console.log(
+          "%c✅ [mutationFn] RESPOSTA RECEBIDA",
+          "background: green; color: white; padding: 4px;"
+        );
+        console.log("  Success:", response.success);
+        console.log("  Data:", response.data);
+
+        if (!response.success) {
+          throw new Error(response.error || "Erro ao atualizar prompt");
+        }
+        return response.data;
+      } catch (error) {
+        console.log(
+          "%c❌ [mutationFn] ERRO NA REQUISIÇÃO",
+          "background: red; color: white; padding: 4px;"
+        );
+        console.error("  Error:", error);
+        console.error("  Error message:", error.message);
+        console.error("  Error stack:", error.stack);
+        throw error;
+      }
     },
 
     onMutate: async ({ id }) => {
