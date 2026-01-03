@@ -2,6 +2,7 @@
 // src/hooks/usePromptsQuery.js
 // ✅ VERSÃO CORRIGIDA - ANTI-FLICKER + YOUTUBE + ID RESOLUTION
 // ✅ Sistema de resolução de IDs temporários → reais
+// ✅ UI ATUALIZA AUTOMATICAMENTE APÓS SALVAR (refetchQueries)
 // 🔍 COM LOGS CRÍTICOS PARA DEBUG
 // ==========================================
 
@@ -386,22 +387,71 @@ export function useUpdatePromptMutation() {
     },
 
     onSuccess: (updatedPrompt, variables, context) => {
+      console.log(
+        "%c🎉 [onSuccess] UPDATE BEM-SUCEDIDO!",
+        "background: green; color: white; padding: 4px; font-weight: bold;"
+      );
+      console.log("  Updated prompt:", updatedPrompt);
+      console.log("  ID:", updatedPrompt?.id);
+      console.log("  Title:", updatedPrompt?.title);
+
+      // ===================================================
+      // ESTRATÉGIA 1: Atualizar cache manualmente
+      // ===================================================
       queryClient.setQueryData(["prompts"], (old) => {
         if (!Array.isArray(old)) return [updatedPrompt];
 
         // Usa o ID resolvido do contexto ou tenta resolver novamente
         const targetId = context?.resolvedId || resolveRealId(variables.id);
 
-        return old.map((p) => {
+        console.log("  Procurando prompt com ID:", targetId);
+        console.log(
+          "  IDs no cache:",
+          old.map((p) => p.id)
+        );
+
+        const newCache = old.map((p) => {
           // Compara tanto com ID original quanto com ID resolvido
-          if (p.id === updatedPrompt.id || p.id === targetId) {
+          if (
+            p.id === updatedPrompt.id ||
+            p.id === targetId ||
+            p.id === variables.id
+          ) {
+            console.log(
+              `  ✅ ENCONTRADO! Substituindo:`,
+              p.title,
+              "→",
+              updatedPrompt.title
+            );
             return updatedPrompt;
           }
           return p;
         });
+
+        return newCache;
+      });
+
+      // ===================================================
+      // ESTRATÉGIA 2: FORÇAR REFETCH IMEDIATO
+      // ===================================================
+      console.log(
+        "%c🔄 [onSuccess] FORÇANDO REFETCH...",
+        "background: orange; color: white; padding: 4px;"
+      );
+
+      // ✅ CRÍTICO: refetchQueries FORÇA refetch imediato
+      // Ignora configurações de refetchOnMount, refetchOnWindowFocus etc
+      queryClient.refetchQueries({
+        queryKey: ["prompts"],
+        type: "active", // Apenas queries ativas (componente montado)
       });
 
       queryClient.invalidateQueries({ queryKey: ["stats"] });
+
+      console.log(
+        "%c✨ [onSuccess] CACHE ATUALIZADO E REFETCH FORÇADO!",
+        "background: green; color: white; padding: 4px; font-weight: bold;"
+      );
     },
 
     onError: (error, variables, context) => {
