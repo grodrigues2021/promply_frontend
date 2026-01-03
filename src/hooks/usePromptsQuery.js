@@ -460,12 +460,6 @@ export function useToggleFavoriteMutation() {
 }
 
 // ===================================================
-// 📤 EXPORT: Controle de uploads + ID Resolution
+// 📤 EXPORT: Controle de uploads
 // ===================================================
-export {
-  startMediaUpload,
-  endMediaUpload,
-  hasActiveUploads,
-  clearTempIdMapping,
-  debugTempIdMap,
-};
+export { startMediaUpload, endMediaUpload, hasActiveUploads };
