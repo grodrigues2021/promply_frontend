@@ -348,11 +348,7 @@ export function useUpdatePromptMutation() {
 
       try {
         // ✅ CORREÇÃO: Adicionar header Content-Type
-        const { data: response } = await api.put(`/prompts/${realId}`, data, {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        });
+        const { data: response } = await api.put(`/prompts/${realId}`, data);
 
         console.log(
           "%c✅ [mutationFn] RESPOSTA RECEBIDA",
