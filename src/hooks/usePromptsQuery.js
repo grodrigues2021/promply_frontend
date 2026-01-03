@@ -1,6 +1,7 @@
 // ==========================================
 // src/hooks/usePromptsQuery.js
-// ✅ VERSÃO CORRIGIDA - ANTI-FLICKER + YOUTUBE
+// ✅ VERSÃO CORRIGIDA - ANTI-FLICKER + YOUTUBE + ID RESOLUTION
+// ✅ Sistema de resolução de IDs temporários → reais
 // ==========================================
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -21,6 +22,55 @@ function endMediaUpload() {
 
 function hasActiveUploads() {
   return uploadingMediaCount > 0;
+}
+
+// =========================================================
+// 🆔 MAP GLOBAL: Rastreia IDs temporários → IDs reais
+// =========================================================
+const tempIdToRealIdMap = new Map();
+
+/**
+ * 🎯 Resolve ID real a partir de um ID que pode ser temporário
+ * @param {string|number} id - ID que pode ser temporário ou real
+ * @returns {string|number} - ID real ou o próprio ID se não for temporário
+ */
+export function resolveRealId(id) {
+  if (!id) return id;
+
+  const idStr = String(id);
+
+  // Se é temporário e temos mapeamento, retorna o ID real
+  if (idStr.startsWith("temp-") && tempIdToRealIdMap.has(idStr)) {
+    const realId = tempIdToRealIdMap.get(idStr);
+    console.log(`🔄 [resolveRealId] ${idStr} → ${realId}`);
+    return realId;
+  }
+
+  // Se não é temporário ou não tem mapeamento, retorna o próprio ID
+  return id;
+}
+
+/**
+ * 🗑️ Remove mapeamento de ID temporário (para limpeza)
+ * @param {string} tempId - ID temporário para remover
+ */
+export function clearTempIdMapping(tempId) {
+  if (tempIdToRealIdMap.has(tempId)) {
+    console.log(`🗑️ [clearTempIdMapping] Removendo ${tempId}`);
+    tempIdToRealIdMap.delete(tempId);
+  }
+}
+
+/**
+ * 📊 Debug: Mostra todos os mapeamentos ativos
+ */
+export function debugTempIdMap() {
+  console.table(
+    [...tempIdToRealIdMap.entries()].map(([temp, real]) => ({
+      temporary: temp,
+      real: real,
+    }))
+  );
 }
 
 // ===================================================
@@ -138,9 +188,17 @@ export function useCreatePromptMutation() {
     },
 
     // ===================================================
-    // ✅ onSuccess - SUBSTITUI OTIMISTA PELO REAL
+    // ✅ onSuccess - SUBSTITUI OTIMISTA PELO REAL + MAPEIA ID
     // ===================================================
     onSuccess: (realPrompt, { optimisticPrompt }) => {
+      // 🆔 CRÍTICO: Mapeia ID temporário → ID real
+      if (optimisticPrompt._tempId && realPrompt.id) {
+        tempIdToRealIdMap.set(optimisticPrompt._tempId, realPrompt.id);
+        console.log(
+          `✅ [onSuccess] Mapeamento criado: ${optimisticPrompt._tempId} → ${realPrompt.id}`
+        );
+      }
+
       queryClient.setQueryData(["prompts"], (old) => {
         if (!Array.isArray(old)) {
           return [
@@ -187,7 +245,7 @@ export function useCreatePromptMutation() {
               _uploadingMedia: hasBlobImage || hasBlobVideo || hasBlobThumb,
               _clientId: p._clientId,
 
-              // 📝 MERGE INTELIGENTE DE URLS
+              // 🔍 MERGE INTELIGENTE DE URLS
               image_url: hasBlobImage
                 ? p.image_url
                 : realPrompt.image_url || p.image_url || "",
@@ -218,10 +276,15 @@ export function useCreatePromptMutation() {
     },
 
     // ===================================================
-    // ❌ onError - ROLLBACK
+    // ❌ onError - ROLLBACK + LIMPA MAPEAMENTO
     // ===================================================
     onError: (error, variables, context) => {
       console.error("❌ [onError] Erro ao criar prompt:", error);
+
+      // 🗑️ Remove mapeamento em caso de erro
+      if (variables?.optimisticPrompt?._tempId) {
+        clearTempIdMapping(variables.optimisticPrompt._tempId);
+      }
 
       if (context?.previousPrompts) {
         console.log("↩️ [onError] Fazendo rollback do cache");
@@ -239,8 +302,15 @@ export function useUpdatePromptMutation() {
 
   return useMutation({
     mutationFn: async ({ id, data }) => {
+      // 🆔 RESOLVE ID REAL antes de fazer requisição
+      const realId = resolveRealId(id);
+
+      console.log(
+        `📝 [useUpdatePromptMutation] Atualizando prompt ${id} → ${realId}`
+      );
+
       // ✅ CORREÇÃO: Adicionar header Content-Type
-      const { data: response } = await api.put(`/prompts/${id}`, data, {
+      const { data: response } = await api.put(`/prompts/${realId}`, data, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -251,16 +321,30 @@ export function useUpdatePromptMutation() {
       return response.data;
     },
 
-    onMutate: async () => {
+    onMutate: async ({ id }) => {
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
       const previousPrompts = queryClient.getQueryData(["prompts"]);
-      return { previousPrompts };
+
+      // 🆔 Resolve ID real para optimistic update
+      const realId = resolveRealId(id);
+
+      return { previousPrompts, resolvedId: realId };
     },
 
-    onSuccess: (updatedPrompt) => {
+    onSuccess: (updatedPrompt, variables, context) => {
       queryClient.setQueryData(["prompts"], (old) => {
         if (!Array.isArray(old)) return [updatedPrompt];
-        return old.map((p) => (p.id === updatedPrompt.id ? updatedPrompt : p));
+
+        // Usa o ID resolvido do contexto ou tenta resolver novamente
+        const targetId = context?.resolvedId || resolveRealId(variables.id);
+
+        return old.map((p) => {
+          // Compara tanto com ID original quanto com ID resolvido
+          if (p.id === updatedPrompt.id || p.id === targetId) {
+            return updatedPrompt;
+          }
+          return p;
+        });
       });
 
       queryClient.invalidateQueries({ queryKey: ["stats"] });
@@ -283,23 +367,33 @@ export function useDeletePromptMutation() {
 
   return useMutation({
     mutationFn: async (promptId) => {
-      const { data } = await api.delete(`/prompts/${promptId}`);
+      // 🆔 RESOLVE ID REAL antes de deletar
+      const realId = resolveRealId(promptId);
+
+      console.log(
+        `🗑️ [useDeletePromptMutation] Deletando prompt ${promptId} → ${realId}`
+      );
+
+      const { data } = await api.delete(`/prompts/${realId}`);
       if (!data.success) {
         throw new Error(data.error || "Erro ao deletar prompt");
       }
-      return promptId;
+      return realId;
     },
 
     onMutate: async (promptId) => {
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
       const previousPrompts = queryClient.getQueryData(["prompts"]);
+      const realId = resolveRealId(promptId);
 
       queryClient.setQueryData(["prompts"], (old) =>
-        Array.isArray(old) ? old.filter((p) => p.id !== promptId) : []
+        Array.isArray(old)
+          ? old.filter((p) => p.id !== promptId && p.id !== realId)
+          : []
       );
 
-      return { previousPrompts };
+      return { previousPrompts, resolvedId: realId };
     },
 
     onError: (error, variables, context) => {
@@ -323,7 +417,14 @@ export function useToggleFavoriteMutation() {
 
   return useMutation({
     mutationFn: async (promptId) => {
-      const { data } = await api.post(`/prompts/${promptId}/favorite`, {});
+      // 🆔 RESOLVE ID REAL antes de favoritar
+      const realId = resolveRealId(promptId);
+
+      console.log(
+        `⭐ [useToggleFavoriteMutation] Toggle favorito ${promptId} → ${realId}`
+      );
+
+      const { data } = await api.post(`/prompts/${realId}/favorite`, {});
       if (!data.success) {
         throw new Error("Erro ao atualizar favorito");
       }
@@ -334,16 +435,19 @@ export function useToggleFavoriteMutation() {
       await queryClient.cancelQueries({ queryKey: ["prompts"] });
 
       const previousPrompts = queryClient.getQueryData(["prompts"]);
+      const realId = resolveRealId(promptId);
 
       queryClient.setQueryData(["prompts"], (old) =>
         Array.isArray(old)
           ? old.map((p) =>
-              p.id === promptId ? { ...p, is_favorite: !p.is_favorite } : p
+              p.id === promptId || p.id === realId
+                ? { ...p, is_favorite: !p.is_favorite }
+                : p
             )
           : []
       );
 
-      return { previousPrompts };
+      return { previousPrompts, resolvedId: realId };
     },
 
     onError: (error, variables, context) => {
@@ -356,6 +460,12 @@ export function useToggleFavoriteMutation() {
 }
 
 // ===================================================
-// 📤 EXPORT: Controle de uploads
+// 📤 EXPORT: Controle de uploads + ID Resolution
 // ===================================================
-export { startMediaUpload, endMediaUpload, hasActiveUploads };
+export {
+  startMediaUpload,
+  endMediaUpload,
+  hasActiveUploads,
+  clearTempIdMapping,
+  debugTempIdMap,
+};

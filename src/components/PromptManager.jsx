@@ -82,7 +82,8 @@ import {
   useDeletePromptMutation,
   useToggleFavoriteMutation,
   startMediaUpload,
-  endMediaUpload   
+  endMediaUpload,
+  resolveRealId   
 } from "../hooks/usePromptsQuery";
 
 import { useCategoriesQuery } from "../hooks/useCategoriesQuery";
@@ -609,65 +610,79 @@ export default function PromptManager({
     setEditingCategory(null);
   }, []);
 
-  const editPrompt = useCallback(async (prompt) => {
-    setIsEditMode(true);
-    setEditingPrompt(prompt);
-
-    const normalizedImage =
-      prompt.imageUrl ||
-      prompt.image_url ||
-      prompt.thumb_url ||
-      "";
-
-    const mediaType = prompt.media_type || (
-      prompt.youtube_url ? "youtube" :
-      prompt.video_url ? "video" :
-      normalizedImage ? "image" : "none"
-    );
-
-    const formData = {
-      id: prompt.id || null,
-      title: prompt.title || "",
-      content: prompt.content || "",
-      description: prompt.description || "",
-      tags: prompt.tags || "",
-      category_id: String(prompt.category_id || "none"),
-      image_url: normalizedImage,
-      thumb_url: prompt.thumb_url || "",
-      videoFile: null,
-      video_url: prompt.video_url || "",
-      youtube_url: prompt.youtube_url || "",
-      youtube_id: extractYouTubeId(prompt.youtube_url) || "",
-      is_favorite: prompt.is_favorite || false,
-      platform: prompt.platform || "chatgpt",
-      selectedMedia: mediaType,
-      media_type: mediaType,
-    };
-
-    setPromptForm(formData);
-
-    try {
-      const response = await api.get(`/prompts/${prompt.id}/files`);
-      
-      if (response.data?.success && response.data?.data) {
-        const extraFilesOnly = response.data.data.filter(file => 
-  !['video', 'thumbnail', 'image'].includes(file.file_type)
-);
-setAttachments(extraFilesOnly);
-      } else {
-        setAttachments([]);
-      }
-    } catch (error) {
-      if (error.response?.status === 404) {
-        setAttachments([]);
-      } else {
-        console.error("❌ Erro ao carregar anexos:", error);
-        setAttachments([]);
-      }
+const editPrompt = useCallback(async (prompt) => {
+  setIsEditMode(true);
+  
+  // 🆔 CRÍTICO: Resolve ID real ANTES de setar o form
+  const realId = resolveRealId(prompt.id);
+  
+  console.log(`📝 [editPrompt] Editando prompt:`, {
+    originalId: prompt.id,
+    resolvedId: realId,
+    isTemporary: String(prompt.id).startsWith('temp-')
+  });
+  
+  // ✅ Se o ID foi resolvido, busca o prompt real do cache
+  let promptToEdit = prompt;
+  if (realId !== prompt.id) {
+    const cachedPrompts = queryClient.getQueryData(["prompts"]);
+    const realPrompt = cachedPrompts?.find(p => p.id === realId);
+    
+    if (realPrompt) {
+      console.log(`✅ [editPrompt] Usando prompt real do cache:`, realPrompt);
+      promptToEdit = realPrompt;
+    } else {
+      console.warn(`⚠️ [editPrompt] Prompt real não encontrado no cache, usando otimista`);
     }
+  }
+  
+  setEditingPrompt({ ...promptToEdit, id: realId }); // ✅ Sempre seta com ID real
 
-    setIsPromptDialogOpen(true);
-  }, [extractYouTubeId]);
+  const normalizedImage =
+    promptToEdit.imageUrl ||
+    promptToEdit.image_url ||
+    promptToEdit.thumb_url ||
+    "";
+
+  const mediaType = promptToEdit.media_type || (
+    promptToEdit.youtube_url ? "youtube" :
+    promptToEdit.video_url ? "video" :
+    normalizedImage ? "image" : "none"
+  );
+
+  const formData = {
+    id: realId, // ✅ CRÍTICO: Usa ID REAL, não temporário
+    title: promptToEdit.title || "",
+    content: promptToEdit.content || "",
+    description: promptToEdit.description || "",
+    tags: promptToEdit.tags || "",
+    category_id: String(promptToEdit.category_id || "none"),
+    image_url: normalizedImage,
+    thumb_url: promptToEdit.thumb_url || "",
+    videoFile: null,
+    video_url: promptToEdit.video_url || "",
+    youtube_url: promptToEdit.youtube_url || "",
+    youtube_id: extractYouTubeId(promptToEdit.youtube_url) || "",
+    is_favorite: promptToEdit.is_favorite || false,
+    platform: promptToEdit.platform || "chatgpt",
+    selectedMedia: mediaType,
+    media_type: mediaType,
+  };
+
+  setPromptForm(formData);
+
+  try {
+    const response = await api.get(`/prompts/${realId}/files`); // ✅ Usa ID real
+    if (response.data?.success) {
+      setAttachments(response.data.files || []);
+    }
+  } catch (error) {
+    console.error("❌ Erro ao carregar arquivos:", error);
+    setAttachments([]);
+  }
+
+  setIsPromptDialogOpen(true);
+}, [queryClient]); // ✅ Adicionar queryClient como dependência
 
   const editCategory = useCallback((category) => {
     setCategoryForm({
@@ -865,183 +880,59 @@ setAttachments(extraFilesOnly);
     : [];
 
   const savePrompt = async (updatedFormFromModal) => {
-    if (isSaving) return;
+  if (isSaving) return;
 
-    if (!validateForm()) {
-      return;
-    }
+  if (!validateForm()) {
+    return;
+  }
 
-    setIsSaving(true);
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadStage('Preparando...');
+  setIsSaving(true);
+  setIsUploading(true);
+  setUploadProgress(0);
+  setUploadStage('Preparando...');
 
-    try {
-      const formToSave = updatedFormFromModal || promptForm;
+  try {
+    const formToSave = updatedFormFromModal || promptForm;
+    
+    const finalMediaType = formToSave.media_type || (
+      formToSave.youtube_url?.trim() ? 'youtube' :
+      formToSave.video_url?.trim() || formToSave.videoFile ? 'video' :
+      formToSave.image_url?.trim() || formToSave.imageFile ? 'image' : 'none'
+    );
+    
+    if (isEditMode && editingPrompt?.id && editingPrompt?.media_type && editingPrompt.media_type !== 'none') {
+      const originalType = editingPrompt.media_type;
       
-      const finalMediaType = formToSave.media_type || (
-        formToSave.youtube_url?.trim() ? 'youtube' :
-        formToSave.video_url?.trim() || formToSave.videoFile ? 'video' :
-        formToSave.image_url?.trim() || formToSave.imageFile ? 'image' : 'none'
-      );
-      
-      if (isEditMode && editingPrompt?.id && editingPrompt?.media_type && editingPrompt.media_type !== 'none') {
-        const originalType = editingPrompt.media_type;
-        
-        if (finalMediaType !== originalType && finalMediaType !== 'none') {
-          toast.error(
-            `❌ Não é possível mudar o tipo de mídia!\n\n` +
-            `Tipo original: ${originalType}\n` +
-            `Tipo atual: ${finalMediaType}\n\n` +
-            `Remova a capa primeiro para adicionar outro tipo.`
-          );
-          setIsSaving(false);
-          setIsUploading(false);
-          return;
-        }
-      }
-      
-      if (isEditMode && editingPrompt?.id) {
-        const promptId = editingPrompt.id;
-
-        setUploadStage('Atualizando prompt...');
-        setUploadProgress(10);
-
-        const payload = {
-          title: formToSave.title,
-          content: formToSave.content,
-          description: formToSave.description || "",
-          tags: formToSave.tags || "",
-          platform: formToSave.platform || "chatgpt",
-          is_favorite: formToSave.is_favorite || false,
-          youtube_url: formToSave.youtube_url || "",
-          media_type: finalMediaType,
-          category_id:
-            formToSave.category_id !== "none"
-              ? parseInt(formToSave.category_id)
-              : null,
-        };
-
-        await updatePromptMutation.mutateAsync({
-          id: promptId,
-          data: payload,
-        });
-
-        setUploadProgress(30);
-
-        const mediaForm = new FormData();
-        let hasMedia = false;
-
-        if (formToSave.imageFile instanceof File && !formToSave.videoFile) {
-          mediaForm.append("image", formToSave.imageFile);
-          hasMedia = true;
-        }
-
-        if (formToSave.videoFile instanceof File) {
-          mediaForm.append("video", formToSave.videoFile);
-          hasMedia = true;
-
-          if (formToSave.thumbnailBlob instanceof Blob) {
-            mediaForm.append("thumbnail", formToSave.thumbnailBlob, 'thumbnail.jpg');
-          } else if (formToSave.imageFile instanceof File) {
-            mediaForm.append("thumbnail", formToSave.imageFile);
-          }
-        }
-
-        if (extraFiles.length > 0) {
-          extraFiles.forEach((file) =>
-            mediaForm.append("extra_files", file)
-          );
-          hasMedia = true;
-        }
-
-        if (hasMedia) {
-          try {
-            startMediaUpload();
-            setUploadStage('Enviando mídia...');
-            setUploadProgress(40);
-
-            const mediaResponse = await api.post(
-              `/prompts/${promptId}/media`,
-              mediaForm,
-              {
-                headers: { "Content-Type": "multipart/form-data" },
-                timeout: 180000,
-                onUploadProgress: (progressEvent) => {
-                  const percentCompleted = Math.round(
-                    (progressEvent.loaded * 50) / progressEvent.total + 40
-                  );
-                  setUploadProgress(Math.min(percentCompleted, 90));
-                },
-              }
-            );
-
-            setUploadProgress(95);
-
-            if (mediaResponse.data?.data) {
-              queryClient.setQueryData(["prompts"], (old) => {
-                if (!Array.isArray(old)) return old;
-                return old.map((p) =>
-                  p.id === promptId
-                    ? { ...p, ...mediaResponse.data.data }
-                    : p
-                );
-              });
-            }
-          } catch (err) {
-            toast.warning(
-              "Prompt atualizado, mas houve erro no upload da mídia."
-            );
-          } finally {
-            endMediaUpload();
-          }
-        }
-
-        setUploadStage('Finalizando...');
-        setUploadProgress(100);
-
-        toast.success("✅ Prompt atualizado com sucesso!");
-        
-        setTimeout(() => {
-          resetPromptForm();
-          setIsPromptDialogOpen(false);
-          setIsUploading(false);
-          setUploadProgress(0);
-          setUploadStage('');
-        }, 500);
-
-        queryClient.invalidateQueries(["stats"]);
-        queryClient.invalidateQueries(["categories"]);
-
+      if (finalMediaType !== originalType && finalMediaType !== 'none') {
+        toast.error(
+          `❌ Não é possível mudar o tipo de mídia!\n\n` +
+          `Tipo original: ${originalType}\n` +
+          `Tipo atual: ${finalMediaType}\n\n` +
+          `Remova a capa primeiro para adicionar outro tipo.`
+        );
+        setIsSaving(false);
+        setIsUploading(false);
         return;
       }
+    }
+    
+    // ===================================================
+    // 📝 SEÇÃO DE UPDATE (EDIÇÃO) - CORRIGIDA
+    // ===================================================
+    if (isEditMode && editingPrompt?.id) {
+      // 🆔 CRÍTICO: Resolve ID real ANTES de atualizar
+      const realId = resolveRealId(editingPrompt.id);
+      
+      console.log(`📝 [savePrompt] Atualizando prompt:`, {
+        originalId: editingPrompt.id,
+        resolvedId: realId,
+        isTemporary: String(editingPrompt.id).startsWith('temp-')
+      });
 
-      const tempId = `temp-${Date.now()}`;
+      setUploadStage('Atualizando prompt...');
+      setUploadProgress(10);
 
-      const clientId =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
-      const imageBlobUrl = safeCreateObjectURL(formToSave.imageFile);
-      const videoBlobUrl = safeCreateObjectURL(formToSave.videoFile);
-
-      let thumbUrl = "";
-
-      if (formToSave.videoFile && formToSave.imageFile) {
-        thumbUrl = safeCreateObjectURL(formToSave.imageFile);
-      } else if (formToSave.youtube_url) {
-        const ytThumb = getYouTubeThumbnail(formToSave.youtube_url);
-        if (ytThumb) thumbUrl = ytThumb;
-      }
-
-      const optimisticPrompt = {
-        id: tempId,
-        _tempId: tempId,
-        _clientId: clientId,
-        _isOptimistic: true,
-        _skipAnimation: false,
-
+      const payload = {
         title: formToSave.title,
         content: formToSave.content,
         description: formToSave.description || "",
@@ -1049,34 +940,6 @@ setAttachments(extraFilesOnly);
         platform: formToSave.platform || "chatgpt",
         is_favorite: formToSave.is_favorite || false,
         youtube_url: formToSave.youtube_url || "",
-        category_id:
-          formToSave.category_id !== "none"
-            ? parseInt(formToSave.category_id)
-            : null,
-
-        media_type: finalMediaType,
-
-        image_url: imageBlobUrl || "",
-        video_url: videoBlobUrl || "",
-        thumb_url: thumbUrl || "",
-
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        usage_count: 0,
-      };
-
-      let realPrompt;
-
-      setUploadStage('Criando prompt...');
-      setUploadProgress(10);
-
-      const basePayload = {
-        title: formToSave.title,
-        content: formToSave.content,
-        description: formToSave.description || "",
-        tags: formToSave.tags || "",
-        platform: formToSave.platform || "chatgpt",
-        is_favorite: formToSave.is_favorite || false,
         media_type: finalMediaType,
         category_id:
           formToSave.category_id !== "none"
@@ -1084,150 +947,321 @@ setAttachments(extraFilesOnly);
             : null,
       };
 
-      if (formToSave.youtube_url) {
-        realPrompt = await createPromptMutation.mutateAsync({
-          payload: {
-            ...basePayload,
-            youtube_url: formToSave.youtube_url,
-          },
-          optimisticPrompt,
-        });
-      } else {
-        realPrompt = await createPromptMutation.mutateAsync({
-          payload: basePayload,
-          optimisticPrompt,
-        });
-      }
+      // ✅ USA ID REAL na mutation
+      await updatePromptMutation.mutateAsync({
+        id: realId,
+        data: payload,
+      });
 
       setUploadProgress(30);
 
-      if (!realPrompt?.id) {
-        throw new Error("Backend não retornou o prompt criado");
+      const mediaForm = new FormData();
+      let hasMedia = false;
+
+      if (formToSave.imageFile instanceof File && !formToSave.videoFile) {
+        mediaForm.append("image", formToSave.imageFile);
+        hasMedia = true;
       }
 
-      const promptId = realPrompt.id;
+      if (formToSave.videoFile instanceof File) {
+        mediaForm.append("video", formToSave.videoFile);
+        hasMedia = true;
 
-      const hasImage =
-        formToSave.imageFile instanceof File &&
-        !formToSave.videoFile &&
-        !formToSave.youtube_url;
+        if (formToSave.thumbnailBlob instanceof Blob) {
+          mediaForm.append("thumbnail", formToSave.thumbnailBlob, 'thumbnail.jpg');
+        } else if (formToSave.imageFile instanceof File) {
+          mediaForm.append("thumbnail", formToSave.imageFile);
+        }
+      }
 
-      const hasVideo = 
-        formToSave.videoFile instanceof File &&
-        !formToSave.youtube_url;
+      if (extraFiles.length > 0) {
+        extraFiles.forEach((file) =>
+          mediaForm.append("extra_files", file)
+        );
+        hasMedia = true;
+      }
 
-      const needsMediaUpload = 
-        hasImage || hasVideo || extraFiles.length > 0;
+      if (hasMedia) {
+        try {
+          startMediaUpload();
+          setUploadStage('Enviando mídia...');
+          setUploadProgress(40);
 
-      const imageFileToUpload = formToSave.imageFile;
-      const videoFileToUpload = formToSave.videoFile;
-      const thumbnailBlobToUpload = formToSave.thumbnailBlob;
-      const extraFilesToUpload = [...extraFiles];
+          // ✅ USA ID REAL no upload de mídia
+          const mediaResponse = await api.post(
+            `/prompts/${realId}/media`,
+            mediaForm,
+            {
+              headers: { "Content-Type": "multipart/form-data" },
+              timeout: 180000,
+              onUploadProgress: (progressEvent) => {
+                const percentCompleted = Math.round(
+                  (progressEvent.loaded * 50) / progressEvent.total + 40
+                );
+                setUploadProgress(Math.min(percentCompleted, 90));
+              },
+            }
+          );
 
-      localStorage.removeItem("prompt-draft");
-      
-      toast.success("✅ Prompt criado com sucesso!");
+          setUploadProgress(95);
+
+          if (mediaResponse.data?.data) {
+            queryClient.setQueryData(["prompts"], (old) => {
+              if (!Array.isArray(old)) return old;
+              // ✅ Atualiza usando ID real
+              return old.map((p) =>
+                p.id === realId
+                  ? { ...p, ...mediaResponse.data.data }
+                  : p
+              );
+            });
+          }
+        } catch (err) {
+          console.error("❌ Erro ao enviar mídia:", err);
+          toast.warning(
+            "Prompt atualizado, mas houve erro no upload da mídia."
+          );
+        } finally {
+          endMediaUpload();
+        }
+      }
 
       setUploadStage('Finalizando...');
-      setUploadProgress(needsMediaUpload ? 35 : 100);
+      setUploadProgress(100);
 
-      if (!needsMediaUpload) {
-        setTimeout(() => {
-          resetPromptForm();
-          setIsPromptDialogOpen(false);
-          setIsUploading(false);
-          setUploadProgress(0);
-          setUploadStage('');
-        }, 500);
-      } else {
+      toast.success("✅ Prompt atualizado com sucesso!");
+      
+      setTimeout(() => {
         resetPromptForm();
         setIsPromptDialogOpen(false);
         setIsUploading(false);
         setUploadProgress(0);
         setUploadStage('');
-      }
+      }, 500);
 
       queryClient.invalidateQueries(["stats"]);
       queryClient.invalidateQueries(["categories"]);
 
-      if (promptId && needsMediaUpload) {
-        const mediaForm = new FormData();
+      return;
+    }
 
-        if (hasImage && imageFileToUpload) {
-          mediaForm.append("image", imageFileToUpload);
-        }
+    // ===================================================
+    // ✨ SEÇÃO DE CRIAÇÃO (NOVO PROMPT)
+    // ===================================================
+    const tempId = `temp-${Date.now()}`;
 
-        if (hasVideo && videoFileToUpload) {
-          mediaForm.append("video", videoFileToUpload);
-          
-          if (thumbnailBlobToUpload instanceof Blob) {
-            mediaForm.append("thumbnail", thumbnailBlobToUpload, 'thumbnail.jpg');
-          } else if (imageFileToUpload instanceof File) {
-            mediaForm.append("thumbnail", imageFileToUpload);
-          }
-        }
+    const clientId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `client-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-        if (extraFilesToUpload.length > 0) {
-          extraFilesToUpload.forEach((file) => {
-            mediaForm.append("extra_files", file);
-          });
-        }
+    const imageBlobUrl = safeCreateObjectURL(formToSave.imageFile);
+    const videoBlobUrl = safeCreateObjectURL(formToSave.videoFile);
 
-        startMediaUpload();
+    let thumbUrl = "";
 
-        api
-          .post(`/prompts/${promptId}/media`, mediaForm, {
-            headers: { "Content-Type": "multipart/form-data" },
-            timeout: 180000,
-          })
-          .then((res) => {
-            if (res.data?.data) {
-              queryClient.setQueryData(["prompts"], (old) => {
-                if (!Array.isArray(old)) return old;
+    if (formToSave.videoFile && formToSave.imageFile) {
+      thumbUrl = safeCreateObjectURL(formToSave.imageFile);
+    } else if (formToSave.youtube_url) {
+      const ytThumb = getYouTubeThumbnail(formToSave.youtube_url);
+      if (ytThumb) thumbUrl = ytThumb;
+    }
 
-                return old.map((p) => {
-                  if (p.id === promptId) {
-                    const newPrompt = {
-                      ...res.data.data,
-                      _uploadingMedia: false,
-                      _clientId: p._clientId,
-                    };
-                    return newPrompt;
-                  }
-                  return p;
-                });
-              });
+    const optimisticPrompt = {
+      id: tempId,
+      _tempId: tempId,
+      _clientId: clientId,
+      _isOptimistic: true,
+      _skipAnimation: false,
 
-              toast.success("🎬 Mídia enviada com sucesso!");
-            }
-          })
-          .catch((err) => {
-            queryClient.setQueryData(["prompts"], (old) => {
-              if (!Array.isArray(old)) return old;
-              return old.map((p) =>
-                p.id === promptId ? { ...p, _uploadingMedia: false } : p
-              );
-            });
+      title: formToSave.title,
+      content: formToSave.content,
+      description: formToSave.description || "",
+      tags: formToSave.tags || "",
+      platform: formToSave.platform || "chatgpt",
+      is_favorite: formToSave.is_favorite || false,
+      youtube_url: formToSave.youtube_url || "",
+      category_id:
+        formToSave.category_id !== "none"
+          ? parseInt(formToSave.category_id)
+          : null,
 
-            toast.warning("Prompt criado, mas houve erro no upload da mídia.");
-          })
-          .finally(() => {
-            endMediaUpload();
-          });
-      }
+      media_type: finalMediaType,
 
-      queryClient.invalidateQueries(["stats"]);
-      queryClient.invalidateQueries(["categories"]);
-    } catch (error) {
-      console.error("❌ Erro ao salvar prompt:", error);
-      toast.error(error.message || "Erro ao salvar prompt");
+      image_url: imageBlobUrl || "",
+      video_url: videoBlobUrl || "",
+      thumb_url: thumbUrl || "",
+
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      usage_count: 0,
+    };
+
+    let realPrompt;
+
+    setUploadStage('Criando prompt...');
+    setUploadProgress(10);
+
+    const basePayload = {
+      title: formToSave.title,
+      content: formToSave.content,
+      description: formToSave.description || "",
+      tags: formToSave.tags || "",
+      platform: formToSave.platform || "chatgpt",
+      is_favorite: formToSave.is_favorite || false,
+      media_type: finalMediaType,
+      category_id:
+        formToSave.category_id !== "none"
+          ? parseInt(formToSave.category_id)
+          : null,
+    };
+
+    if (formToSave.youtube_url) {
+      realPrompt = await createPromptMutation.mutateAsync({
+        payload: {
+          ...basePayload,
+          youtube_url: formToSave.youtube_url,
+        },
+        optimisticPrompt,
+      });
+    } else {
+      realPrompt = await createPromptMutation.mutateAsync({
+        payload: basePayload,
+        optimisticPrompt,
+      });
+    }
+
+    setUploadProgress(30);
+
+    if (!realPrompt?.id) {
+      throw new Error("Backend não retornou o prompt criado");
+    }
+
+    const promptId = realPrompt.id;
+
+    const hasImage =
+      formToSave.imageFile instanceof File &&
+      !formToSave.videoFile &&
+      !formToSave.youtube_url;
+
+    const hasVideo = 
+      formToSave.videoFile instanceof File &&
+      !formToSave.youtube_url;
+
+    const needsMediaUpload = 
+      hasImage || hasVideo || extraFiles.length > 0;
+
+    const imageFileToUpload = formToSave.imageFile;
+    const videoFileToUpload = formToSave.videoFile;
+    const thumbnailBlobToUpload = formToSave.thumbnailBlob;
+    const extraFilesToUpload = [...extraFiles];
+
+    localStorage.removeItem("prompt-draft");
+    
+    toast.success("✅ Prompt criado com sucesso!");
+
+    setUploadStage('Finalizando...');
+    setUploadProgress(needsMediaUpload ? 35 : 100);
+
+    if (!needsMediaUpload) {
+      setTimeout(() => {
+        resetPromptForm();
+        setIsPromptDialogOpen(false);
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadStage('');
+      }, 500);
+    } else {
+      resetPromptForm();
+      setIsPromptDialogOpen(false);
       setIsUploading(false);
       setUploadProgress(0);
       setUploadStage('');
-    } finally {
-      setIsSaving(false);
     }
-  };
+
+    queryClient.invalidateQueries(["stats"]);
+    queryClient.invalidateQueries(["categories"]);
+
+    if (promptId && needsMediaUpload) {
+      const mediaForm = new FormData();
+
+      if (hasImage && imageFileToUpload) {
+        mediaForm.append("image", imageFileToUpload);
+      }
+
+      if (hasVideo && videoFileToUpload) {
+        mediaForm.append("video", videoFileToUpload);
+        
+        if (thumbnailBlobToUpload instanceof Blob) {
+          mediaForm.append("thumbnail", thumbnailBlobToUpload, 'thumbnail.jpg');
+        } else if (imageFileToUpload instanceof File) {
+          mediaForm.append("thumbnail", imageFileToUpload);
+        }
+      }
+
+      if (extraFilesToUpload.length > 0) {
+        extraFilesToUpload.forEach((file) => {
+          mediaForm.append("extra_files", file);
+        });
+      }
+
+      startMediaUpload();
+
+      api
+        .post(`/prompts/${promptId}/media`, mediaForm, {
+          headers: { "Content-Type": "multipart/form-data" },
+          timeout: 180000,
+        })
+        .then((res) => {
+          if (res.data?.data) {
+            queryClient.setQueryData(["prompts"], (old) => {
+              if (!Array.isArray(old)) return old;
+
+              return old.map((p) => {
+                if (p.id === promptId) {
+                  const newPrompt = {
+                    ...res.data.data,
+                    _uploadingMedia: false,
+                    _clientId: p._clientId,
+                  };
+                  return newPrompt;
+                }
+                return p;
+              });
+            });
+
+            toast.success("🎬 Mídia enviada com sucesso!");
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Erro ao enviar mídia:", err);
+          queryClient.setQueryData(["prompts"], (old) => {
+            if (!Array.isArray(old)) return old;
+            return old.map((p) =>
+              p.id === promptId ? { ...p, _uploadingMedia: false } : p
+            );
+          });
+
+          toast.warning("Prompt criado, mas houve erro no upload da mídia.");
+        })
+        .finally(() => {
+          endMediaUpload();
+        });
+    }
+
+    queryClient.invalidateQueries(["stats"]);
+    queryClient.invalidateQueries(["categories"]);
+    
+  } catch (error) {
+    console.error("❌ Erro ao salvar prompt:", error);
+    toast.error(error.message || "Erro ao salvar prompt");
+    setIsUploading(false);
+    setUploadProgress(0);
+    setUploadStage('');
+  } finally {
+    setIsSaving(false);
+  }
+};
 
   const saveCategory = async () => {
     try {
