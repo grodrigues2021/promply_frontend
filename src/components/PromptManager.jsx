@@ -650,7 +650,10 @@ export default function PromptManager({
       const response = await api.get(`/prompts/${prompt.id}/files`);
       
       if (response.data?.success && response.data?.data) {
-        setAttachments(response.data.data);
+        const extraFilesOnly = response.data.data.filter(file => 
+  !['video', 'thumbnail', 'image'].includes(file.file_type)
+);
+setAttachments(extraFilesOnly);
       } else {
         setAttachments([]);
       }
