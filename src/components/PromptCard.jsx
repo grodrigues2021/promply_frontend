@@ -947,6 +947,10 @@ const PromptCard = React.memo(({
   return (
     prevProps.prompt.id === nextProps.prompt.id &&
     prevProps.prompt.title === nextProps.prompt.title &&
+    prevProps.prompt.description === nextProps.prompt.description &&
+    prevProps.prompt.content === nextProps.prompt.content &&
+    prevProps.prompt.platform === nextProps.prompt.platform &&
+    prevProps.prompt.updated_at === nextProps.prompt.updated_at &&
     prevProps.authorName === nextProps.authorName &&
     prevProps.prompt.is_favorite === nextProps.prompt.is_favorite &&
     prevProps.prompt.category?.id === nextProps.prompt.category?.id &&
@@ -956,7 +960,7 @@ const PromptCard = React.memo(({
     prevProps.prompt.thumb_url === nextProps.prompt.thumb_url &&
     prevProps.prompt.tags === nextProps.prompt.tags &&
     prevProps.prompt._uploadingMedia === nextProps.prompt._uploadingMedia &&
-    prevProps.duplicatingIds === nextProps.duplicatingIds  // ✅ ADICIONADO
+    prevProps.duplicatingIds === nextProps.duplicatingIds
   );
 });
 
