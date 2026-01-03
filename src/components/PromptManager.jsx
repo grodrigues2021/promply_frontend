@@ -245,6 +245,27 @@ export default function PromptManager({
     return () => clearInterval(checkInterval);
   }, [isMobileSidebarOpen]);
 
+  // 🔍 DIAGNÓSTICO: Verificar se resolveRealId está disponível
+  useEffect(() => {
+    console.log('%c🔍 DIAGNÓSTICO ATIVO', 'background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold;');
+    
+    try {
+      if (typeof resolveRealId === 'function') {
+        console.log('✅ resolveRealId está importado e disponível');
+        
+        // Testa a função
+        const testTempId = 'temp-123456789';
+        const result = resolveRealId(testTempId);
+        console.log(`🧪 Teste inicial: resolveRealId("${testTempId}") = ${result}`);
+      } else {
+        console.error('❌ resolveRealId NÃO está disponível!');
+        console.error('   Verifique o import na linha 86');
+      }
+    } catch (error) {
+      console.error('❌ Erro ao verificar resolveRealId:', error);
+    }
+  }, []);
+
   // ✅ CORREÇÃO: useEffect de resize SEM dependência circular
   useEffect(() => {
     const handleResize = () => {
@@ -613,8 +634,23 @@ export default function PromptManager({
 const editPrompt = useCallback(async (prompt) => {
   setIsEditMode(true);
   
+  // 🔍 DIAGNÓSTICO: Editando prompt
+  console.log('%c📝 EDITANDO PROMPT', 'background: #9C27B0; color: white; padding: 4px 8px; font-weight: bold;');
+  console.log('  📍 Prompt recebido:', {
+    id: prompt.id,
+    title: prompt.title,
+    isTemp: String(prompt.id).startsWith('temp-')
+  });
+  
   // 🆔 CRÍTICO: Resolve ID real ANTES de setar o form
   const realId = resolveRealId(prompt.id);
+  
+  // 🔍 DIAGNÓSTICO: Resultado da resolução
+  console.log('  🔄 Resolução:', {
+    original: prompt.id,
+    resolvido: realId,
+    mudou: realId !== prompt.id
+  });
   
   console.log(`📝 [editPrompt] Editando prompt:`, {
     originalId: prompt.id,
@@ -923,6 +959,13 @@ const editPrompt = useCallback(async (prompt) => {
       // 🆔 CRÍTICO: Resolve ID real ANTES de atualizar
       const realId = resolveRealId(editingPrompt.id);
       
+      // 🔍 DIAGNÓSTICO: Salvando prompt (UPDATE)
+      console.log('%c💾 SALVANDO PROMPT (UPDATE)', 'background: #00BCD4; color: white; padding: 4px 8px; font-weight: bold;');
+      console.log('  📍 editingPrompt.id:', editingPrompt.id);
+      console.log('  🔄 realId resolvido:', realId);
+      console.log('  ✅ ID será usado:', realId);
+      console.log('  📡 Endpoint:', `/prompts/${realId}`);
+      
       console.log(`📝 [savePrompt] Atualizando prompt:`, {
         originalId: editingPrompt.id,
         resolvedId: realId,
@@ -1028,6 +1071,10 @@ const editPrompt = useCallback(async (prompt) => {
 
       setUploadStage('Finalizando...');
       setUploadProgress(100);
+
+      // 🔍 DIAGNÓSTICO: UPDATE completo
+      console.log('%c✅ UPDATE COMPLETO', 'background: #4CAF50; color: white; padding: 4px 8px; font-weight: bold;');
+      console.log('  📍 Prompt atualizado com ID:', realId);
 
       toast.success("✅ Prompt atualizado com sucesso!");
       
@@ -1414,6 +1461,29 @@ const editPrompt = useCallback(async (prompt) => {
 
       if (!newPrompt?.id) {
         throw new Error("Erro ao criar prompt duplicado");
+      }
+
+      // 🔍 DIAGNÓSTICO: Verificar mapeamento de IDs
+      console.log('%c📋 DUPLICAÇÃO CONCLUÍDA', 'background: #2196F3; color: white; padding: 4px 8px; font-weight: bold;');
+      console.log('  📍 tempId:', tempId);
+      console.log('  📍 _tempId:', optimisticPrompt._tempId);
+      console.log('  📍 realId:', newPrompt?.id);
+      console.log('  📍 _clientId:', optimisticPrompt._clientId);
+
+      // Aguarda para garantir que mapeamento foi criado
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Testa se o mapeamento foi criado
+      console.log('%c🧪 TESTANDO MAPEAMENTO', 'background: #FF9800; color: white; padding: 4px 8px; font-weight: bold;');
+      const testeResolucao = resolveRealId(tempId);
+      console.log(`  Resolve ${tempId} → ${testeResolucao}`);
+
+      if (testeResolucao === newPrompt?.id) {
+        console.log('%c✅ MAPEAMENTO CRIADO COM SUCESSO!', 'background: #4CAF50; color: white; padding: 4px 8px; font-weight: bold;');
+      } else {
+        console.log('%c❌ MAPEAMENTO NÃO FOI CRIADO!', 'background: #f44336; color: white; padding: 4px 8px; font-weight: bold;');
+        console.log('  Esperado:', newPrompt?.id);
+        console.log('  Recebido:', testeResolucao);
       }
 
       // Copiar mídia se necessário
