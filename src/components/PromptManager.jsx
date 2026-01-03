@@ -585,8 +585,49 @@ export default function PromptManager({
 
   const normalizeTags = useCallback((tags) => {
     if (!tags) return "";
+    
+    // ✅ CORREÇÃO: Se é string JSON, decodifica primeiro
+    if (typeof tags === 'string' && tags.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(tags);
+        if (Array.isArray(parsed)) {
+          return parsed.join(", ");
+        }
+      } catch (e) {
+        console.warn('[normalizeTags] Erro ao parsear tags JSON:', e);
+      }
+    }
+    
+    // Se já é array, join
     if (Array.isArray(tags)) return tags.join(", ");
+    
+    // Se é string normal, retorna
     return tags;
+  }, []);
+
+  // ✅ NOVA FUNÇÃO: Serializa tags string para array JSON
+  const serializeTags = useCallback((tagsString) => {
+    if (!tagsString || !tagsString.trim()) return [];
+    
+    // Se já é string JSON, decodifica e retorna
+    if (typeof tagsString === 'string' && tagsString.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(tagsString);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(tag => tag && tag.trim());
+        }
+      } catch (e) {
+        // Se falhar, continua para split normal
+      }
+    }
+    
+    // Split por vírgula e limpa espaços
+    const tagsArray = tagsString
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0);
+    
+    return tagsArray;
   }, []);
 
   const resetPromptForm = useCallback(() => {
@@ -691,7 +732,7 @@ const editPrompt = useCallback(async (prompt) => {
     title: promptToEdit.title || "",
     content: promptToEdit.content || "",
     description: promptToEdit.description || "",
-    tags: promptToEdit.tags || "",
+    tags: normalizeTags(promptToEdit.tags), // ✅ CORREÇÃO: Decodifica JSON para mostrar no input
     category_id: String(promptToEdit.category_id || "none"),
     image_url: normalizedImage,
     thumb_url: promptToEdit.thumb_url || "",
@@ -979,7 +1020,7 @@ const editPrompt = useCallback(async (prompt) => {
         title: formToSave.title,
         content: formToSave.content,
         description: formToSave.description || "",
-        tags: formToSave.tags || "",
+        tags: JSON.stringify(serializeTags(formToSave.tags)), // ✅ CORREÇÃO: Converte string para JSON array
         platform: formToSave.platform || "chatgpt",
         is_favorite: formToSave.is_favorite || false,
         youtube_url: formToSave.youtube_url || "",
@@ -1124,7 +1165,7 @@ const editPrompt = useCallback(async (prompt) => {
       title: formToSave.title,
       content: formToSave.content,
       description: formToSave.description || "",
-      tags: formToSave.tags || "",
+      tags: JSON.stringify(serializeTags(formToSave.tags)), // ✅ CORREÇÃO: Serializa tags para JSON
       platform: formToSave.platform || "chatgpt",
       is_favorite: formToSave.is_favorite || false,
       youtube_url: formToSave.youtube_url || "",
@@ -1153,7 +1194,7 @@ const editPrompt = useCallback(async (prompt) => {
       title: formToSave.title,
       content: formToSave.content,
       description: formToSave.description || "",
-      tags: formToSave.tags || "",
+      tags: JSON.stringify(serializeTags(formToSave.tags)), // ✅ CORREÇÃO: Serializa tags para JSON
       platform: formToSave.platform || "chatgpt",
       is_favorite: formToSave.is_favorite || false,
       media_type: finalMediaType,
