@@ -273,6 +273,8 @@ export function useCreatePromptMutation() {
       });
 
       // ✅ Atualiza stats
+      queryClient.invalidateQueries({ queryKey: ["prompts"] });
+
       queryClient.invalidateQueries({ queryKey: ["stats"] });
     },
 
