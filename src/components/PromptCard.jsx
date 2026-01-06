@@ -77,6 +77,9 @@ const contentVariants = cva("flex flex-col justify-between p-4 min-w-0", {
   },
 });
 
+// 🛡️ CACHE DE IDs QUE RETORNARAM 404 - Evita requisições repetidas em prompts deletados
+const failed404PromptIds = new Set();
+
 const extractYouTubeId = (url) => {
   if (!url) return null;
   try {
@@ -424,25 +427,65 @@ const PromptCard = React.memo(({
 
   // 🔵 Carregar anexos do prompt
   useEffect(() => {
+    // ✅ Validações iniciais
     if (!prompt.id || typeof prompt.id !== "number") {
       setLoadingAttachments(false);
       return;
     }
 
+    // 🛡️ Se este prompt já retornou 404, não tenta novamente
+    if (failed404PromptIds.has(prompt.id)) {
+      setLoadingAttachments(false);
+      setAttachments([]);
+      return;
+    }
+
+    // ✅ AbortController para cancelar requisição ao desmontar
+    const abortController = new AbortController();
+    let isMounted = true;
+
     async function fetchFiles() {
       try {
-        const res = await api.get(`/prompts/${prompt.id}/files`);
-        setAttachments(res.data?.data || []);
+        const res = await api.get(`/prompts/${prompt.id}/files`, {
+          signal: abortController.signal
+        });
+        
+        if (isMounted) {
+          setAttachments(res.data?.data || []);
+        }
       } catch (err) {
-        if (err.response?.status !== 404) {
+        // Se foi abortado, ignora o erro
+        if (err.name === 'AbortError' || err.code === 'ERR_CANCELED') {
+          return;
+        }
+
+        // 🛡️ Se retornou 404, adiciona ao cache para não tentar novamente
+        if (err.response?.status === 404) {
+          failed404PromptIds.add(prompt.id);
+          if (isDev) {
+            console.log(`🛡️ Prompt ${prompt.id} retornou 404 - adicionado ao cache de falhas`);
+          }
+        } else if (err.response?.status !== 404) {
           console.error("Erro ao carregar anexos:", err);
         }
+        
+        if (isMounted) {
+          setAttachments([]);
+        }
       } finally {
-        setLoadingAttachments(false);
+        if (isMounted) {
+          setLoadingAttachments(false);
+        }
       }
     }
 
     fetchFiles();
+
+    // Cleanup: cancela requisição se componente desmontar
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [prompt.id]);
 
   const displayAuthorName = authorName || 
