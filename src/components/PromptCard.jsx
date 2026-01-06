@@ -462,9 +462,7 @@ const PromptCard = React.memo(({
         // 🛡️ Se retornou 404, adiciona ao cache para não tentar novamente
         if (err.response?.status === 404) {
           failed404PromptIds.add(prompt.id);
-          if (isDev) {
-            console.log(`🛡️ Prompt ${prompt.id} retornou 404 - adicionado ao cache de falhas`);
-          }
+          console.log(`🛡️ Prompt ${prompt.id} retornou 404 - adicionado ao cache de falhas`);
         } else if (err.response?.status !== 404) {
           console.error("Erro ao carregar anexos:", err);
         }
