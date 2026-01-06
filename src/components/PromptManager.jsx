@@ -93,6 +93,7 @@ import { debounce } from "lodash";
 import { resolveMediaUrl } from "../lib/media";
 import PromptModal from "./PromptModal";
 
+
 // ✅ CORREÇÃO: Breakpoint consistente com Tailwind
 const MOBILE_BREAKPOINT = 1024; // lg: em Tailwind
 const isMobile = window.innerWidth < MOBILE_BREAKPOINT;
@@ -1399,23 +1400,63 @@ const editPrompt = useCallback(async (prompt) => {
   };
 
   const deletePrompt = async (id) => {
-    if (String(id).startsWith("temp-")) {
-      toast.warning("⏳ Aguarde o prompt ser criado antes de deletar!");
-      return;
-    }
+  if (String(id).startsWith("temp-")) {
+    toast.warning("⏳ Aguarde o prompt ser criado antes de deletar!");
+    return;
+  }
 
-    if (!confirm("Tem certeza que deseja deletar este prompt?")) {
-      return;
-    }
+  if (!confirm("Tem certeza que deseja deletar este prompt?")) {
+    return;
+  }
 
-    try {
-      await deletePromptMutation.mutateAsync(id);
-      toast.success("🗑️ Prompt deletado!");
-    } catch (err) {
-      console.error("❌ Erro ao deletar prompt:", err);
+  try {
+    // 🔄 TENTATIVA 1: Delete normal (sem force)
+    await deletePromptMutation.mutateAsync(id);
+    toast.success("🗑️ Prompt deletado!");
+    
+  } catch (err) {
+    console.error("❌ Erro ao deletar prompt:", err);
+    
+    // 🛡️ VALIDAÇÃO: Verificar se tem posts no chat
+    if (err.response?.status === 409 && err.response?.data?.has_chat_posts) {
+      const data = err.response.data;
+      
+      // 💬 MODAL DE CONFIRMAÇÃO
+      const confirmed = confirm(
+        `⚠️ ATENÇÃO!\n\n` +
+        `Este prompt foi compartilhado ${data.posts_count} vez(es) no chat da comunidade.\n\n` +
+        `Se você deletar:\n` +
+        `• Os compartilhamentos no chat ficarão inválidos\n` +
+        `• Outros usuários não poderão mais visualizar o prompt compartilhado\n\n` +
+        `Deseja deletar mesmo assim?`
+      );
+      
+      if (!confirmed) {
+        toast.info("❌ Deleção cancelada");
+        return;
+      }
+      
+      // ✅ CONFIRMADO: Deletar com force=true
+      try {
+        // Fazer delete direto na API com force=true
+        await api.delete(`/prompts/${id}?force=true`);
+        
+        toast.success("✅ Prompt e compartilhamentos deletados!");
+        
+        // Invalidar cache para recarregar lista
+        queryClient.invalidateQueries(['prompts']);
+        
+      } catch (forceError) {
+        console.error("❌ Erro ao deletar com force:", forceError);
+        toast.error("❌ Erro ao deletar prompt");
+      }
+      
+    } else {
+      // ❌ ERRO GENÉRICO
       toast.error("Erro ao deletar prompt");
     }
-  };
+  }
+};
 
   const handleToggleFavorite = async (prompt) => {
     if (String(prompt.id).startsWith("temp-")) {
