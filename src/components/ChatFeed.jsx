@@ -1,5 +1,5 @@
-// src/components/ChatFeed.jsx - OTIMIZADO COM WEBSOCKET + FALLBACK + SCROLL INTELIGENTE
-// ✅ CORRIGIDO: Não força scroll quando usuário está lendo mensagens antigas
+// src/components/ChatFeed.jsx - SCROLL INTELIGENTE COMPLETO
+// ✅ CORRIGIDO: Mensagens próprias sempre rolam / Mensagens de outros respeitam leitura
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
 import { Loader2, AlertCircle, WifiOff } from 'lucide-react';
 import ChatMessage from './ChatMessage';
@@ -10,7 +10,7 @@ import { useBroadcastSync, BroadcastMessageTypes } from '../hooks/useBroadcastSy
 
 /**
  * Feed de conversas - Com WebSocket, Fallback e Scroll Inteligente
- * ✅ CORRIGIDO: Respeita quando usuário está lendo mensagens antigas
+ * ✅ CORRIGIDO: Mensagens próprias sempre rolam, mensagens de outros respeitam leitura
  */
 const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   const [posts, setPosts] = useState([]);
@@ -20,6 +20,7 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -27,7 +28,21 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   const typingTimers = useRef({});
   const pollingIntervalRef = useRef(null);
 
-  // ✅ NOVO: Verifica se usuário está no fundo da página
+  // ✅ Pega ID do usuário atual ao montar componente
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setCurrentUserId(user.id);
+        console.log('👤 Usuário atual ID:', user.id);
+      } catch (e) {
+        console.error('❌ Erro ao pegar user ID:', e);
+      }
+    }
+  }, []);
+
+  // ✅ Verifica se usuário está no fundo da página
   const isUserAtBottom = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return true;
@@ -37,9 +52,8 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     return scrollHeight - scrollTop - clientHeight < 100;
   }, []);
 
-  // 📜 SCROLL INTELIGENTE - Só rola se usuário estiver no fundo
+  // 📜 SCROLL INTELIGENTE
   const scrollToBottom = useCallback((force = false) => {
-    // ✅ CORREÇÃO: Só rola se force=true OU se usuário já estiver no fundo
     if (force || !userScrolled) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       setHasNewMessages(false);
@@ -61,13 +75,13 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
 
     const atBottom = isUserAtBottom();
 
-    // ✅ Usuário saiu do fundo
+    // Usuário saiu do fundo
     if (!atBottom && !userScrolled) {
       setUserScrolled(true);
       console.log('👆 Usuário rolou para cima - auto-scroll desativado');
     }
     
-    // ✅ Usuário voltou ao fundo
+    // Usuário voltou ao fundo
     if (atBottom && userScrolled) {
       setUserScrolled(false);
       setHasNewMessages(false);
@@ -82,7 +96,7 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     }
   }, [userScrolled, hasNewMessages, onScrollStateChange]);
 
-  // 🆕 Nova mensagem recebida
+  // 🆕 Nova mensagem recebida - COM DETECÇÃO DE AUTOR
   const handleNewMessage = useCallback((message) => {
     console.log("🔥 Processando nova mensagem:", message);
     
@@ -96,15 +110,26 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
       return [...prev, message];
     });
 
-    // ✅ CORREÇÃO: Só rola se usuário estiver no fundo
-    if (!userScrolled && isUserAtBottom()) {
-      setTimeout(() => scrollToBottom(), 100);
-    } else if (userScrolled) {
-      // Mostra badge de nova mensagem
-      setHasNewMessages(true);
-      console.log('📬 Nova mensagem - Badge exibido (usuário lendo mensagens antigas)');
+    // ✅ NOVA LÓGICA: Verifica se mensagem é do usuário atual
+    const isMyMessage = message.author?.id === currentUserId;
+
+    if (isMyMessage) {
+      // 🟢 MENSAGEM PRÓPRIA: Sempre rolar automaticamente
+      console.log('📤 Mensagem própria - rolando automaticamente');
+      setTimeout(() => scrollToBottom(true), 100);
+    } else {
+      // 🟡 MENSAGEM DE OUTRO: Aplicar lógica inteligente
+      if (!userScrolled && isUserAtBottom()) {
+        // Usuário está no fundo - rolar
+        console.log('📥 Mensagem de outro - usuário no fundo - rolando');
+        setTimeout(() => scrollToBottom(), 100);
+      } else if (userScrolled) {
+        // Usuário está lendo mensagens antigas - mostrar badge
+        console.log('📬 Mensagem de outro - usuário lendo - mostrando badge');
+        setHasNewMessages(true);
+      }
     }
-  }, [userScrolled, isUserAtBottom, scrollToBottom]);
+  }, [currentUserId, userScrolled, isUserAtBottom, scrollToBottom]);
 
   // 🗑️ Mensagem deletada
   const handleMessageDeleted = useCallback((messageId) => {
@@ -148,14 +173,23 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
       const newPosts = response.data?.data || [];
 
       if (Array.isArray(newPosts)) {
+        // ✅ NOVA LÓGICA: Detecta se última mensagem é do usuário atual
+        const lastPost = newPosts[newPosts.length - 1];
+        const isLastPostMine = lastPost && lastPost.author?.id === currentUserId;
+
         setPosts(newPosts);
         console.log("📬 Mensagens atualizadas:", newPosts.length);
 
-        // ✅ CORREÇÃO: Só rola se explicitamente solicitado E usuário no fundo
-        if (shouldScroll && !userScrolled && isUserAtBottom()) {
+        // Se última mensagem é minha, sempre rolar
+        if (isLastPostMine && newPosts.length > previousPostsCount.current) {
+          console.log('📤 Última mensagem é minha - rolando automaticamente');
+          setTimeout(() => scrollToBottom(true), 100);
+        }
+        // Senão, aplicar lógica inteligente
+        else if (shouldScroll && !userScrolled && isUserAtBottom()) {
           setTimeout(() => scrollToBottom(), 100);
         } else if (newPosts.length > previousPostsCount.current && userScrolled) {
-          // Nova mensagem chegou mas usuário está lendo - mostra badge
+          // Nova mensagem de outro usuário, mas estou lendo - mostra badge
           setHasNewMessages(true);
         }
 
@@ -169,7 +203,7 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     } finally {
       setLoading(false);
     }
-  }, [userScrolled, isUserAtBottom, scrollToBottom]);
+  }, [currentUserId, userScrolled, isUserAtBottom, scrollToBottom]);
 
   // 🔥 BROADCAST SYNC - Escuta notificações de outras janelas
   const handleBroadcastMessage = useCallback((message) => {
@@ -178,13 +212,13 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     switch (message.type) {
       case BroadcastMessageTypes.CHAT_MESSAGE_SENT:
         console.log('💬 [ChatFeed] Nova mensagem detectada - Recarregando...');
-        // ✅ CORREÇÃO: Não força scroll, deixa lógica decidir
+        // ✅ CORREÇÃO: fetchPosts vai detectar se é mensagem própria
         fetchPosts(false);
         break;
         
       case BroadcastMessageTypes.PROMPT_SHARED:
         console.log('✨ [ChatFeed] Prompt compartilhado - Recarregando chat...');
-        // ✅ CORREÇÃO: Não força scroll, deixa lógica decidir
+        // ✅ CORREÇÃO: fetchPosts vai detectar se é mensagem própria
         fetchPosts(false);
         break;
         
@@ -199,7 +233,6 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   // 🔐 AUTENTICAÇÃO NO WEBSOCKET
   useEffect(() => {
     if (socket.connected) {
-      // Pega dados do usuário do localStorage
       const userStr = localStorage.getItem('user');
       if (userStr) {
         try {
@@ -211,7 +244,6 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
             userName: user.name
           });
 
-          // Confirma autenticação
           socket.once('authenticated', (data) => {
             console.log("✅ Autenticado no WebSocket:", data);
           });
@@ -228,14 +260,12 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
       console.log("✅ WebSocket conectado");
       setIsSocketConnected(true);
       
-      // Para polling quando WebSocket conectar
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
         console.log("⏸️ Polling desativado (WebSocket ativo)");
       }
 
-      // Autentica ao conectar
       const userStr = localStorage.getItem('user');
       if (userStr) {
         try {
@@ -264,7 +294,6 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
 
-    // Verifica se já está conectado
     if (socket.connected) {
       setIsSocketConnected(true);
     }
@@ -283,10 +312,9 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     if (shouldPoll && !loading) {
       console.log("🔄 Polling ativo a cada 5 segundos");
       
-      // ✅ CORREÇÃO: Aumentado para 5 segundos para reduzir requisições
       pollingIntervalRef.current = setInterval(() => {
         console.log("🔄 Polling: Verificando novas mensagens...");
-        fetchPosts(false); // ✅ Não força scroll
+        fetchPosts(false);
       }, 5000);
 
       return () => {
@@ -307,10 +335,8 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
       }
     });
 
-    // 🔥 NOVO: Escuta quando QUALQUER usuário compartilha prompt
     socket.on("prompt_shared", (data) => {
       console.log("✨ Prompt compartilhado por outro usuário via WebSocket:", data);
-      // ✅ CORREÇÃO: Não força scroll
       fetchPosts(false);
     });
 
@@ -346,7 +372,7 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   }, [posts.length, scrollToBottom]);
 
   const handlePostUpdate = useCallback(() => {
-    fetchPosts(false); // ✅ Não força scroll ao atualizar
+    fetchPosts(false);
   }, [fetchPosts]);
 
   // 🚀 Carrega mensagens iniciais ao montar o componente
@@ -359,7 +385,6 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   useEffect(() => {
     if (refreshTrigger > 0) {
       console.log("[REFRESH] Trigger acionado, recarregando...");
-      // ✅ CORREÇÃO: Só força scroll se usuário estiver no fundo
       const shouldScroll = !userScrolled && isUserAtBottom();
       fetchPosts(shouldScroll);
     }
@@ -368,7 +393,7 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   // 🎨 Memoizar posts processados
   const processedPosts = useMemo(() => {
     return posts
-      .filter((p) => p && p.id && p.author) // evita nulos
+      .filter((p) => p && p.id && p.author)
       .map((post) => ({
         ...post,
         userColor: getUserColor(post.author?.id || 0),
