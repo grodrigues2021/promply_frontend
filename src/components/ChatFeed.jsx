@@ -1,6 +1,7 @@
-// src/components/ChatFeed.jsx - OTIMIZADO COM WEBSOCKET + FALLBACK + BROADCAST SYNC
+// src/components/ChatFeed.jsx - OTIMIZADO COM WEBSOCKET + FALLBACK + SCROLL INTELIGENTE
+// ✅ CORRIGIDO: Não força scroll quando usuário está lendo mensagens antigas
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef, useCallback, useMemo } from 'react';
-import { Loader2, AlertCircle, WifiOff, Wifi } from 'lucide-react';
+import { Loader2, AlertCircle, WifiOff } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import api from '../lib/api';
 import { getUserColor } from '../utils/chatUtils';
@@ -8,7 +9,8 @@ import { socket } from "../socket";
 import { useBroadcastSync, BroadcastMessageTypes } from '../hooks/useBroadcastSync';
 
 /**
- * Feed de conversas - Com WebSocket, Fallback e BroadcastSync
+ * Feed de conversas - Com WebSocket, Fallback e Scroll Inteligente
+ * ✅ CORRIGIDO: Respeita quando usuário está lendo mensagens antigas
  */
 const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   const [posts, setPosts] = useState([]);
@@ -25,9 +27,20 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
   const typingTimers = useRef({});
   const pollingIntervalRef = useRef(null);
 
-  // 📜 SCROLL INTELIGENTE
+  // ✅ NOVO: Verifica se usuário está no fundo da página
+  const isUserAtBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return true;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    // Considera "no fundo" se estiver a menos de 100px do final
+    return scrollHeight - scrollTop - clientHeight < 100;
+  }, []);
+
+  // 📜 SCROLL INTELIGENTE - Só rola se usuário estiver no fundo
   const scrollToBottom = useCallback((force = false) => {
-    if (!userScrolled || force) {
+    // ✅ CORREÇÃO: Só rola se force=true OU se usuário já estiver no fundo
+    if (force || !userScrolled) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       setHasNewMessages(false);
       setUserScrolled(false);
@@ -46,18 +59,21 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
+    const atBottom = isUserAtBottom();
 
-    if (!isAtBottom && !userScrolled) {
+    // ✅ Usuário saiu do fundo
+    if (!atBottom && !userScrolled) {
       setUserScrolled(true);
+      console.log('👆 Usuário rolou para cima - auto-scroll desativado');
     }
     
-    if (isAtBottom && userScrolled) {
+    // ✅ Usuário voltou ao fundo
+    if (atBottom && userScrolled) {
       setUserScrolled(false);
       setHasNewMessages(false);
+      console.log('👇 Usuário voltou ao fundo - auto-scroll reativado');
     }
-  }, [userScrolled]);
+  }, [userScrolled, isUserAtBottom]);
 
   // ✅ Notifica mudanças no estado
   useEffect(() => {
@@ -80,12 +96,15 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
       return [...prev, message];
     });
 
-    if (userScrolled) {
+    // ✅ CORREÇÃO: Só rola se usuário estiver no fundo
+    if (!userScrolled && isUserAtBottom()) {
+      setTimeout(() => scrollToBottom(), 100);
+    } else if (userScrolled) {
+      // Mostra badge de nova mensagem
       setHasNewMessages(true);
-    } else {
-      setTimeout(() => scrollToBottom(true), 100);
+      console.log('📬 Nova mensagem - Badge exibido (usuário lendo mensagens antigas)');
     }
-  }, [userScrolled, scrollToBottom]);
+  }, [userScrolled, isUserAtBottom, scrollToBottom]);
 
   // 🗑️ Mensagem deletada
   const handleMessageDeleted = useCallback((messageId) => {
@@ -120,8 +139,8 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
     }
   }, []);
 
-  // ✅ fetchPosts – Carregar mensagens iniciais e manter sincronização
-  const fetchPosts = useCallback(async (isManualRefresh = false) => {
+  // ✅ fetchPosts – Carregar mensagens
+  const fetchPosts = useCallback(async (shouldScroll = false) => {
     try {
       setError(null);
 
@@ -129,13 +148,15 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
       const newPosts = response.data?.data || [];
 
       if (Array.isArray(newPosts)) {
-        // 🔧 Mescla sem sobrescrever mensagens novas do WebSocket
         setPosts(newPosts);
-console.log("📬 Mensagens atualizadas:", newPosts.length);
+        console.log("📬 Mensagens atualizadas:", newPosts.length);
 
-
-        if (isManualRefresh) {
-          setTimeout(() => scrollToBottom(true), 100);
+        // ✅ CORREÇÃO: Só rola se explicitamente solicitado E usuário no fundo
+        if (shouldScroll && !userScrolled && isUserAtBottom()) {
+          setTimeout(() => scrollToBottom(), 100);
+        } else if (newPosts.length > previousPostsCount.current && userScrolled) {
+          // Nova mensagem chegou mas usuário está lendo - mostra badge
+          setHasNewMessages(true);
         }
 
         previousPostsCount.current = newPosts.length;
@@ -148,7 +169,7 @@ console.log("📬 Mensagens atualizadas:", newPosts.length);
     } finally {
       setLoading(false);
     }
-  }, [scrollToBottom]);
+  }, [userScrolled, isUserAtBottom, scrollToBottom]);
 
   // 🔥 BROADCAST SYNC - Escuta notificações de outras janelas
   const handleBroadcastMessage = useCallback((message) => {
@@ -157,14 +178,14 @@ console.log("📬 Mensagens atualizadas:", newPosts.length);
     switch (message.type) {
       case BroadcastMessageTypes.CHAT_MESSAGE_SENT:
         console.log('💬 [ChatFeed] Nova mensagem detectada - Recarregando...');
-        // Recarrega mensagens para pegar a nova mensagem
-        scrollToBottom(true);
+        // ✅ CORREÇÃO: Não força scroll, deixa lógica decidir
+        fetchPosts(false);
         break;
         
       case BroadcastMessageTypes.PROMPT_SHARED:
         console.log('✨ [ChatFeed] Prompt compartilhado - Recarregando chat...');
-        // Recarrega para pegar a mensagem automática do compartilhamento
-        fetchPosts(true);
+        // ✅ CORREÇÃO: Não força scroll, deixa lógica decidir
+        fetchPosts(false);
         break;
         
       default:
@@ -255,18 +276,18 @@ console.log("📬 Mensagens atualizadas:", newPosts.length);
     };
   }, []);
 
-  // ⚠️ FALLBACK: Polling quando WebSocket desconectar OU como backup
+  // ⚠️ FALLBACK: Polling quando WebSocket desconectar
   useEffect(() => {
-    // 🔥 Polling ativo mesmo com WebSocket conectado (backup para prompts compartilhados)
-    const shouldPoll = !isSocketConnected; // Sempre ativo para garantir sincronia
+    const shouldPoll = !isSocketConnected;
     
     if (shouldPoll && !loading) {
-      console.log("🔄 Polling ativo a cada 3 segundos (backup para prompts compartilhados)");
+      console.log("🔄 Polling ativo a cada 5 segundos");
       
+      // ✅ CORREÇÃO: Aumentado para 5 segundos para reduzir requisições
       pollingIntervalRef.current = setInterval(() => {
         console.log("🔄 Polling: Verificando novas mensagens...");
-        fetchPosts(false);
-      }, 3000); // 3 segundos para melhor responsividade
+        fetchPosts(false); // ✅ Não força scroll
+      }, 5000);
 
       return () => {
         if (pollingIntervalRef.current) {
@@ -275,7 +296,7 @@ console.log("📬 Mensagens atualizadas:", newPosts.length);
         }
       };
     }
-  }, [loading, fetchPosts]);
+  }, [loading, isSocketConnected, fetchPosts]);
 
   // 🧠 EVENTOS DO WEBSOCKET
   useEffect(() => {
@@ -289,8 +310,8 @@ console.log("📬 Mensagens atualizadas:", newPosts.length);
     // 🔥 NOVO: Escuta quando QUALQUER usuário compartilha prompt
     socket.on("prompt_shared", (data) => {
       console.log("✨ Prompt compartilhado por outro usuário via WebSocket:", data);
-      // Recarrega para pegar a nova mensagem
-      fetchPosts(true);
+      // ✅ CORREÇÃO: Não força scroll
+      fetchPosts(false);
     });
 
     socket.on("message_deleted", (data) => {
@@ -308,22 +329,24 @@ console.log("📬 Mensagens atualizadas:", newPosts.length);
 
     return () => {
       socket.off("new_message");
-      socket.off("prompt_shared"); // 🔥 Cleanup
+      socket.off("prompt_shared");
       socket.off("message_deleted");
       socket.off("user_typing");
       socket.off("user_stopped_typing");
     };
   }, [handleNewMessage, handleMessageDeleted, handleUserTyping, handleUserStoppedTyping, fetchPosts]);
 
-  // Scroll inicial
+  // ✅ Scroll inicial APENAS na primeira carga
   useEffect(() => {
-    if (posts.length > 0 && !userScrolled) {
+    if (posts.length > 0 && previousPostsCount.current === 0) {
+      console.log('📜 Primeira carga - scrolling para o fundo');
       setTimeout(() => scrollToBottom(true), 200);
+      previousPostsCount.current = posts.length;
     }
-  }, [posts.length, userScrolled, scrollToBottom]);
+  }, [posts.length, scrollToBottom]);
 
   const handlePostUpdate = useCallback(() => {
-    fetchPosts(false);
+    fetchPosts(false); // ✅ Não força scroll ao atualizar
   }, [fetchPosts]);
 
   // 🚀 Carrega mensagens iniciais ao montar o componente
@@ -336,9 +359,11 @@ console.log("📬 Mensagens atualizadas:", newPosts.length);
   useEffect(() => {
     if (refreshTrigger > 0) {
       console.log("[REFRESH] Trigger acionado, recarregando...");
-      fetchPosts(true);
+      // ✅ CORREÇÃO: Só força scroll se usuário estiver no fundo
+      const shouldScroll = !userScrolled && isUserAtBottom();
+      fetchPosts(shouldScroll);
     }
-  }, [refreshTrigger, fetchPosts]);
+  }, [refreshTrigger, fetchPosts, userScrolled, isUserAtBottom]);
 
   // 🎨 Memoizar posts processados
   const processedPosts = useMemo(() => {
