@@ -201,8 +201,10 @@ const ChatFeed = forwardRef(({ refreshTrigger, onScrollStateChange }, ref) => {
         // Senão, aplicar lógica inteligente
         else if (shouldScroll && !userScrolled && isUserAtBottom()) {
           setTimeout(() => scrollToBottom(), 100);
-        } else if (newPosts.length > previousPostsCount.current && userScrolled) {
+        } else if (newPosts.length > previousPostsCount.current && userScrolled && !isLastPostMine) {
           setHasNewMessages(true);
+          // ✅ CORREÇÃO: Só mostra badge se NÃO for minha mensagem
+          console.log('📬 Nova mensagem de outro - mostrando badge');
         }
 
         previousPostsCount.current = newPosts.length;
